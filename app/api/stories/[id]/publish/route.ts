@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, nowIso } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   _req: Request,
@@ -33,5 +34,18 @@ export async function POST(
     now,
     id,
   );
+
+  const followers = await db.all<{ user_id: string }[]>(
+    "SELECT user_id FROM follows WHERE author_id = ?",
+    userId,
+  );
+  for (const row of followers) {
+    await createNotification(db, row.user_id, "author_update", {
+      author_id: userId,
+      story_id: id,
+      story_title: story.title,
+    });
+  }
+
   return NextResponse.json({ code: 200, msg: "发布成功", data: { publish_at: now } });
 }

@@ -1,13 +1,56 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type FeedItem = {
   id: string;
   title: string;
   summary: string;
   like_count: number;
+  author_id: string;
+};
+
+type NotificationItem = {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  is_read: number;
+  created_at: string;
+};
+
+type MyStoryItem = {
+  id: string;
+  title: string;
+  status: "draft" | "published" | "archived";
+  updated_at: string;
+};
+
+type StoryDetail = {
+  id: string;
+  author_id: string;
+  title: string;
+  summary: string;
+  status: string;
+  tags_json: string;
+  like_count: number;
+  publish_at: string | null;
+  updated_at: string;
+};
+
+type SessionItem = {
+  id: string;
+  title: string;
+  story_id: string | null;
+  updated_at: string;
+};
+
+type MessageItem = {
+  id: string;
+  role: "system" | "user" | "assistant";
+  content: string;
+  created_at: string;
 };
 
 export default function Home() {
@@ -19,6 +62,17 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [feedSort, setFeedSort] = useState("recommended");
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
+  const [selectedStoryDetail, setSelectedStoryDetail] = useState<StoryDetail | null>(null);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [selectedSessionForHistory, setSelectedSessionForHistory] = useState("");
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [messagePage, setMessagePage] = useState(1);
+  const [sessionKeyword, setSessionKeyword] = useState("");
+  const [sessionFrom, setSessionFrom] = useState("");
+  const [sessionTo, setSessionTo] = useState("");
   const [logLines, setLogLines] = useState<string[]>([]);
   const seqRef = useRef(0);
 
@@ -42,6 +96,7 @@ export default function Home() {
     if (json.code === 200) {
       setStoryId(json.data.id);
       pushLog(`故事创建成功: ${json.data.id}`);
+      await loadMyStories();
     } else {
       pushLog(`故事创建失败: ${json.msg}`);
     }
@@ -55,6 +110,16 @@ export default function Home() {
     const res = await fetch(`/api/stories/${storyId}/publish`, { method: "POST" });
     const json = await res.json();
     pushLog(json.msg ?? "发布完成");
+    await loadMyStories();
+    await loadFeed(feedSort);
+  }
+
+  async function unpublishStory(targetStoryId: string) {
+    const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
+    const json = await res.json();
+    pushLog(json.msg ?? "已下架");
+    await loadMyStories();
+    await loadFeed(feedSort);
   }
 
   async function createSession() {
@@ -72,7 +137,9 @@ export default function Home() {
     const json = await res.json();
     if (json.code === 200) {
       setSessionId(json.data.session_id);
+      setSelectedSessionForHistory(json.data.session_id);
       pushLog(`会话创建成功: ${json.data.session_id}`);
+      await loadSessions(storyId || undefined);
     } else {
       pushLog(`会话创建失败: ${json.msg}`);
     }
@@ -148,6 +215,129 @@ export default function Home() {
     const json = await res.json();
     pushLog(`${targetId} ${json.msg}`);
     await loadFeed(feedSort);
+    await loadNotifications();
+  }
+
+  async function followAuthor(authorId: string) {
+    const res = await fetch("/api/follows/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author_id: authorId }),
+    });
+    const json = await res.json();
+    pushLog(`作者 ${authorId} ${json.msg}`);
+    await loadFeed(feedSort);
+    await loadNotifications();
+  }
+
+  async function loadNotifications() {
+    const [listRes, unreadRes] = await Promise.all([
+      fetch("/api/notifications?page=1&page_size=10"),
+      fetch("/api/notifications/unread-count"),
+    ]);
+    const listJson = await listRes.json();
+    const unreadJson = await unreadRes.json();
+    setNotifications(listJson.data ?? []);
+    setUnread(unreadJson.data?.unread ?? 0);
+  }
+
+  async function loadMyStories() {
+    const res = await fetch("/api/stories?mine=1");
+    const json = await res.json();
+    setMyStories(json.data ?? []);
+  }
+
+  async function viewStoryDetail(targetStoryId: string) {
+    const res = await fetch(`/api/stories/${targetStoryId}`);
+    const json = await res.json();
+    if (json.code === 200) {
+      setSelectedStoryDetail(json.data);
+      setStoryId(targetStoryId);
+      await loadSessions(targetStoryId);
+      pushLog(`已加载故事详情: ${targetStoryId}`);
+    } else {
+      pushLog(json.msg ?? "加载详情失败");
+    }
+  }
+
+  async function loadSessions(storyIdParam?: string) {
+    const params = new URLSearchParams();
+    if (storyIdParam) params.set("story_id", storyIdParam);
+    if (sessionKeyword.trim()) params.set("q", sessionKeyword.trim());
+    if (sessionFrom) params.set("from", sessionFrom);
+    if (sessionTo) params.set("to", sessionTo);
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const res = await fetch(`/api/chat/sessions${query}`);
+    const json = await res.json();
+    const list: SessionItem[] = json.data ?? [];
+    setSessions(list);
+    if (list.length > 0 && !selectedSessionForHistory) {
+      setSelectedSessionForHistory(list[0].id);
+    }
+  }
+
+  async function loadMessages(sessionIdParam: string, page = 1) {
+    const res = await fetch(
+      `/api/chat/sessions/${sessionIdParam}/messages?page=${page}&page_size=20`,
+    );
+    const json = await res.json();
+    setMessages(json.data ?? []);
+    setMessagePage(page);
+  }
+
+  async function markAllRead() {
+    const res = await fetch("/api/notifications/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    });
+    const json = await res.json();
+    pushLog(json.msg ?? "已读完成");
+    await loadNotifications();
+  }
+
+  useEffect(() => {
+    void (async () => {
+      const feedRes = await fetch("/api/feed?sort=recommended");
+      const feedJson = await feedRes.json();
+      setFeed(feedJson.data.items ?? []);
+
+      const [listRes, unreadRes] = await Promise.all([
+        fetch("/api/notifications?page=1&page_size=10"),
+        fetch("/api/notifications/unread-count"),
+      ]);
+      const listJson = await listRes.json();
+      const unreadJson = await unreadRes.json();
+      setNotifications(listJson.data ?? []);
+      setUnread(unreadJson.data?.unread ?? 0);
+
+      const mineRes = await fetch("/api/stories?mine=1");
+      const mineJson = await mineRes.json();
+      setMyStories(mineJson.data ?? []);
+
+      const sessionRes = await fetch("/api/chat/sessions?page=1&page_size=20");
+      const sessionJson = await sessionRes.json();
+      setSessions(sessionJson.data ?? []);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSessionForHistory) return;
+    void loadMessages(selectedSessionForHistory, 1);
+  }, [selectedSessionForHistory]);
+
+  function formatNotification(item: NotificationItem) {
+    const payload = item.payload ?? {};
+    if (item.type === "liked") {
+      return `有人点赞了你的作品《${String(payload.story_title ?? "")}》`;
+    }
+    if (item.type === "followed") {
+      return "你新增了一位关注者";
+    }
+    if (item.type === "author_update") {
+      return `你关注的作者发布了新作品《${String(payload.story_title ?? "")}》`;
+    }
+    return "系统通知";
   }
 
   return (
@@ -163,6 +353,9 @@ export default function Home() {
             <div className="rounded-lg px-3 py-2 text-[#5B6B8C]">创作</div>
             <div className="rounded-lg px-3 py-2 text-[#5B6B8C]">设置</div>
           </nav>
+          <div className="mt-6 rounded-lg bg-[#EEF6FF] p-3 text-xs text-[#3F86F5]">
+            未读通知：{unread}
+          </div>
         </aside>
 
         <section className="space-y-4">
@@ -259,9 +452,20 @@ export default function Home() {
                   </p>
                   <div className="mt-2 flex items-center justify-between text-xs text-[#5B6B8C]">
                     <span>点赞: {item.like_count}</span>
-                    <button className="sf-tag" onClick={() => likeStory(item.id)}>
-                      点赞/取消
-                    </button>
+                    <div className="flex gap-2">
+                      <button className="sf-tag" onClick={() => likeStory(item.id)}>
+                        点赞/取消
+                      </button>
+                      <button className="sf-tag" onClick={() => viewStoryDetail(item.id)}>
+                        查看详情
+                      </button>
+                      <Link className="sf-tag" href={`/stories/${item.id}`}>
+                        详情页
+                      </Link>
+                      <button className="sf-tag" onClick={() => followAuthor(item.author_id)}>
+                        关注作者
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -270,6 +474,194 @@ export default function Home() {
                   暂无已发布故事。先新建故事并发布，再刷新推荐流。
                 </div>
               )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#DCE9FF] bg-white p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-[#1F2A44]">通知中心</p>
+                <div className="flex gap-2">
+                  <button className="sf-tag" onClick={loadNotifications}>
+                    刷新
+                  </button>
+                  <button className="sf-tag" onClick={markAllRead}>
+                    全部已读
+                  </button>
+                </div>
+              </div>
+              <ul className="mt-2 space-y-2 text-xs text-[#5B6B8C]">
+                {notifications.map((item) => (
+                  <li key={item.id} className="rounded-lg bg-[#F8FBFF] p-2">
+                    <span className="font-medium text-[#1F2A44]">[{item.type}] </span>
+                    {formatNotification(item)}
+                    {typeof item.payload.story_id === "string" && (
+                      <button
+                        className="ml-2 sf-tag"
+                        onClick={() => viewStoryDetail(String(item.payload.story_id))}
+                      >
+                        查看
+                      </button>
+                    )}
+                  </li>
+                ))}
+                {notifications.length === 0 && <li>暂无通知</li>}
+              </ul>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#DCE9FF] bg-white p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-[#1F2A44]">我的故事</p>
+                <button className="sf-tag" onClick={loadMyStories}>
+                  刷新
+                </button>
+              </div>
+              <ul className="mt-2 space-y-2 text-xs text-[#5B6B8C]">
+                {myStories.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between rounded-lg bg-[#F8FBFF] p-2"
+                  >
+                    <div>
+                      <p className="font-medium text-[#1F2A44]">{item.title}</p>
+                      <p>状态：{item.status}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        className="sf-tag"
+                        onClick={() => setStoryId(item.id)}
+                        title="设为当前故事"
+                      >
+                        设为当前
+                      </button>
+                      {item.status === "published" ? (
+                        <button className="sf-tag" onClick={() => unpublishStory(item.id)}>
+                          下架
+                        </button>
+                      ) : (
+                        <button
+                          className="sf-tag"
+                          onClick={async () => {
+                            const res = await fetch(`/api/stories/${item.id}/publish`, {
+                              method: "POST",
+                            });
+                            const json = await res.json();
+                            pushLog(`${item.title}: ${json.msg}`);
+                            await loadMyStories();
+                            await loadFeed(feedSort);
+                          }}
+                        >
+                          发布
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+                {myStories.length === 0 && <li>暂无我的故事</li>}
+              </ul>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#DCE9FF] bg-white p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-[#1F2A44]">故事详情</p>
+                {selectedStoryDetail && (
+                  <button
+                    className="sf-tag"
+                    onClick={async () => {
+                      await createSession();
+                    }}
+                  >
+                    基于该故事创建会话
+                  </button>
+                )}
+              </div>
+              {selectedStoryDetail ? (
+                <div className="mt-2 text-xs text-[#5B6B8C]">
+                  <p className="font-medium text-[#1F2A44]">{selectedStoryDetail.title}</p>
+                  <p className="mt-1">{selectedStoryDetail.summary || "暂无简介"}</p>
+                  <p className="mt-1">状态：{selectedStoryDetail.status}</p>
+                  <p className="mt-1">点赞：{selectedStoryDetail.like_count}</p>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-[#5B6B8C]">点击推荐卡片中的“查看详情”加载。</p>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-[#DCE9FF] bg-white p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-[#1F2A44]">会话历史</p>
+                <div className="flex gap-2">
+                  <input
+                    className="sf-input w-40 text-xs"
+                    placeholder="标题关键词"
+                    value={sessionKeyword}
+                    onChange={(e) => setSessionKeyword(e.target.value)}
+                  />
+                  <input
+                    className="sf-input w-36 text-xs"
+                    type="date"
+                    value={sessionFrom}
+                    onChange={(e) => setSessionFrom(e.target.value)}
+                  />
+                  <input
+                    className="sf-input w-36 text-xs"
+                    type="date"
+                    value={sessionTo}
+                    onChange={(e) => setSessionTo(e.target.value)}
+                  />
+                  <button
+                    className="sf-tag"
+                    onClick={() => loadSessions(storyId || selectedStoryDetail?.id)}
+                  >
+                    搜索/刷新
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-[220px_1fr]">
+                <ul className="space-y-2 text-xs">
+                  {sessions.map((s) => (
+                    <li
+                      key={s.id}
+                      className={`cursor-pointer rounded-lg p-2 ${
+                        selectedSessionForHistory === s.id ? "bg-[#EEF6FF]" : "bg-[#F8FBFF]"
+                      }`}
+                      onClick={() => setSelectedSessionForHistory(s.id)}
+                    >
+                      <p className="font-medium text-[#1F2A44]">{s.title}</p>
+                      <p className="text-[#5B6B8C]">{s.id}</p>
+                    </li>
+                  ))}
+                  {sessions.length === 0 && <li className="text-[#5B6B8C]">暂无会话</li>}
+                </ul>
+                <div>
+                  <div className="space-y-2 text-xs text-[#5B6B8C]">
+                    {messages.map((m) => (
+                      <div key={m.id} className="rounded-lg bg-[#F8FBFF] p-2">
+                        <span className="font-medium text-[#1F2A44]">[{m.role}] </span>
+                        {m.content}
+                      </div>
+                    ))}
+                    {messages.length === 0 && <div>暂无消息</div>}
+                  </div>
+                  {selectedSessionForHistory && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        className="sf-tag"
+                        onClick={() =>
+                          loadMessages(selectedSessionForHistory, Math.max(1, messagePage - 1))
+                        }
+                      >
+                        上一页
+                      </button>
+                      <button
+                        className="sf-tag"
+                        onClick={() => loadMessages(selectedSessionForHistory, messagePage + 1)}
+                      >
+                        下一页
+                      </button>
+                      <span className="text-xs text-[#5B6B8C]">第 {messagePage} 页</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-4 rounded-xl border border-[#DCE9FF] bg-white p-3">

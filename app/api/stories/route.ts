@@ -9,6 +9,32 @@ const schema = z.object({
   tags: z.array(z.string().min(1).max(30)).max(10).default([]),
 });
 
+export async function GET(req: Request) {
+  const userId = await getCurrentUserId();
+  const url = new URL(req.url);
+  const mine = url.searchParams.get("mine") === "1";
+  const db = await getDb();
+
+  const rows = mine
+    ? await db.all(
+        `SELECT id, title, summary, status, like_count, publish_at, updated_at
+         FROM stories
+         WHERE author_id = ?
+         ORDER BY updated_at DESC
+         LIMIT 100`,
+        userId,
+      )
+    : await db.all(
+        `SELECT id, title, summary, status, like_count, publish_at, updated_at
+         FROM stories
+         WHERE status = 'published'
+         ORDER BY publish_at DESC
+         LIMIT 100`,
+      );
+
+  return NextResponse.json({ code: 200, data: rows, msg: "ok" });
+}
+
 export async function POST(req: Request) {
   const body = await req.json();
   const parsed = schema.safeParse(body);

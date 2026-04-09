@@ -21,5 +21,10 @@ export async function GET(req: Request) {
     offset,
   );
 
-  return NextResponse.json({ code: 200, data: rows, msg: "ok" });
+  const parsedRows = rows.map((row: { payload_json: string }) => ({
+    ...row,
+    payload: JSON.parse(row.payload_json),
+  }));
+
+  return NextResponse.json({ code: 200, data: parsedRows, msg: "ok" });
 }

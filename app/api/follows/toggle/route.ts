@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
 
 const schema = z.object({
   author_id: z.string().min(1),
@@ -38,5 +39,8 @@ export async function POST(req: Request) {
     parsed.data.author_id,
     nowIso(),
   );
+  await createNotification(db, parsed.data.author_id, "followed", {
+    actor_user_id: userId,
+  });
   return NextResponse.json({ code: 200, msg: "关注成功", data: { followed: true } });
 }

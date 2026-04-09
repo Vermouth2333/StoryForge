@@ -9,6 +9,33 @@ const schema = z.object({
   tags: z.array(z.string().min(1).max(30)).max(10).optional(),
 });
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const db = await getDb();
+  const story = await db.get<{
+    id: string;
+    author_id: string;
+    title: string;
+    summary: string;
+    status: string;
+    tags_json: string;
+    like_count: number;
+    publish_at: string | null;
+    updated_at: string;
+  }>(
+    `SELECT id, author_id, title, summary, status, tags_json, like_count, publish_at, updated_at
+     FROM stories WHERE id = ?`,
+    id,
+  );
+  if (!story) {
+    return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
+  }
+  return NextResponse.json({ code: 200, data: story, msg: "ok" });
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },

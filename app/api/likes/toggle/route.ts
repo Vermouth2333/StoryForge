@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { createNotification } from "@/lib/notifications";
 
 const schema = z.object({
   target_type: z.enum(["story", "character", "world"]).default("story"),
@@ -25,6 +26,12 @@ export async function POST(req: Request) {
 
   if (existing) {
     await db.run("DELETE FROM likes WHERE id = ?", existing.id);
+    if (parsed.data.target_type === "story") {
+      await db.run(
+        "UPDATE stories SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?",
+        parsed.data.target_id,
+      );
+    }
     return NextResponse.json({ code: 200, msg: "已取消点赞", data: { liked: false } });
   }
 
@@ -36,5 +43,23 @@ export async function POST(req: Request) {
     parsed.data.target_id,
     nowIso(),
   );
+
+  if (parsed.data.target_type === "story") {
+    await db.run(
+      "UPDATE stories SET like_count = like_count + 1 WHERE id = ?",
+      parsed.data.target_id,
+    );
+    const story = await db.get<{ author_id: string; title: string }>(
+      "SELECT author_id, title FROM stories WHERE id = ?",
+      parsed.data.target_id,
+    );
+    if (story && story.author_id !== userId) {
+      await createNotification(db, story.author_id, "liked", {
+        actor_user_id: userId,
+        story_id: parsed.data.target_id,
+        story_title: story.title,
+      });
+    }
+  }
   return NextResponse.json({ code: 200, msg: "点赞成功", data: { liked: true } });
 }

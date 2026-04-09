@@ -6,7 +6,7 @@ const ORDER_SQL: Record<string, string> = {
   latest: "s.publish_at DESC",
   updated: "s.updated_at DESC",
   recommended:
-    "(s.like_count * 0.45 + COALESCE(f.cnt,0) * 0.25 + (CASE WHEN s.tags_json != '[]' THEN 0.2 ELSE 0 END) + 0.1) DESC, s.publish_at DESC",
+    "(s.like_count * 0.45 + COALESCE(f.cnt,0) * 0.25 + COALESCE(uf.is_following,0) * 0.2 + (CASE WHEN s.tags_json != '[]' THEN 0.1 ELSE 0 END)) DESC, s.publish_at DESC",
 };
 
 export async function GET(req: Request) {
@@ -21,9 +21,13 @@ export async function GET(req: Request) {
      LEFT JOIN (
        SELECT author_id, COUNT(*) cnt FROM follows GROUP BY author_id
      ) f ON f.author_id = s.author_id
+     LEFT JOIN (
+       SELECT author_id, 1 is_following FROM follows WHERE user_id = ?
+     ) uf ON uf.author_id = s.author_id
      WHERE s.status = 'published'
      ORDER BY ${order}
      LIMIT 30`,
+    userId,
   );
 
   return NextResponse.json({ code: 200, data: { user_id: userId, items }, msg: "ok" });
