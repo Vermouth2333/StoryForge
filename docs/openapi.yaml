@@ -1,0 +1,282 @@
+openapi: 3.0.3
+info:
+  title: StoryForge MVP API
+  version: 0.1.0
+  description: MVP API for chat, stories, feed, likes, follows, notifications.
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /api/chat/sessions:
+    post:
+      summary: Create chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_type, title]
+              properties:
+                session_type:
+                  type: string
+                  enum: [story, character, world]
+                story_id:
+                  type: string
+                  nullable: true
+                character_id:
+                  type: string
+                  nullable: true
+                world_id:
+                  type: string
+                  nullable: true
+                title:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/chat/sessions/{id}/messages:
+    get:
+      summary: List session messages
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/chat/sessions/{id}/generate:
+    post:
+      summary: Stream generation via SSE
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content:
+                  type: string
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/chat/sessions/{id}/stop:
+    post:
+      summary: Stop current generation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stopped
+
+  /api/stories:
+    post:
+      summary: Create story
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                summary:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}:
+    patch:
+      summary: Update story
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                summary:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/publish:
+    post:
+      summary: Publish story
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/likes/toggle:
+    post:
+      summary: Toggle like
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id]
+              properties:
+                target_type:
+                  type: string
+                  enum: [story, character, world]
+                target_id:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/follows/toggle:
+    post:
+      summary: Toggle follow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [author_id]
+              properties:
+                author_id:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/feed:
+    get:
+      summary: Get feed
+      parameters:
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [latest, updated, recommended]
+      responses:
+        "200":
+          description: Success
+
+  /api/feed/impression:
+    post:
+      summary: Report feed impression
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [story_id]
+              properties:
+                story_id:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/feed/click:
+    post:
+      summary: Report feed click
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [story_id]
+              properties:
+                story_id:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/notifications:
+    get:
+      summary: List notifications
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+
+  /api/notifications/read:
+    post:
+      summary: Mark notifications read
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                all:
+                  type: boolean
+                ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/notifications/unread-count:
+    get:
+      summary: Get unread count
+      responses:
+        "200":
+          description: Success

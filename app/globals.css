@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fbff;
+  --surface: #ffffff;
+  --foreground: #1f2a44;
+  --text-secondary: #5b6b8c;
+  --primary: #5b9dff;
+  --primary-hover: #7fb4ff;
+  --primary-active: #3f86f5;
+  --primary-soft: #eef6ff;
+  --border: #dce9ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+}
+
+.sf-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(66, 133, 244, 0.1);
+}
+
+.sf-btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.sf-btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.sf-btn-primary:active {
+  background: var(--primary-active);
+}
+
+.sf-tag {
+  background: var(--primary-soft);
+  color: var(--primary-active);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.sf-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.sf-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  border-color: var(--primary);
+}
