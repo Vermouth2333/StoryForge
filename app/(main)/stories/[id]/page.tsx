@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 type StoryDetail = {
   id: string;
   author_id: string;
+  author_display?: string;
   title: string;
   summary: string;
   status: string;
@@ -73,6 +74,7 @@ export default function StoryDetailPage() {
           ))}
         </div>
         <div className="mt-4 text-xs text-[#5B6B8C]">
+          <p>作者：{story.author_display ?? story.author_id}</p>
           <p>状态：{story.status}</p>
           <p>点赞：{story.like_count}</p>
           <p>最后更新：{story.updated_at}</p>

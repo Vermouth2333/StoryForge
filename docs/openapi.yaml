@@ -1,13 +1,64 @@
 openapi: 3.0.3
 info:
   title: StoryForge MVP API
-  version: 0.1.0
-  description: MVP API for chat, stories, feed, likes, follows, notifications.
+  version: 0.3.0
+  description: MVP API — avatar upload (JPG/PNG ≤5MB, thumb 200²), Google OAuth (JWT sf_session), admin moderation, chat SSE (heartbeat + timeout), snapshots, stories, branches export annotate, profile, account deletion (§2.3), moderation, export, feed (author_display for deleted users). Production mutations on /api/* Origin-guard (middleware). Admins STORYFORGE_ADMIN_USER_IDS.
 
 servers:
   - url: http://localhost:3000
 
 paths:
+  /api/auth/google:
+    get:
+      summary: Start Google OAuth (redirects to Google)
+      responses:
+        "302":
+          description: Redirect to Google authorization
+        "503":
+          description: GOOGLE_CLIENT_ID or JWT_SECRET not configured
+
+  /api/auth/google/callback:
+    get:
+      summary: OAuth callback — issues HttpOnly JWT session cookie
+      responses:
+        "302":
+          description: Redirect to home
+
+  /api/auth/logout:
+    post:
+      summary: Clear session cookie
+      responses:
+        "200":
+          description: Logged out
+
+  /api/account/delete:
+    post:
+      summary: Delete account — requires literal confirm text and works_action; clears session cookies on success
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm, works_action]
+              properties:
+                confirm:
+                  type: string
+                  enum: [确认注销]
+                works_action:
+                  type: string
+                  enum: [anonymize_published, remove_all]
+                  description: anonymize_published keeps published content with author_display 已注销用户; remove_all deletes authored content
+      responses:
+        "200":
+          description: Account deleted; sf_session / sf_user_id cleared
+        "400":
+          description: Invalid body, demo user, or validation error
+        "410":
+          description: Already deleted
+        "429":
+          description: Rate limited
+
   /api/chat/sessions:
     post:
       summary: Create chat session
@@ -71,7 +122,9 @@ paths:
                   type: string
       responses:
         "200":
-          description: SSE stream
+          description: >
+            SSE events include type content, heartbeat (~15s), done (reason stopped|timeout|none),
+            error; max stream duration ~180s (MVP).
           content:
             text/event-stream:
               schema:
@@ -89,6 +142,56 @@ paths:
       responses:
         "200":
           description: Stopped
+
+  /api/chat/sessions/{id}/snapshots:
+    get:
+      summary: List session checkpoints (snapshots)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Snapshots list in data.snapshots
+    post:
+      summary: Create snapshot at last message
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+      responses:
+        "200":
+          description: Snapshot created (data.snapshot)
+
+  /api/chat/sessions/{id}/snapshots/{snapshotId}/restore:
+    post:
+      summary: Restore checkpoint — deletes messages after snapshot boundary
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: snapshotId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Restored (data.deleted_messages)
 
   /api/stories:
     post:
@@ -114,6 +217,19 @@ paths:
           description: Success
 
   /api/stories/{id}:
+    get:
+      summary: Public story detail (author_display is 已注销用户 when author account is deleted)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+        "404":
+          description: Not found
     patch:
       summary: Update story
       parameters:
@@ -176,7 +292,7 @@ paths:
 
   /api/follows/toggle:
     post:
-      summary: Toggle follow
+      summary: Toggle follow (cannot follow deleted authors)
       requestBody:
         required: true
         content:
@@ -190,16 +306,24 @@ paths:
       responses:
         "200":
           description: Success
+        "400":
+          description: Self-follow, deleted/missing author, etc.
 
   /api/feed:
     get:
-      summary: Get feed
+      summary: Get feed (items include author_display; deleted authors show as 已注销用户)
       parameters:
         - in: query
           name: sort
           schema:
             type: string
             enum: [latest, updated, recommended]
+        - in: query
+          name: kind
+          description: Market tab — story / character / world
+          schema:
+            type: string
+            enum: [story, character, world]
       responses:
         "200":
           description: Success
@@ -277,6 +401,409 @@ paths:
   /api/notifications/unread-count:
     get:
       summary: Get unread count
+      responses:
+        "200":
+          description: Success
+
+  /api/worlds/{id}/knowledge:
+    get:
+      summary: List knowledge entries (published world public; draft author-only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Entry array in data
+    post:
+      summary: Create knowledge entry (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                sort_order:
+                  type: integer
+      responses:
+        "200":
+          description: Created entry in data
+
+  /api/worlds/{id}/knowledge/{entryId}:
+    patch:
+      summary: Update knowledge entry (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: entryId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                sort_order:
+                  type: integer
+      responses:
+        "200":
+          description: Success
+    delete:
+      summary: Delete knowledge entry (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: entryId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/admin/moderation:
+    get:
+      summary: Moderation queue (requires STORYFORGE_ADMIN_USER_IDS match)
+      responses:
+        "200":
+          description: Rows in data
+        "503":
+          description: Admin env not configured
+
+  /api/admin/moderation/{id}:
+    patch:
+      summary: Approve, take-down target content, or reject with remark
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, taken_down, rejected]
+                audit_remark:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/profile:
+    get:
+      summary: Current user profile
+      responses:
+        "200":
+          description: Success
+        "410":
+          description: Account deleted — session cookies cleared
+    patch:
+      summary: Update profile
+      responses:
+        "200":
+          description: Success
+        "410":
+          description: Account deleted — session cookies cleared
+
+  /api/profile/avatar:
+    post:
+      summary: Upload avatar (multipart field file, JPG/PNG ≤5MB)
+      responses:
+        "200":
+          description: avatar_url in data
+
+  /api/media/user-avatar/{userId}:
+    get:
+      summary: Public JPEG thumb (fallback to latest original from storage)
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+
+  /api/favorites:
+    get:
+      summary: List current user favorites
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success
+
+  /api/favorites/toggle:
+    post:
+      summary: Toggle favorite on story / character / world
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id]
+              properties:
+                target_type:
+                  type: string
+                  enum: [story, character, world]
+                target_id:
+                  type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/outline:
+    get:
+      summary: List outline nodes (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+    post:
+      summary: Create outline node
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/outline/{nodeId}:
+    patch:
+      summary: Update outline node or reorder (move up/down)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+    delete:
+      summary: Delete outline subtree
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: nodeId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/branches:
+    get:
+      summary: List narrative branch records (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Branch rows in data
+    post:
+      summary: Create branch anchored at outline node
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, fork_outline_node_id]
+              properties:
+                title:
+                  type: string
+                fork_outline_node_id:
+                  type: string
+                parent_branch_id:
+                  type: string
+                  nullable: true
+                description:
+                  type: string
+      responses:
+        "200":
+          description: Created branch in data
+
+  /api/stories/{id}/branches/{branchId}:
+    patch:
+      summary: Update branch (archive, retitle, reparent)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+    delete:
+      summary: Delete branch if no children
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: branchId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/export:
+    post:
+      summary: Export story (markdown / txt / pdf / epub)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [format]
+              properties:
+                format:
+                  type: string
+                  enum: [markdown, txt, pdf, epub]
+                branch_mode:
+                  type: string
+                  enum: [none, annotate]
+                  description: Append story_branches appendix with [分支] lines
+      responses:
+        "200":
+          description: File download or markdown fallback
+
+  /api/stories/{id}/relations:
+    get:
+      summary: List character relations for story (author only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+    post:
+      summary: Add relation between two character cards
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+
+  /api/stories/{id}/relations/{relationId}:
+    patch:
+      summary: Update relation type or description
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: relationId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+    delete:
+      summary: Delete relation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: relationId
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: Success

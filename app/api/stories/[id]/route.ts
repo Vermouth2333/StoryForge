@@ -18,6 +18,7 @@ export async function GET(
   const story = await db.get<{
     id: string;
     author_id: string;
+    author_display: string;
     title: string;
     summary: string;
     status: string;
@@ -26,8 +27,12 @@ export async function GET(
     publish_at: string | null;
     updated_at: string;
   }>(
-    `SELECT id, author_id, title, summary, status, tags_json, like_count, publish_at, updated_at
-     FROM stories WHERE id = ?`,
+    `SELECT s.id, s.author_id,
+      CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
+      s.title, s.summary, s.status, s.tags_json, s.like_count, s.publish_at, s.updated_at
+     FROM stories s
+     LEFT JOIN users u ON u.id = s.author_id
+     WHERE s.id = ?`,
     id,
   );
   if (!story) {

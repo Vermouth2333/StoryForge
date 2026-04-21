@@ -68,6 +68,38 @@ export async function POST(req: Request) {
 
   const userId = await getCurrentUserId();
   const db = await getDb();
+
+  if (parsed.data.story_id) {
+    const st = await db.get<{ id: string }>(
+      `SELECT id FROM stories WHERE id = ? AND (author_id = ? OR status = 'published')`,
+      parsed.data.story_id,
+      userId,
+    );
+    if (!st) {
+      return NextResponse.json({ code: 400, msg: "故事不存在或未发布" }, { status: 400 });
+    }
+  }
+  if (parsed.data.character_id) {
+    const ch = await db.get<{ id: string }>(
+      `SELECT id FROM characters WHERE id = ? AND (author_id = ? OR status = 'published')`,
+      parsed.data.character_id,
+      userId,
+    );
+    if (!ch) {
+      return NextResponse.json({ code: 400, msg: "角色不存在或未发布" }, { status: 400 });
+    }
+  }
+  if (parsed.data.world_id) {
+    const w = await db.get<{ id: string }>(
+      `SELECT id FROM worlds WHERE id = ? AND (author_id = ? OR status = 'published')`,
+      parsed.data.world_id,
+      userId,
+    );
+    if (!w) {
+      return NextResponse.json({ code: 400, msg: "世界不存在或未发布" }, { status: 400 });
+    }
+  }
+
   const sessionId = id("session");
   const now = nowIso();
 

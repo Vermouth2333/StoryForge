@@ -32,6 +32,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 200, msg: "已取消关注", data: { followed: false } });
   }
 
+  const author = await db.get<{ status: string }>("SELECT status FROM users WHERE id = ?", parsed.data.author_id);
+  if (!author || author.status === "deleted") {
+    return NextResponse.json({ code: 400, msg: "无法关注该作者" }, { status: 400 });
+  }
+
   await db.run(
     "INSERT INTO follows (id, user_id, author_id, created_at) VALUES (?, ?, ?, ?)",
     id("follow"),

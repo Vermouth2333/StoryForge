@@ -4,7 +4,7 @@ import { id, nowIso } from "@/lib/db";
 export async function createNotification(
   db: Database,
   receiverUserId: string,
-  type: "liked" | "followed" | "author_update" | "system",
+  type: "liked" | "favorited" | "followed" | "author_update" | "system",
   payload: Record<string, unknown>,
 ) {
   await db.run(

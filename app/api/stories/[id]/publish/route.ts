@@ -1,15 +1,39 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
+import { scanTextBundle, storyPublishTextParts } from "@/lib/content-filter";
 import { getDb, nowIso } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
+import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
+import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const userId = await getCurrentUserId();
   const db = await getDb();
+
+  const rlUser = rateLimitAllow(`publish:${userId}`, 35, 3_600_000);
+  if (!rlUser.ok) {
+    return NextResponse.json(
+      { code: 429, msg: "发布过于频繁，请稍后再试" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rlUser.retryAfterMs / 1000)) },
+      },
+    );
+  }
+  const rlIp = rateLimitAllow(`publish_ip:${getRequestIp(req)}`, 150, 3_600_000);
+  if (!rlIp.ok) {
+    return NextResponse.json(
+      { code: 429, msg: "当前网络发布过于频繁，请稍后再试" },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rlIp.retryAfterMs / 1000)) },
+      },
+    );
+  }
 
   const story = await db.get<{ id: string; title: string }>(
     "SELECT id, title FROM stories WHERE id = ? AND author_id = ?",
@@ -20,11 +44,19 @@ export async function POST(
     return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
   }
 
-  if (story.title.includes("违禁")) {
-    return NextResponse.json(
-      { code: 400, msg: "基础安全过滤未通过，请调整标题后重试" },
-      { status: 400 },
-    );
+  const parts = await storyPublishTextParts(db, id);
+  const scan = scanTextBundle(parts);
+  if (!scan.ok) {
+    try {
+      await enqueueSensitivePublishBlock(db, {
+        contentType: "story",
+        targetId: id,
+        submitterUserId: userId,
+      });
+    } catch (e) {
+      console.error("[moderation enqueue]", e);
+    }
+    return NextResponse.json({ code: 400, msg: scan.msg }, { status: 400 });
   }
 
   const now = nowIso();

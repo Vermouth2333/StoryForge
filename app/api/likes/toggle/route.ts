@@ -31,6 +31,16 @@ export async function POST(req: Request) {
         "UPDATE stories SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?",
         parsed.data.target_id,
       );
+    } else if (parsed.data.target_type === "character") {
+      await db.run(
+        "UPDATE characters SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?",
+        parsed.data.target_id,
+      );
+    } else if (parsed.data.target_type === "world") {
+      await db.run(
+        "UPDATE worlds SET like_count = CASE WHEN like_count > 0 THEN like_count - 1 ELSE 0 END WHERE id = ?",
+        parsed.data.target_id,
+      );
     }
     return NextResponse.json({ code: 200, msg: "已取消点赞", data: { liked: false } });
   }
@@ -58,6 +68,40 @@ export async function POST(req: Request) {
         actor_user_id: userId,
         story_id: parsed.data.target_id,
         story_title: story.title,
+      });
+    }
+  } else if (parsed.data.target_type === "character") {
+    await db.run(
+      "UPDATE characters SET like_count = like_count + 1 WHERE id = ?",
+      parsed.data.target_id,
+    );
+    const ch = await db.get<{ author_id: string; name: string }>(
+      "SELECT author_id, name FROM characters WHERE id = ?",
+      parsed.data.target_id,
+    );
+    if (ch && ch.author_id !== userId) {
+      await createNotification(db, ch.author_id, "liked", {
+        actor_user_id: userId,
+        character_id: parsed.data.target_id,
+        story_title: ch.name,
+        content_kind: "character",
+      });
+    }
+  } else if (parsed.data.target_type === "world") {
+    await db.run(
+      "UPDATE worlds SET like_count = like_count + 1 WHERE id = ?",
+      parsed.data.target_id,
+    );
+    const w = await db.get<{ author_id: string; name: string }>(
+      "SELECT author_id, name FROM worlds WHERE id = ?",
+      parsed.data.target_id,
+    );
+    if (w && w.author_id !== userId) {
+      await createNotification(db, w.author_id, "liked", {
+        actor_user_id: userId,
+        world_id: parsed.data.target_id,
+        story_title: w.name,
+        content_kind: "world",
       });
     }
   }
