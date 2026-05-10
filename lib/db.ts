@@ -182,6 +182,134 @@ async function migrateSchema(db: Database) {
 
     CREATE INDEX IF NOT EXISTS idx_moderation_status_created
       ON moderation_items(status, created_at DESC);
+
+    -- 社区功能表
+    CREATE TABLE IF NOT EXISTS comments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      target_type TEXT NOT NULL, -- story/character/world
+      target_id TEXT NOT NULL,
+      parent_comment_id TEXT,
+      content TEXT NOT NULL,
+      like_count INTEGER NOT NULL DEFAULT 0,
+      reply_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (parent_comment_id) REFERENCES comments(id)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_comments_target ON comments(target_type, target_id, created_at DESC);
+    
+    CREATE TABLE IF NOT EXISTS comment_likes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      comment_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id, comment_id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (comment_id) REFERENCES comments(id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      target_type TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      rating INTEGER NOT NULL, -- 1-5
+      content TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, target_type, target_id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_reviews_target ON reviews(target_type, target_id, created_at DESC);
+    
+    CREATE TABLE IF NOT EXISTS assets (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      asset_type TEXT NOT NULL, -- cover/illustration/other
+      target_type TEXT, -- story/chapter/character/world
+      target_id TEXT,
+      file_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      thumbnail_path TEXT,
+      file_size_bytes INTEGER NOT NULL,
+      mime_type TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS derivative_relations (
+      id TEXT PRIMARY KEY,
+      derived_work_type TEXT NOT NULL,
+      derived_work_id TEXT NOT NULL,
+      original_work_type TEXT NOT NULL,
+      original_work_id TEXT NOT NULL,
+      relation_type TEXT NOT NULL,
+      note TEXT,
+      created_at TEXT NOT NULL
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_derivative_derived ON derivative_relations(derived_work_type, derived_work_id);
+    CREATE INDEX IF NOT EXISTS idx_derivative_original ON derivative_relations(original_work_type, original_work_id);
+    
+    CREATE TABLE IF NOT EXISTS session_archives (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      name TEXT,
+      message_id TEXT NOT NULL,
+      content_snapshot_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_session_archives_session ON session_archives(session_id, created_at DESC);
+    
+    CREATE TABLE IF NOT EXISTS story_style_anchors (
+      id TEXT PRIMARY KEY,
+      story_id TEXT NOT NULL,
+      features_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (story_id) REFERENCES stories(id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS conflict_detection_logs (
+      id TEXT PRIMARY KEY,
+      story_id TEXT,
+      character_id TEXT,
+      world_id TEXT,
+      content TEXT,
+      conflict_level TEXT,
+      conflict_details_json TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (story_id) REFERENCES stories(id),
+      FOREIGN KEY (character_id) REFERENCES characters(id),
+      FOREIGN KEY (world_id) REFERENCES worlds(id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS consistency_check_logs (
+      id TEXT PRIMARY KEY,
+      story_id TEXT NOT NULL,
+      chapter_id TEXT,
+      violations_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (story_id) REFERENCES stories(id)
+    );
+    
+    CREATE TABLE IF NOT EXISTS branch_nodes (
+      id TEXT PRIMARY KEY,
+      branch_id TEXT NOT NULL,
+      parent_node_id TEXT,
+      title TEXT NOT NULL,
+      content TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (branch_id) REFERENCES story_branches(id)
+    );
   `);
 
   await addColumnIfMissing(db, "characters", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");

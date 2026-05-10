@@ -284,10 +284,14 @@ StoryForge AI — 基于 SillyTavern 的 AI 交互式小说创作平台。
 - 点赞 / 关注 / 通知 / 基础推荐流
 - EPUB / PDF / TXT / Markdown 导出
 
-**本阶段下掉：**
-- 评论区、二创关系链、活动运营、作者社交主页等完整社区模块
+**本阶段下掉（仅作为历史记录）：**
 - 计费、会员、积分、配额系统
 - 平台治理中台（复杂审计、举报工单体系、策略平台）
+
+**本阶段新增实现（社区功能增强）：**
+- 评论区功能 - 支持故事/角色/世界卡评论与互动
+- 作者社交主页 - 展示作者作品、粉丝、二创关系
+- 二创关系链 - 展示作品衍生关系和二创引用链
 
 ---
 
@@ -713,3 +717,623 @@ data: {"type":"done","message_id":"msg_123"}
 3. **SQLite 并发瓶颈**：写操作经单队列串行执行（`p-queue` 并发=1，最大等待 1000，单任务超时 8s）+ 文件锁（`flock`）+ 高频读接口进程内缓存（key: `{type}:{id}:{queryHash}`，TTL=5 分钟，写后主动失效）+ 预留 PostgreSQL 迁移脚本  
 4. **内容风险**：输入输出双向敏感过滤 + 人工兜底  
 5. **导出失败或格式错乱**：章节结构校验 + 导出任务重试 + 失败回退到 Markdown  
+
+---
+
+## 六、功能实现详细方案
+
+### 6.1 创作引擎高级特性
+
+#### 6.1.1 文风保持器（Style Anchor）
+
+**实现位置**：
+- `lib/style-anchor.ts` - 文风特征抽取与注入模块
+- `lib/ai-generator.ts` - 集成文风约束到 Prompt
+
+**核心功能设计**：
+```typescript
+interface StyleFeatures {
+  wordPreferences: { highFreq: string[], forbidden: string[] };
+  sentencePatterns: { shortRatio: number, dialogueRatio: number };
+  emotionalIntensity: { tension: number, relaxation: number };
+  narrativeRhythm: { actionDensity: number, infoRevealRate: number };
+}
+
+class StyleAnchor {
+  // 初次抽取：第3段生成完成后
+  // 增量更新：每新增5段或用户手动触发
+  async extractStyle(
+    storyId: string,
+    recentMessages: ChatMessage[]
+  ): Promise<StyleFeatures>;
+  
+  // 仅注入摘要向量，不回灌完整历史文本
+  injectStylePrompt(basePrompt: string, features: StyleFeatures): string;
+}
+```
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS story_style_anchors (
+  id TEXT PRIMARY KEY,
+  story_id TEXT NOT NULL,
+  features_json TEXT NOT NULL, -- StyleFeatures JSON
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (story_id) REFERENCES stories(id)
+);
+```
+
+**API 接口**：
+- `POST /api/stories/:id/style/extract` - 抽取文风锚点
+- `POST /api/stories/:id/style/update` - 手动更新文风锚点
+- `GET /api/stories/:id/style` - 获取当前文风设置
+
+#### 6.1.2 冲突检测与解释式改写
+
+**实现位置**：
+- `lib/conflict-detector.ts` - 冲突检测引擎
+- `lib/rewrite-suggestion.ts` - 改写建议生成
+
+**核心功能设计**：
+```typescript
+enum ConflictLevel { P0 = "强冲突", P1 = "中冲突", P2 = "弱冲突" }
+
+interface ConflictResult {
+  level: ConflictLevel;
+  conflictPoint: string;
+  reason: string;
+  rewriteSuggestions: string[];
+  rewrittenInstruction: string;
+}
+
+class ConflictDetector {
+  // 两段式判定：规则引擎快速判定 + AI辅助判定
+  async detect(
+    content: string,
+    worldCard: World,
+    characters: Character[]
+  ): Promise<ConflictResult | null>;
+  
+  // 解释式改写输出模板
+  formatRewriteSuggestion(result: ConflictResult): string;
+}
+```
+
+**冲突分级与处理策略**：
+- `P0` 强冲突：直接违反世界硬规则 → 拦截并返回改写建议
+- `P1` 中冲突：与角色核心人设冲突 → 拦截并返回改写建议
+- `P2` 弱冲突：语气/情绪偏移 → 放行并附提示
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS conflict_detection_logs (
+  id TEXT PRIMARY KEY,
+  story_id TEXT,
+  character_id TEXT,
+  world_id TEXT,
+  content TEXT,
+  conflict_level TEXT, -- P0/P1/P2
+  conflict_details_json TEXT, -- ConflictResult JSON
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (story_id) REFERENCES stories(id),
+  FOREIGN KEY (character_id) REFERENCES characters(id),
+  FOREIGN KEY (world_id) REFERENCES worlds(id)
+);
+```
+
+**API 接口**：
+- `POST /api/stories/:id/check-conflict` - 检测内容冲突
+- `GET /api/stories/:id/conflict-logs` - 获取检测历史
+
+#### 6.1.3 一致性校验
+
+**实现位置**：
+- `lib/consistency-checker.ts` - 一致性校验器
+
+**核心功能设计**：
+```typescript
+class ConsistencyChecker {
+  // 校验范围：角色身份/关系、时间顺序、地点约束
+  // 校验方式：规则库校验为主，AI校验为辅
+  
+  async checkConsistency(
+    chapterContent: string,
+    context: {
+      story: Story,
+      characters: Character[],
+      previousChapters: Chapter[]
+    }
+  ): Promise<{
+    violations: { severity: "warning" | "error", description: string }[],
+    autoFixDraft: string | null
+  }>;
+}
+```
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS consistency_check_logs (
+  id TEXT PRIMARY KEY,
+  story_id TEXT NOT NULL,
+  chapter_id TEXT,
+  violations_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (story_id) REFERENCES stories(id)
+);
+```
+
+#### 6.1.4 段落级再生成
+
+**实现位置**：
+- `lib/ai-generator.ts` - 新增段落重写方法
+- `app/api/chat/sessions/:id/rewrite/route.ts` - 重写 API
+
+**核心功能设计**：
+- 用户选择需要重写的段落
+- 保留段落之前的上下文
+- 只重新生成目标段落
+- 提供"自动修正"与"保持原文"二选一
+
+---
+
+### 6.2 世界探索增强
+
+#### 6.2.1 世界探索对话模式
+
+**实现位置**：
+- `app/api/chat/sessions/route.ts` - 新增 `explore` 会话类型
+- `app/(main)/worlds/[id]/explore/page.tsx` - 世界探索页面
+
+**核心功能设计**：
+```typescript
+// 探索模式 Prompt 示例
+const explorePrompt = `
+# 世界探索模式
+你是《${worldName}》的世界引导者。
+- 用户可以询问关于世界的任何问题
+- 你需严格遵循知识库词条回答
+- 如果问题超出已知范围，诚实地说明
+- 可以主动提出相关探索方向
+`;
+```
+
+**数据库设计**：
+```sql
+-- 知识库词条已存在于 knowledge_entries
+-- 探索会话与普通会话结构相同
+```
+
+#### 6.2.2 知识图谱可视化
+
+**实现位置**：
+- `lib/knowledge-graph.ts` - 图谱构建模块
+- `components/KnowledgeGraphViewer.tsx` - 图谱展示组件
+
+**核心功能设计**：
+- 使用 `d3.js` 或 `react-force-graph` 实现
+- 展示实体（角色、地点、物品、组织）
+- 展示实体间关系
+
+---
+
+### 6.3 故事体验增强
+
+#### 6.3.1 剧情分支探索
+
+**实现位置**：
+- `app/api/stories/[id]/branches/route.ts` - 分支管理 API
+- `app/api/stories/[id]/branches/[branchId]/route.ts` - 分支操作 API
+- `app/(main)/stories/[id]/play/page.tsx` - 故事体验页扩展
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS story_branches (
+  id TEXT PRIMARY KEY,
+  story_id TEXT NOT NULL,
+  parent_branch_id TEXT, -- null 表示主线
+  fork_chapter_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'active', -- active/archived
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (story_id) REFERENCES stories(id),
+  FOREIGN KEY (parent_branch_id) REFERENCES story_branches(id)
+);
+
+CREATE TABLE IF NOT EXISTS branch_nodes (
+  id TEXT PRIMARY KEY,
+  branch_id TEXT NOT NULL,
+  parent_node_id TEXT,
+  title TEXT NOT NULL,
+  content TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (branch_id) REFERENCES story_branches(id)
+);
+```
+
+**分支合并模式**：
+- **覆盖主线**：分支节点替换主线对应节点内容
+- **插入主线**：分支内容插入到主线指定节点后
+- **归档**：未采用分支可标记 archived
+
+**API 接口**：
+- `POST /api/stories/:id/branches` - 创建分支
+- `GET /api/stories/:id/branches` - 获取分支列表
+- `PATCH /api/stories/:id/branches/:branchId` - 更新分支
+- `POST /api/stories/:id/branches/:branchId/merge` - 合并分支
+- `DELETE /api/stories/:id/branches/:branchId` - 删除/归档分支
+
+#### 6.3.2 冒险存档系统
+
+**实现位置**：
+- `lib/archive-manager.ts` - 存档管理
+- `app/api/chat/sessions/[id]/archives/route.ts` - 存档 API
+
+**核心功能设计**：
+- 自动保存关键节点存档
+- 支持手动创建命名存档
+- 展示存档列表和时间线
+- 快速切换到任意存档
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS session_archives (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  name TEXT, -- 用户自定义命名
+  message_id TEXT NOT NULL, -- 存档点的最后一条消息
+  content_snapshot_json TEXT NOT NULL, -- 会话内容快照
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (session_id) REFERENCES chat_sessions(id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+**API 接口**：
+- `POST /api/chat/sessions/:id/archives` - 创建存档
+- `GET /api/chat/sessions/:id/archives` - 获取存档列表
+- `POST /api/chat/sessions/:id/archives/:archiveId/restore` - 恢复存档
+- `DELETE /api/chat/sessions/:id/archives/:archiveId` - 删除存档
+
+#### 6.3.3 自定义角色创建
+
+**实现位置**：
+- `app/api/stories/:id/custom-characters/route.ts` - 自定义角色 API
+- `app/(main)/stories/[id]/play/character-creator/page.tsx` - 角色创建页面
+
+**核心功能设计**：
+- 用户可以创建自定义角色加入体验
+- 角色可以有基本属性、性格、背景故事
+- 支持导入现有角色卡模板
+
+---
+
+### 6.4 内容资产管理
+
+#### 6.4.1 封面图/插图上传
+
+**实现位置**：
+- `app/api/assets/upload/route.ts` - 资源上传 API
+- `app/api/stories/[id]/cover/route.ts` - 封面管理 API
+- `app/api/chapters/[id]/illustrations/route.ts` - 插图管理 API
+
+**核心功能设计**：
+- 支持上传 JPG/PNG 图片（≤10MB）
+- 自动生成缩略图
+- 支持为章节添加插图
+- 导出时自动嵌入封面
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS assets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  asset_type TEXT NOT NULL, -- cover/illustration/other
+  target_type TEXT, -- story/chapter/character/world
+  target_id TEXT,
+  file_name TEXT NOT NULL,
+  file_path TEXT NOT NULL,
+  thumbnail_path TEXT,
+  file_size_bytes INTEGER NOT NULL,
+  mime_type TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+**API 接口**：
+- `POST /api/assets/upload` - 上传资源
+- `GET /api/assets/:id` - 获取资源
+- `DELETE /api/assets/:id` - 删除资源
+- `POST /api/stories/:id/cover` - 设置封面
+- `POST /api/chapters/:id/illustrations` - 上传章节插图
+
+#### 6.4.2 角色头像 AI 生成
+
+**实现位置**：
+- `app/api/characters/[id]/generate-avatar/route.ts` - AI 生成头像 API
+- `lib/avatar-generator.ts` - 头像生成模块
+
+**核心功能设计**：
+- 可以基于角色描述生成头像
+- 提供多个风格选项（二次元/写实/卡通等）
+- 支持用户选择并保存
+
+---
+
+### 6.5 市场与发现增强
+
+#### 6.5.1 高级搜索与筛选
+
+**实现位置**：
+- `app/api/feed/route.ts` - 扩展推荐流 API
+- `components/AdvancedSearchPanel.tsx` - 搜索面板组件
+
+**核心功能设计**：
+- 支持按标签筛选
+- 支持按作者筛选
+- 支持按评分筛选
+- 支持按类型筛选（故事/角色/世界）
+- 支持按时间范围筛选
+
+**API 接口**：
+- `GET /api/feed?tags=tag1,tag2&author=user1&rating=4` - 高级筛选
+
+#### 6.5.2 评分系统
+
+**实现位置**：
+- `app/api/reviews/route.ts` - 评分/评论 API
+- `app/(main)/market/reviews/[id]/page.tsx` - 评论页面
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  target_type TEXT NOT NULL, -- story/character/world
+  target_id TEXT NOT NULL,
+  rating INTEGER NOT NULL, -- 1-5
+  content TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, target_type, target_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+**API 接口**：
+- `POST /api/reviews` - 提交评分/评论
+- `GET /api/reviews/:targetType/:targetId` - 获取评论列表
+- `PATCH /api/reviews/:id` - 更新评论
+- `DELETE /api/reviews/:id` - 删除评论
+
+#### 6.5.3 推荐算法优化
+
+**实现位置**：
+- `lib/recommendation-engine.ts` - 推荐引擎
+- `app/api/feed/route.ts` - 优化推荐流
+
+**核心功能设计**：
+```typescript
+// 推荐打分公式
+score = 0.45 * like_score + 0.25 * follow_score + 0.20 * tag_match + 0.10 * freshness
+
+// 用户画像构建
+class UserProfile {
+  preferredTags: string[];
+  followedAuthors: string[];
+  recentLikes: string[];
+  readingHistory: string[];
+}
+```
+
+---
+
+### 6.6 社区功能
+
+#### 6.6.1 评论区功能
+
+**实现位置**：
+- `app/api/comments/route.ts` - 评论 API
+- `app/(main)/stories/[id]/comments/page.tsx` - 故事评论页面
+- `app/(main)/characters/[id]/comments/page.tsx` - 角色评论页面
+- `app/(main)/worlds/[id]/comments/page.tsx` - 世界评论页面
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS comments (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  target_type TEXT NOT NULL, -- story/character/world
+  target_id TEXT NOT NULL,
+  parent_comment_id TEXT, -- 回复的评论
+  content TEXT NOT NULL,
+  like_count INTEGER NOT NULL DEFAULT 0,
+  reply_count INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (parent_comment_id) REFERENCES comments(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_target ON comments(target_type, target_id, created_at DESC);
+```
+
+**核心功能**：
+- 发布评论
+- 回复评论
+- 评论点赞
+- 删除评论
+- 举报评论
+- 评论分页
+
+**API 接口**：
+- `POST /api/comments` - 发布评论
+- `GET /api/comments/:targetType/:targetId` - 获取评论列表
+- `PATCH /api/comments/:id` - 更新评论
+- `DELETE /api/comments/:id` - 删除评论
+- `POST /api/comments/:id/like` - 点赞评论
+- `POST /api/comments/:id/report` - 举报评论
+
+#### 6.6.2 作者社交主页
+
+**实现位置**：
+- `app/(main)/authors/[id]/page.tsx` - 作者主页
+- `app/api/authors/[id]/stats/route.ts` - 作者统计 API
+
+**数据库设计**：
+```sql
+-- 用户表已包含基本信息，只需补充统计视图
+-- 通过查询构建统计数据
+```
+
+**核心功能**：
+- 展示作者简介
+- 展示作者作品列表
+- 展示粉丝数/关注数
+- 展示作品统计（点赞数/收藏数）
+- 展示二创关系展示
+- 关注/取消关注
+- 查看作者通知
+
+**API 接口**：
+- `GET /api/authors/:id` - 获取作者信息
+- `GET /api/authors/:id/works` - 获取作者作品
+- `GET /api/authors/:id/stats` - 获取作者统计
+
+#### 6.6.3 二创关系链
+
+**实现位置**：
+- `app/api/derivative-works/route.ts` - 二创关系 API
+- `components/DerivativeChainViewer.tsx` - 二创关系图组件
+
+**数据库设计**：
+```sql
+CREATE TABLE IF NOT EXISTS derivative_relations (
+  id TEXT PRIMARY KEY,
+  derived_work_type TEXT NOT NULL, -- story/character/world
+  derived_work_id TEXT NOT NULL,
+  original_work_type TEXT NOT NULL, -- story/character/world
+  original_work_id TEXT NOT NULL,
+  relation_type TEXT NOT NULL, -- inspired_by/remix/continuation
+  note TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (derived_work_id) REFERENCES stories(id),
+  FOREIGN KEY (original_work_id) REFERENCES stories(id)
+);
+```
+
+**核心功能**：
+- 标注二创关系
+- 展示二创关系链图
+- 展示衍生作品列表
+- 展示原作品列表
+
+**API 接口**：
+- `POST /api/derivative-works` - 标记二创关系
+- `GET /api/derivative-works/:workType/:workId` - 获取二创关系
+- `GET /api/derivative-works/chain/:workType/:workId` - 获取二创关系链
+
+---
+
+### 6.7 技术架构升级
+
+#### 6.7.1 Redis 缓存层
+
+**实现位置**：
+- `lib/cache.ts` - 缓存接口
+- `lib/redis-client.ts` - Redis 客户端
+
+**缓存策略**：
+- 推荐流（TTL 5分钟）
+- 通知未读计数（TTL 1分钟）
+- 用户资料（TTL 10分钟）
+- 热门作品（TTL 30分钟）
+
+**实现**：
+```typescript
+class CacheService {
+  async get<T>(key: string): Promise<T | null>;
+  async set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
+  async del(key: string): Promise<void>;
+}
+```
+
+**环境变量**：
+```env
+REDIS_URL=redis://localhost:6379
+REDIS_ENABLED=true
+```
+
+#### 6.7.2 PostgreSQL 迁移
+
+**实现位置**：
+- `docs/postgresql-migration.md` - 迁移文档
+- `scripts/migrate-to-postgres.ts` - 迁移脚本
+
+**迁移策略**：
+- SQLite -> PostgreSQL 双写阶段
+- 读流量逐步切到 PostgreSQL
+- 完全切换到 PostgreSQL
+
+#### 6.7.3 多模型切换
+
+**实现位置**：
+- `lib/model-manager.ts` - 模型管理
+- `lib/providers/` - 各模型提供商适配器
+
+**支持模型**：
+- OpenAI (GPT-4/GPT-3.5)
+- Claude 3
+- Ollama（本地模型）
+- 其他兼容 OpenAI 格式的模型
+
+**API 接口**：
+- `GET /api/models` - 获取可用模型列表
+- `POST /api/settings/model` - 设置默认模型
+- `POST /api/chat/sessions/:id/switch-model` - 切换会话模型
+
+#### 6.7.4 RAG 优化
+
+**实现位置**：
+- `lib/rag-engine.ts` - RAG 引擎
+- `lib/vector-store.ts` - 向量存储
+
+**核心功能**：
+- 将角色卡、世界卡、知识库向量化
+- 检索相关内容注入 Prompt
+- 提升一致性和准确性
+
+---
+
+### 6.8 里程碑更新
+
+#### 阶段 A+（社区增强，2-3 周）
+- 评论区功能
+- 作者社交主页
+- 二创关系链
+- 封面/插图上传
+- 评分系统
+
+#### 阶段 B（增长，6-8 周）
+- 文风保持器
+- 冲突检测与解释式改写
+- 一致性校验
+- 剧情分支探索
+- 冒险存档系统
+- Redis 缓存
+- 多模型切换
+- RAG 优化
+
+#### 阶段 C（生态，8-12 周）
+- 知识图谱可视化
+- 角色头像 AI 生成
+- 自定义角色创建
+- 世界探索对话模式
+- 段落级再生成
+- 高级搜索与筛选
+- 推荐算法优化
+- PostgreSQL 迁移  
