@@ -4,20 +4,26 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type CharacterDetail = {
+type StoryDetail = {
   id: string;
   author_id: string;
   author_display?: string;
-  name: string;
-  avatar_url: string | null;
+  title: string;
   summary: string;
-  personality: string;
-  tags_json: string;
+  cover_asset_id: string | null;
   status: string;
+  tags_json: string;
   like_count: number;
   favorite_count: number;
   publish_at: string | null;
   updated_at: string;
+};
+
+type CharacterItem = {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  summary: string;
 };
 
 type MessageItem = {
@@ -27,9 +33,11 @@ type MessageItem = {
   created_at: string;
 };
 
-export default function CharacterDetailPage() {
+export default function StoryPlayPage() {
   const params = useParams<{ id: string }>();
-  const [row, setRow] = useState<CharacterDetail | null>(null);
+  const [story, setStory] = useState<StoryDetail | null>(null);
+  const [characters, setCharacters] = useState<CharacterItem[]>([]);
+  const [selectedCharacter, setSelectedCharacter] = useState<CharacterItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -44,10 +52,16 @@ export default function CharacterDetailPage() {
     void (async () => {
       const id = params.id;
       if (!id) return;
-      const res = await fetch(`/api/characters/${id}`);
+      const res = await fetch(`/api/stories/${id}`);
       const json = await res.json();
       if (json.code === 200) {
-        setRow(json.data);
+        setStory(json.data);
+        // 获取故事关联的角色
+        const charRes = await fetch(`/api/stories/${id}/relations`);
+        const charJson = await charRes.json();
+        if (charJson.code === 200) {
+          setCharacters(charJson.data?.characters ?? []);
+        }
       } else {
         setError(json.msg ?? "加载失败");
       }
@@ -55,14 +69,16 @@ export default function CharacterDetailPage() {
     })();
   }, [params.id]);
 
-  async function createSession() {
+  async function startExperience() {
+    if (!selectedCharacter) return;
     const res = await fetch("/api/chat/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        session_type: "character",
-        character_id: params.id,
-        title: `与${row?.name}对话`,
+        session_type: "story",
+        story_id: params.id,
+        character_id: selectedCharacter.id,
+        title: `体验${story?.title}`,
       }),
     });
     const json = await res.json();
@@ -134,106 +150,141 @@ export default function CharacterDetailPage() {
   if (loading) {
     return <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">加载中...</main>;
   }
-  if (!row) {
+  if (!story) {
     return (
       <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">
-        {error || "角色不存在"}
+        {error || "故事不存在"}
       </main>
     );
   }
 
   let tags: string[] = [];
   try {
-    tags = JSON.parse(row.tags_json) as string[];
+    tags = JSON.parse(story.tags_json) as string[];
   } catch {
     tags = [];
   }
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      {/* 角色信息卡片 */}
+      {/* 故事信息 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex gap-4">
-            {row.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={row.avatar_url}
-                alt=""
-                className="h-24 w-24 shrink-0 rounded-xl border-2 border-[#DCE9FF] object-cover shadow-sm"
-              />
-            ) : (
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#EEF6FF] to-[#E0F2FE] text-2xl font-bold text-[#5B9DFF]">
-                {row.name.charAt(0)}
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-[#1F2A44]">{row.name}</h1>
-              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{row.summary || "暂无简介"}</p>
-            </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
+            <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/market" className="sf-tag">
-              返回市场
-            </Link>
-            {!sessionId ? (
-              <button className="sf-btn-primary" onClick={createSession}>
-                💬 开始对话
-              </button>
-            ) : null}
-          </div>
+          <Link href="/market" className="sf-tag">
+            返回市场
+          </Link>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span key={tag} className="sf-tag">{tag}</span>
           ))}
         </div>
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.like_count}</p>
-            <p className="text-xs text-[#5B6B8C]">点赞</p>
-          </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.favorite_count}</p>
-            <p className="text-xs text-[#5B6B8C]">收藏</p>
-          </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.status}</p>
-            <p className="text-xs text-[#5B6B8C]">状态</p>
-          </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.author_display || "作者"}</p>
-            <p className="text-xs text-[#5B6B8C]">创建者</p>
-          </div>
-        </div>
       </div>
 
-      {/* 性格与设定 */}
-      {row.personality && (
+      {/* 选择角色开始体验 */}
+      {!sessionId && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-            <span>🎭</span> 性格与设定
+          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+            <span>🎭</span> 选择角色开始体验
           </h3>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-[#5B6B8C] leading-relaxed">
-            {row.personality}
-          </p>
+          {characters.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {characters.map((char) => (
+                <div
+                  key={char.id}
+                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                    selectedCharacter?.id === char.id
+                      ? "border-[#5B9DFF] bg-[#EEF6FF]"
+                      : "border-[#DCE9FF] bg-[#F8FBFF] hover:border-[#5B9DFF]"
+                  }`}
+                  onClick={() => setSelectedCharacter(char)}
+                >
+                  <div className="flex items-center gap-3">
+                    {char.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={char.avatar_url}
+                        alt=""
+                        className="h-12 w-12 rounded-full border-2 border-[#DCE9FF] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#EEF6FF] to-[#E0F2FE] text-lg font-bold text-[#5B9DFF]">
+                        {char.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-[#1F2A44]">{char.name}</p>
+                      <p className="text-xs text-[#5B6B8C] truncate max-w-[150px]">
+                        {char.summary || "暂无简介"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-4xl mb-3">👤</div>
+              <p className="text-sm text-[#5B6B8C]">该故事暂无可用角色</p>
+            </div>
+          )}
+          <div className="mt-6 text-center">
+            <button
+              className="sf-btn-primary"
+              onClick={startExperience}
+              disabled={!selectedCharacter}
+            >
+              🎮 开始体验
+            </button>
+            {!selectedCharacter && (
+              <p className="text-xs text-[#5B6B8C] mt-2">请先选择一个角色</p>
+            )}
+          </div>
         </div>
       )}
 
-      {/* 对话区域 */}
-      {sessionId && (
+      {/* 体验对话区域 */}
+      {sessionId && selectedCharacter && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>💬</span> 与 {row.name} 对话
-          </h3>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
+              <span>🎮</span> 体验 {story.title}
+            </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-[#5B6B8C]">扮演: {selectedCharacter.name}</span>
+              <button
+                className="sf-tag"
+                onClick={() => {
+                  setSessionId("");
+                  setMessages([]);
+                  setSelectedCharacter(null);
+                }}
+              >
+                退出体验
+              </button>
+            </div>
+          </div>
+          
+          {/* 故事简介 */}
+          <div className="rounded-xl bg-[#F8FBFF] p-4 mb-4">
+            <p className="text-sm text-[#5B6B8C] italic">
+              {story.summary}
+            </p>
+          </div>
+          
+          {/* 消息区域 */}
+          <div className="space-y-3 max-h-[500px] overflow-y-auto mb-4">
             {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`rounded-xl p-4 ${
                   msg.role === "user"
                     ? "bg-[#EEF6FF] border-l-4 border-[#5B9DFF]"
-                    : "bg-[#F0F9FF] border-l-4 border-[#4FACFE]"
+                    : "bg-white border-l-4 border-[#4FACFE] border"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -242,34 +293,36 @@ export default function CharacterDetailPage() {
                       ? "bg-[#5B9DFF] text-white"
                       : "bg-[#4FACFE] text-white"
                   }`}>
-                    {msg.role === "user" ? "我" : row.name}
+                    {msg.role === "user" ? "我" : selectedCharacter.name}
                   </span>
                 </div>
                 <p className="text-sm text-[#1F2A44] leading-relaxed">{msg.content}</p>
               </div>
             ))}
             {streamText && (
-              <div className="rounded-xl p-4 bg-[#F0F9FF] border-l-4 border-[#4FACFE]">
+              <div className="rounded-xl p-4 bg-white border-l-4 border-[#4FACFE]">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#4FACFE] text-white">
-                    {row.name}
+                    {selectedCharacter.name}
                   </span>
                 </div>
                 <p className="text-sm text-[#1F2A44] leading-relaxed">{streamText}▌</p>
               </div>
             )}
           </div>
+          
+          {/* 输入区域 */}
           <div className="flex gap-3">
             <input
               className="sf-input flex-1"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={`与 ${row.name} 对话...`}
+              placeholder="输入你的行动指令..."
               disabled={busy}
             />
             <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
-              {busy ? "发送中..." : "发送"}
+              {busy ? "思考中..." : "行动"}
             </button>
           </div>
         </div>

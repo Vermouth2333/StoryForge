@@ -15,6 +15,7 @@ type WorldDetail = {
   tags_json: string;
   status: string;
   like_count: number;
+  favorite_count: number;
   publish_at: string | null;
   updated_at: string;
 };
@@ -29,6 +30,13 @@ type KnowledgeEntry = {
   updated_at: string;
 };
 
+type MessageItem = {
+  id: string;
+  role: "system" | "user" | "assistant";
+  content: string;
+  created_at: string;
+};
+
 export default function WorldDetailPage() {
   const params = useParams<{ id: string }>();
   const [row, setRow] = useState<WorldDetail | null>(null);
@@ -41,6 +49,13 @@ export default function WorldDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  
+  // 对话状态
+  const [sessionId, setSessionId] = useState("");
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [streamText, setStreamText] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -70,6 +85,82 @@ export default function WorldDetailPage() {
       setLoading(false);
     })();
   }, [params.id]);
+
+  async function createSession() {
+    const res = await fetch("/api/chat/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_type: "world",
+        world_id: params.id,
+        title: `探索${row?.name}`,
+      }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+      setSessionId(json.data.session_id);
+    }
+  }
+
+  async function sendMessage() {
+    if (!inputMessage.trim() || !sessionId) return;
+    setBusy(true);
+    setStreamText("");
+    
+    const userMsg: MessageItem = {
+      id: "temp",
+      role: "user",
+      content: inputMessage,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInputMessage("");
+
+    try {
+      const res = await fetch(`/api/chat/sessions/${sessionId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: inputMessage }),
+      });
+      if (!res.body) {
+        setBusy(false);
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop() || "";
+        for (const ev of events) {
+          const line = ev.trim();
+          if (!line.startsWith("data:")) continue;
+          const payload = JSON.parse(line.slice(5).trim()) as any;
+          if (payload.type === "content") {
+            setStreamText((t) => t + payload.content);
+          }
+        }
+      }
+      if (streamText) {
+        const assistantMsg: MessageItem = {
+          id: "assistant_" + Date.now(),
+          role: "assistant",
+          content: streamText,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => {
+          const newList = [...prev];
+          return [...newList.slice(0, -1), assistantMsg];
+        });
+      }
+      setStreamText("");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   if (loading) {
     return <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">加载中...</main>;
@@ -139,41 +230,75 @@ export default function WorldDetailPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-5">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-[#1F2A44]">{row.name}</h1>
-          <Link href="/" className="sf-tag">
-            返回首页
-          </Link>
+      {/* 世界信息卡片 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-[#1F2A44]">{row.name}</h1>
+            <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{row.summary || "暂无简介"}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/market" className="sf-tag">
+              返回市场
+            </Link>
+            {!sessionId ? (
+              <button className="sf-btn-primary" onClick={createSession}>
+                🌍 探索世界
+              </button>
+            ) : null}
+          </div>
         </div>
-        <p className="mt-3 text-sm text-[#5B6B8C]">{row.summary || "暂无简介"}</p>
-        <p className="mt-2 text-xs text-[#5B6B8C]">
-          作者：{row.author_display ?? row.author_id}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {tags.map((tag) => (
-            <span key={tag} className="sf-tag">
-              {tag}
-            </span>
+            <span key={tag} className="sf-tag">{tag}</span>
           ))}
         </div>
-        {row.setting_notes ? (
-          <div className="mt-5 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4">
-            <p className="text-sm font-medium text-[#1F2A44]">世界设定</p>
-            <p className="mt-2 whitespace-pre-wrap text-sm text-[#5B6B8C]">{row.setting_notes}</p>
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
+            <p className="text-lg font-bold text-[#5B9DFF]">{row.like_count}</p>
+            <p className="text-xs text-[#5B6B8C]">点赞</p>
           </div>
-        ) : null}
+          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
+            <p className="text-lg font-bold text-[#5B9DFF]">{row.favorite_count}</p>
+            <p className="text-xs text-[#5B6B8C]">收藏</p>
+          </div>
+          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
+            <p className="text-lg font-bold text-[#5B9DFF]">{row.status}</p>
+            <p className="text-xs text-[#5B6B8C]">状态</p>
+          </div>
+          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
+            <p className="text-lg font-bold text-[#5B9DFF]">{row.author_display || "作者"}</p>
+            <p className="text-xs text-[#5B6B8C]">创建者</p>
+          </div>
+        </div>
+      </div>
 
-        <div className="mt-6 rounded-xl border border-[#DCE9FF] bg-white p-4">
-          <p className="text-sm font-medium text-[#1F2A44]">知识库</p>
-          <p className="mt-1 text-xs text-[#5B6B8C]">
-            词条用于补充规则、地理、势力等设定；已发布世界对访客可见。
+      {/* 世界设定 */}
+      {row.setting_notes && (
+        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
+            <span>📖</span> 世界设定
+          </h3>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-[#5B6B8C] leading-relaxed">
+            {row.setting_notes}
           </p>
-          <ul className="mt-3 space-y-3">
+        </div>
+      )}
+
+      {/* 知识库 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
+          <span>📚</span> 知识库
+        </h3>
+        <p className="mt-1 text-xs text-[#5B6B8C]">
+          词条用于补充规则、地理、势力等设定；已发布世界对访客可见。
+        </p>
+        {knowledge.length > 0 ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
             {knowledge.map((e) => (
-              <li
+              <div
                 key={e.id}
-                className="rounded-lg border border-[#DCE9FF] bg-[#F8FBFF] p-3 text-sm"
+                className="rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4"
               >
                 {editingId === e.id ? (
                   <div className="space-y-2">
@@ -183,7 +308,7 @@ export default function WorldDetailPage() {
                       onChange={(ev) => setEditTitle(ev.target.value)}
                     />
                     <textarea
-                      className="sf-input min-h-[100px] w-full resize-y text-sm"
+                      className="sf-input min-h-[80px] w-full resize-y text-sm"
                       value={editBody}
                       onChange={(ev) => setEditBody(ev.target.value)}
                     />
@@ -207,7 +332,7 @@ export default function WorldDetailPage() {
                 ) : (
                   <>
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="font-medium text-[#1F2A44]">{e.title}</p>
+                      <h4 className="font-medium text-[#1F2A44]">{e.title}</h4>
                       {isAuthor ? (
                         <div className="flex gap-2">
                           <button
@@ -231,50 +356,102 @@ export default function WorldDetailPage() {
                         </div>
                       ) : null}
                     </div>
-                    {e.body ? (
-                      <p className="mt-2 whitespace-pre-wrap text-[#5B6B8C]">{e.body}</p>
-                    ) : null}
+                    {e.body && (
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-[#5B6B8C]">
+                        {e.body}
+                      </p>
+                    )}
                   </>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
-          {knowledge.length === 0 ? (
-            <p className="mt-2 text-xs text-[#5B6B8C]">暂无词条</p>
-          ) : null}
-          {isAuthor ? (
-            <div className="mt-4 border-t border-[#DCE9FF] pt-4">
-              <p className="text-xs font-medium text-[#1F2A44]">新增词条</p>
-              <input
-                className="sf-input mt-2 w-full text-sm"
-                placeholder="标题"
-                value={newTitle}
-                onChange={(ev) => setNewTitle(ev.target.value)}
-              />
-              <textarea
-                className="sf-input mt-2 min-h-[80px] w-full resize-y text-sm"
-                placeholder="正文（可选）"
-                value={newBody}
-                onChange={(ev) => setNewBody(ev.target.value)}
-              />
-              <button
-                type="button"
-                className="sf-tag mt-2"
-                onClick={() => void addKnowledge()}
-              >
-                添加
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-4 text-xs text-[#5B6B8C]">
-          <p>状态：{row.status}</p>
-          <p>点赞：{row.like_count}</p>
-          <p>封面资源 ID：{row.cover_asset_id ?? "—"}</p>
-          <p>最后更新：{row.updated_at}</p>
-        </div>
+          </div>
+        ) : (
+          <div className="mt-4 text-center py-8">
+            <div className="text-4xl mb-3">📭</div>
+            <p className="text-sm text-[#5B6B8C]">暂无词条</p>
+          </div>
+        )}
+        {isAuthor && (
+          <div className="mt-6 border-t border-[#DCE9FF] pt-4">
+            <p className="text-xs font-medium text-[#1F2A44]">新增词条</p>
+            <input
+              className="sf-input mt-2 w-full"
+              placeholder="标题"
+              value={newTitle}
+              onChange={(ev) => setNewTitle(ev.target.value)}
+            />
+            <textarea
+              className="sf-input mt-2 min-h-[100px] w-full resize-y"
+              placeholder="正文（可选）"
+              value={newBody}
+              onChange={(ev) => setNewBody(ev.target.value)}
+            />
+            <button
+              type="button"
+              className="sf-btn-secondary mt-3"
+              onClick={() => void addKnowledge()}
+            >
+              添加词条
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* 对话区域 */}
+      {sessionId && (
+        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
+          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+            <span>🌍</span> 探索 {row.name}
+          </h3>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto mb-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`rounded-xl p-4 ${
+                  msg.role === "user"
+                    ? "bg-[#EEF6FF] border-l-4 border-[#5B9DFF]"
+                    : "bg-[#F0F9FF] border-l-4 border-[#4FACFE]"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                    msg.role === "user"
+                      ? "bg-[#5B9DFF] text-white"
+                      : "bg-[#4FACFE] text-white"
+                  }`}>
+                    {msg.role === "user" ? "我" : row.name}
+                  </span>
+                </div>
+                <p className="text-sm text-[#1F2A44] leading-relaxed">{msg.content}</p>
+              </div>
+            ))}
+            {streamText && (
+              <div className="rounded-xl p-4 bg-[#F0F9FF] border-l-4 border-[#4FACFE]">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#4FACFE] text-white">
+                    {row.name}
+                  </span>
+                </div>
+                <p className="text-sm text-[#1F2A44] leading-relaxed">{streamText}▌</p>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <input
+              className="sf-input flex-1"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={`探索 ${row.name} 的世界观...`}
+              disabled={busy}
+            />
+            <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
+              {busy ? "发送中..." : "探索"}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
