@@ -23,10 +23,10 @@ type ProfileLite = {
 
 function navClass(active: boolean) {
   return [
-    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors md:justify-center lg:justify-start",
+    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-200 md:justify-center lg:justify-start",
     active
-      ? "border-l-[3px] border-[var(--primary)] bg-[var(--primary-soft)] font-medium text-[var(--primary-active)]"
-      : "border-l-[3px] border-transparent text-[var(--text-secondary)] hover:bg-[#F8FBFF]",
+      ? "bg-gradient-to-r from-[var(--primary-soft)] to-white font-semibold text-[var(--primary-active)] shadow-sm border border-[var(--border)]"
+      : "text-[var(--text-secondary)] hover:bg-[#F8FBFF] hover:border border-[var(--border)] border border-transparent",
   ].join(" ");
 }
 
@@ -74,9 +74,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [refreshSidebar]);
 
-  const onHome = pathname === "/";
-  const marketActive = onHome && hash !== "compose";
-  const composeActive = onHome && hash === "compose";
+  const marketActive = pathname.startsWith("/market") || pathname === "/";
+  const composeActive = pathname.startsWith("/compose");
+  const myActive = pathname.startsWith("/my");
+  const historyActive = pathname.startsWith("/history");
   const settingsActive = pathname.startsWith("/settings");
 
   const closeMobile = () => setMobileOpen(false);
@@ -111,16 +112,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside
         id="mobile-nav-drawer"
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_6px_18px_rgba(66,133,244,0.12)] transition-transform duration-200 md:relative md:z-0 md:max-w-none md:translate-x-0 md:shadow-none md:transition-none",
-          "md:w-16 md:min-w-16 lg:w-60 lg:min-w-60",
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:relative md:z-0 md:max-w-none md:translate-x-0 md:shadow-none",
+          "md:w-16 md:min-w-16 lg:w-64 lg:min-w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         ].join(" ")}
       >
-        <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] px-3 md:hidden">
-          <span className="font-semibold text-[var(--foreground)]">导航</span>
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:hidden bg-gradient-to-r from-[var(--primary-soft)] to-white">
+          <span className="font-bold text-[var(--foreground)]">导航</span>
           <button
             type="button"
-            className="rounded-lg px-2 py-1 text-sm text-[var(--text-secondary)]"
+            className="rounded-xl px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-white/50 transition-colors"
             onClick={() => setMobileOpen(false)}
           >
             关闭
@@ -128,83 +129,110 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <div className="border-b border-[var(--border)] px-3 py-4 lg:px-4">
-            <Link href="/" className="block font-semibold text-[var(--foreground)]" onClick={closeMobile}>
+          <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
+            <Link href="/" className="block font-extrabold text-xl text-[var(--foreground)]" onClick={closeMobile}>
               <span className="inline md:hidden lg:inline">StoryForge</span>
-              <span className="hidden md:inline lg:hidden text-lg">SF</span>
+              <span className="hidden md:inline lg:hidden text-2xl">SF</span>
             </Link>
-            <p className="mt-1 hidden text-[10px] leading-snug text-[var(--text-secondary)] lg:block">
-              MVP / 酒馆对话版本
+            <p className="mt-2 hidden text-xs leading-relaxed text-[var(--text-secondary)] lg:block">
+              AI 驱动的交互式小说创作平台
             </p>
           </div>
 
-          <nav className="flex flex-1 flex-col gap-1 px-2 py-4 lg:px-3" aria-label="主导航">
+          <nav className="flex flex-1 flex-col gap-2 px-3 py-5 lg:px-4" aria-label="主导航">
             <Link
-              href="/#market"
+              href="/market"
               title="市场"
               className={navClass(marketActive)}
               onClick={closeMobile}
             >
-              <span className="shrink-0 text-lg" aria-hidden>
+              <span className="shrink-0 text-xl" aria-hidden>
                 📖
               </span>
-              <span className="inline md:hidden lg:inline truncate">市场</span>
+              <span className="inline md:hidden lg:inline truncate font-medium">市场</span>
             </Link>
-            <Link
-              href="/#compose"
-              title="创作"
-              className={navClass(composeActive)}
-              onClick={closeMobile}
-            >
-              <span className="shrink-0 text-lg" aria-hidden>
-                ✏️
-              </span>
-              <span className="inline md:hidden lg:inline truncate">创作</span>
-            </Link>
-            <Link
-              href="/settings"
-              title="设置"
-              className={navClass(settingsActive)}
-              onClick={closeMobile}
-            >
-              <span className="shrink-0 text-lg" aria-hidden>
-                ⚙️
-              </span>
-              <span className="inline md:hidden lg:inline truncate">设置</span>
-            </Link>
+            {profile && (
+              <>
+                <Link
+                  href="/compose"
+                  title="创作"
+                  className={navClass(composeActive)}
+                  onClick={closeMobile}
+                >
+                  <span className="shrink-0 text-xl" aria-hidden>
+                    ✏️
+                  </span>
+                  <span className="inline md:hidden lg:inline truncate font-medium">创作</span>
+                </Link>
+                <Link
+                  href="/my"
+                  title="我的"
+                  className={navClass(myActive)}
+                  onClick={closeMobile}
+                >
+                  <span className="shrink-0 text-xl" aria-hidden>
+                    👤
+                  </span>
+                  <span className="inline md:hidden lg:inline truncate font-medium">我的</span>
+                </Link>
+                <Link
+                  href="/history"
+                  title="历史"
+                  className={navClass(historyActive)}
+                  onClick={closeMobile}
+                >
+                  <span className="shrink-0 text-xl" aria-hidden>
+                    📜
+                  </span>
+                  <span className="inline md:hidden lg:inline truncate font-medium">历史</span>
+                </Link>
+                <Link
+                  href="/settings"
+                  title="设置"
+                  className={navClass(settingsActive)}
+                  onClick={closeMobile}
+                >
+                  <span className="shrink-0 text-xl" aria-hidden>
+                    ⚙️
+                  </span>
+                  <span className="inline md:hidden lg:inline truncate font-medium">设置</span>
+                </Link>
+              </>
+            )}
           </nav>
 
-          <div className="mt-auto space-y-3 border-t border-[var(--border)] px-3 py-4 lg:px-4">
-            <div className="rounded-lg bg-[var(--primary-soft)] px-3 py-2 text-center text-xs font-medium text-[var(--primary-active)] lg:text-left">
+          <div className="mt-auto space-y-4 border-t border-[var(--border)] px-4 py-5 lg:px-5 bg-gradient-to-t from-[#F8FBFF] to-white">
+            <div className="rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-hover)] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
               <span className="hidden lg:inline">未读通知：</span>
-              <span>{unread}</span>
+              <span className="text-lg">{unread}</span>
             </div>
 
-            <div className="flex flex-col gap-3 lg:flex-col">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-4 lg:flex-col">
+              <div className="flex items-center gap-3 bg-[#F8FBFF] rounded-xl p-3">
                 {profile?.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={profile.avatar_url}
                     alt=""
-                    className="h-9 w-9 shrink-0 rounded-full border border-[var(--border)] object-cover"
+                    className="h-10 w-10 shrink-0 rounded-full border-2 border-[var(--primary-soft)] object-cover shadow-sm"
                   />
                 ) : (
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-[var(--border)] bg-white text-[10px] text-[var(--text-secondary)]">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] bg-white text-xs text-[var(--text-secondary)] font-medium">
                     用户
                   </div>
                 )}
-                <p className="min-w-0 truncate text-sm font-medium text-[var(--foreground)] md:hidden lg:block">
+                <p className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)] md:hidden lg:block">
                   {profile?.username ?? "访客"}
                 </p>
               </div>
-              <div className="flex flex-col gap-2 text-xs">
-                <a href="/api/auth/google" className="sf-tag block w-full text-center no-underline">
+              {!profile ? (
+                <a href="/api/auth/google" className="sf-btn-primary block w-full text-center no-underline text-sm">
                   Google 登录
                 </a>
+              ) : (
                 <button
                   type="button"
-                  className="sf-tag block w-full"
+                  className="sf-btn-secondary block w-full text-sm"
                   onClick={async () => {
                     await fetch("/api/auth/logout", { method: "POST" });
                     window.location.reload();
@@ -212,18 +240,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   退出登录
                 </button>
-              </div>
+              )}
             </div>
 
             <Link
               href="/admin/moderation"
-              className="block text-center text-[11px] text-[var(--text-secondary)] underline lg:text-left"
+              className="block text-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors lg:text-left"
               onClick={closeMobile}
             >
               审核台
             </Link>
-            <p className="hidden text-[10px] leading-snug text-[var(--text-secondary)] lg:block">
-              OAuth 需配置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、JWT_SECRET（≥16 字符）；回调 /api/auth/google/callback。
+            <p className="hidden text-[10px] leading-relaxed text-[var(--text-secondary)] lg:block opacity-70">
+              OAuth 需配置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、JWT_SECRET（&gt;=16 字符）；回调 /api/auth/google/callback。
             </p>
           </div>
         </div>

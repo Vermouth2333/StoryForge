@@ -10,6 +10,9 @@
   --primary-active: #3f86f5;
   --primary-soft: #eef6ff;
   --border: #dce9ff;
+  --shadow-soft: 0 4px 20px rgba(66, 133, 244, 0.08);
+  --shadow-card: 0 8px 30px rgba(66, 133, 244, 0.12);
+  --shadow-hover: 0 12px 40px rgba(66, 133, 244, 0.18);
 }
 
 @theme inline {
@@ -20,46 +23,65 @@
   --font-mono: var(--font-geist-mono);
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
+  font-family: var(--font-geist-sans), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .sf-card {
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(66, 133, 244, 0.1);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sf-card:hover {
+  box-shadow: var(--shadow-card);
+  transform: translateY(-2px);
 }
 
 .sf-btn-primary {
   background: var(--primary);
   color: #fff;
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 12px;
+  padding: 10px 18px;
   font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(91, 157, 255, 0.3);
 }
 
 .sf-btn-primary:hover {
   background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(91, 157, 255, 0.4);
 }
 
 .sf-btn-primary:active {
   background: var(--primary-active);
+  transform: translateY(0);
 }
 
 .sf-btn-secondary {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--foreground);
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 12px;
+  padding: 10px 18px;
   font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 .sf-btn-secondary:hover {
   background: var(--primary-soft);
+  border-color: var(--primary);
 }
 
 .sf-btn-secondary:focus-visible {
@@ -71,19 +93,228 @@ body {
   background: var(--primary-soft);
   color: var(--primary-active);
   border-radius: 999px;
-  padding: 4px 10px;
+  padding: 5px 12px;
   font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sf-tag:hover {
+  background: color-mix(in srgb, var(--primary-soft) 70%, var(--primary) 30%);
 }
 
 .sf-input {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
   background: #fff;
+  transition: all 0.2s ease;
 }
 
 .sf-input:focus {
-  outline: 2px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  outline: none;
   border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(91, 157, 255, 0.1);
+}
+
+.market-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-soft);
+}
+
+.market-card:hover {
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-4px);
+}
+
+.market-card-cover {
+  position: relative;
+  width: 100%;
+  padding-top: 133.33%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.market-card-cover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 50%);
+}
+
+.market-card-cover img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.market-card-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+
+.market-card-content {
+  padding: 14px;
+}
+
+.market-card-kind {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.market-card-kind.story {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.market-card-kind.character {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: #fff;
+}
+
+.market-card-kind.world {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: #fff;
+}
+
+.market-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-top: 10px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.market-card-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.market-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.market-card-author {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.market-card-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.market-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.section-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.tab-button {
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: var(--primary-soft);
+}
+
+.tab-button.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(91, 157, 255, 0.3);
+}
+
+.sort-button {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.sort-button.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-active);
 }
