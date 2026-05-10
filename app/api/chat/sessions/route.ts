@@ -4,7 +4,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
 
 const createSessionSchema = z.object({
-  session_type: z.enum(["story", "character", "world"]),
+  session_type: z.enum(["story", "character", "world", "explore"]),
   story_id: z.string().nullable().optional(),
   character_id: z.string().nullable().optional(),
   world_id: z.string().nullable().optional(),
