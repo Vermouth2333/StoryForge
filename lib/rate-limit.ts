@@ -9,7 +9,7 @@ export function rateLimitAllow(
   windowMs: number,
 ): { ok: true } | { ok: false; retryAfterMs: number } {
   const now = Date.now();
-  let b = store.get(key);
+  const b = store.get(key);
   if (!b || now >= b.resetAt) {
     store.set(key, { count: 1, resetAt: now + windowMs });
     return { ok: true };

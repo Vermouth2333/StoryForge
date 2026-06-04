@@ -27,9 +27,9 @@ export async function GET(
       );
     }
 
-    let stories: any[] = [];
-    let characters: any[] = [];
-    let worlds: any[] = [];
+    let stories: Record<string, unknown>[] = [];
+    let characters: Record<string, unknown>[] = [];
+    let worlds: Record<string, unknown>[] = [];
     let totalCount = 0;
 
     if (!type || type === "story") {
@@ -108,7 +108,7 @@ export async function GET(
     }
 
     const allWorks = [...stories, ...characters, ...worlds].sort(
-      (a, b) => new Date(b.publish_at).getTime() - new Date(a.publish_at).getTime()
+      (a, b) => new Date(b.publish_at as string).getTime() - new Date(a.publish_at as string).getTime()
     );
 
     return NextResponse.json({

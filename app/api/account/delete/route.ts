@@ -5,6 +5,7 @@ import { executeAccountDeletion, isUserDeleted } from "@/lib/account-deletion";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
+import { verifyReplayGuard } from "@/lib/anti-replay";
 
 const bodySchema = z.object({
   confirm: z.string().trim().pipe(z.literal("确认注销")),
@@ -28,6 +29,11 @@ export async function POST(req: Request) {
   const rlIp = rateLimitAllow(`account_delete_ip:${getRequestIp(req)}`, 10, 3_600_000);
   if (!rlIp.ok) {
     return NextResponse.json({ code: 429, msg: "当前网络请求过于频繁" }, { status: 429 });
+  }
+
+  const replay = await verifyReplayGuard(req, userId);
+  if (!replay.ok) {
+    return NextResponse.json({ code: replay.status, msg: replay.msg }, { status: replay.status });
   }
 
   const json = await req.json().catch(() => null);

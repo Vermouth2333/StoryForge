@@ -20,8 +20,8 @@ export async function GET(
 
     const db = await getDb();
 
-    let originalRelations: any[] = [];
-    let derivedRelations: any[] = [];
+    let originalRelations: Record<string, unknown>[] = [];
+    let derivedRelations: Record<string, unknown>[] = [];
 
     if (workType === "story") {
       originalRelations = await db.all(
@@ -91,7 +91,7 @@ export async function GET(
       );
     }
 
-    const formatRelation = (r: any, isOriginal: boolean) => ({
+    const formatRelation = (r: Record<string, unknown>) => ({
       id: r.id,
       derivedWorkType: r.derived_work_type,
       derivedWorkId: r.derived_work_id,
@@ -111,8 +111,8 @@ export async function GET(
       data: {
         workId,
         workType,
-        originalRelations: originalRelations.map((r) => formatRelation(r, true)),
-        derivedRelations: derivedRelations.map((r) => formatRelation(r, false)),
+        originalRelations: originalRelations.map((r) => formatRelation(r)),
+        derivedRelations: derivedRelations.map((r) => formatRelation(r)),
       },
       msg: "获取成功",
     });

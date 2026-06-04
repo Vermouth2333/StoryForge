@@ -2,7 +2,7 @@ export interface GraphNode {
   id: string;
   label: string;
   type: 'character' | 'location' | 'item' | 'organization' | 'event';
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 export interface GraphEdge {
@@ -10,7 +10,7 @@ export interface GraphEdge {
   source: string;
   target: string;
   label: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
 }
 
 export interface KnowledgeGraph {
@@ -18,12 +18,34 @@ export interface KnowledgeGraph {
   edges: GraphEdge[];
 }
 
+interface EntryLike {
+  id?: string;
+  name?: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+interface CharacterLike {
+  id: string;
+  name?: string;
+  title?: string;
+  gender?: string;
+  personality?: string;
+  [key: string]: unknown;
+}
+
+interface WorldLike {
+  name?: string;
+  knowledge_entries?: EntryLike[];
+  [key: string]: unknown;
+}
+
 export class KnowledgeGraphBuilder {
   static buildFromStory(
-    story: any,
-    characters: any[],
-    world: any,
-    chapters: any[]
+    story: Record<string, unknown>,
+    characters: CharacterLike[],
+    world: WorldLike | null,
+    chapters: Record<string, unknown>[]
   ): KnowledgeGraph {
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
@@ -31,7 +53,7 @@ export class KnowledgeGraphBuilder {
     characters.forEach((char, index) => {
       nodes.push({
         id: `char-${char.id}`,
-        label: char.name || char.title,
+        label: char.name || char.title || char.id,
         type: 'character',
         properties: {
           gender: char.gender,
@@ -50,12 +72,12 @@ export class KnowledgeGraphBuilder {
       }
 
       if (world.knowledge_entries) {
-        world.knowledge_entries.forEach((entry: any, index: number) => {
-          const entryType = this.guessEntryType(entry.name || entry.title);
+        world.knowledge_entries.forEach((entry: EntryLike, index: number) => {
+          const entryType = this.guessEntryType(entry.name || entry.title || "");
           const nodeId = `entry-${entry.id || index}`;
           nodes.push({
             id: nodeId,
-            label: entry.name || entry.title,
+            label: entry.name || entry.title || "",
             type: entryType,
           });
 

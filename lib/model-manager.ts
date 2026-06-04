@@ -1,3 +1,5 @@
+import { getDb, nowIso } from "@/lib/db";
+
 export interface ModelConfig {
   id: string;
   name: string;
@@ -51,9 +53,6 @@ export const defaultModels: ModelConfig[] = [
 ];
 
 export class ModelManager {
-  private static userDefaultModels: Map<string, string> = new Map();
-  private static sessionModels: Map<string, string> = new Map();
-
   static getAvailableModels(): ModelConfig[] {
     return defaultModels.filter(m => m.enabled);
   }
@@ -62,23 +61,67 @@ export class ModelManager {
     return defaultModels.find(m => m.id === modelId && m.enabled);
   }
 
-  static getUserDefaultModel(userId: string): string {
-    return this.userDefaultModels.get(userId) || 'openai-gpt-4';
+  /**
+   * 多模型降级链（见 docs/StoryForge_技术文档.md 5.8.5）：
+   * 主模型在前，其余已启用模型按顺序作为备用，主模型失败时自动切换。
+   */
+  static getFallbackModelIds(primaryModelId: string): string[] {
+    const ordered = [
+      primaryModelId,
+      ...defaultModels.filter(m => m.enabled).map(m => m.id),
+    ];
+    return Array.from(new Set(ordered)).filter(mid => !!this.getModelConfig(mid));
   }
 
-  static setUserDefaultModel(userId: string, modelId: string): void {
-    if (this.getModelConfig(modelId)) {
-      this.userDefaultModels.set(userId, modelId);
+  static async getUserDefaultModel(userId: string): Promise<string> {
+    const db = await getDb();
+    const row = await db.get<{ value: string }>(
+      "SELECT value FROM user_settings WHERE user_id = ? AND key = 'default_model'",
+      userId,
+    );
+    const modelId = row?.value;
+    if (modelId && this.getModelConfig(modelId)) {
+      return modelId;
     }
+    return 'openai-gpt-4';
   }
 
-  static getSessionModel(sessionId: string, userId: string): string {
-    return this.sessionModels.get(sessionId) || this.getUserDefaultModel(userId);
+  static async setUserDefaultModel(userId: string, modelId: string): Promise<boolean> {
+    if (!this.getModelConfig(modelId)) return false;
+    const db = await getDb();
+    await db.run(
+      `INSERT INTO user_settings (user_id, key, value, updated_at)
+       VALUES (?, 'default_model', ?, ?)
+       ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      userId,
+      modelId,
+      nowIso(),
+    );
+    return true;
   }
 
-  static setSessionModel(sessionId: string, modelId: string): void {
-    if (this.getModelConfig(modelId)) {
-      this.sessionModels.set(sessionId, modelId);
+  static async getSessionModel(sessionId: string, userId: string): Promise<string> {
+    const db = await getDb();
+    const row = await db.get<{ model_id: string | null }>(
+      "SELECT model_id FROM chat_sessions WHERE id = ?",
+      sessionId,
+    );
+    const modelId = row?.model_id ?? undefined;
+    if (modelId && this.getModelConfig(modelId)) {
+      return modelId;
     }
+    return this.getUserDefaultModel(userId);
+  }
+
+  static async setSessionModel(sessionId: string, modelId: string): Promise<boolean> {
+    if (!this.getModelConfig(modelId)) return false;
+    const db = await getDb();
+    await db.run(
+      "UPDATE chat_sessions SET model_id = ?, updated_at = ? WHERE id = ?",
+      modelId,
+      nowIso(),
+      sessionId,
+    );
+    return true;
   }
 }

@@ -53,8 +53,8 @@ type Comment = {
 
 type ReviewData = {
   stats: { avg_rating: number; total_count: number };
-  reviews: any[];
-  user_review: any;
+  reviews: { id: string; username?: string; rating: number; content?: string }[];
+  user_review: { rating: number; content?: string } | null;
 };
 
 export default function WorldDetailPage() {
@@ -185,7 +185,7 @@ export default function WorldDetailPage() {
         for (const ev of events) {
           const line = ev.trim();
           if (!line.startsWith("data:")) continue;
-          const payload = JSON.parse(line.slice(5).trim()) as any;
+          const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
           if (payload.type === "content") {
             setStreamText((t) => t + payload.content);
           }

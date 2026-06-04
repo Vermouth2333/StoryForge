@@ -109,7 +109,7 @@ export class RewriteSuggestionEngine {
         currentSuggestion.confidence = parseFloat(line.replace(/^置信度:\s*/, "").trim());
       } else if (line.includes("类型:")) {
         const type = line.replace(/^类型:\s*/, "").trim().toLowerCase();
-        currentSuggestion.type = type as any || "style";
+        currentSuggestion.type = (type as RewriteSuggestion["type"]) || "style";
       }
     }
 

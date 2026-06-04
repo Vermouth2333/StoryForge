@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- 迁移脚本处理动态数据库行，使用 any 映射任意表结构 */
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -24,6 +25,7 @@ async function migrateTable(
     totalRows: 0,
     migratedRows: 0,
     failedRows: 0,
+    error: undefined as string | undefined,
   };
 
   try {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -97,13 +96,16 @@ export default function HistoryPage() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSessions();
   }, []);
 
   useEffect(() => {
     if (!selectedSessionForHistory) return;
+    /* eslint-disable react-hooks/set-state-in-effect */
     void loadMessages(selectedSessionForHistory, 1);
     void loadSessionSnapshots(selectedSessionForHistory);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [selectedSessionForHistory]);
 
   return (

@@ -35,8 +35,8 @@ export async function GET(
 
     const workTable = workType === "story" ? "stories" : workType === "character" ? "characters" : "worlds";
     const workTitleField = workType === "story" ? "title" : "name";
-    const work = await db.get<{ id: string; author_id: string }>(
-      `SELECT id, author_id FROM ${workTable} WHERE id = ?`,
+    const work = await db.get<{ id: string; author_id: string; title?: string; name?: string }>(
+      `SELECT id, author_id, ${workTitleField} FROM ${workTable} WHERE id = ?`,
       workId
     );
 
@@ -45,7 +45,7 @@ export async function GET(
         id: workId,
         workType,
         workId,
-        workTitle: workTitleField === "title" ? (work as any).title : (work as any).name,
+        workTitle: (workTitleField === "title" ? work.title : work.name) ?? "",
         authorId: work.author_id,
         relationType: "self",
         level: 0,

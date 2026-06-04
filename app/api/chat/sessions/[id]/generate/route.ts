@@ -6,6 +6,10 @@ import { consumeStop } from "@/lib/chat-state";
 import { scanTextBundle } from "@/lib/content-filter";
 import { getDb, id, nowIso } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
+import { ModelManager, type ModelConfig } from "@/lib/model-manager";
+import { resolveProvider, streamChat, type ChatMessage, type ResolvedProvider } from "@/lib/ai-provider";
+import { buildChatContext } from "@/lib/prompt-context";
+import { conflictDetector } from "@/lib/conflict-detector";
 
 const schema = z.object({
   content: z.string().min(1).max(5000),
@@ -14,6 +18,13 @@ const schema = z.object({
 const HEARTBEAT_MS = 15_000;
 /** 整体生成时长上限（文档建议长连接不宜无限挂起） */
 const MAX_STREAM_MS = 180_000;
+
+/** 未配置真实模型时的占位流式输出片段 */
+const MOCK_CHUNKS = [
+  "已收到你的创作指令，",
+  "这是一个 MVP 版本的流式回复（未配置真实模型）。",
+  "在环境变量中配置 OPENAI_API_KEY 等即可启用真实模型输出。",
+];
 
 function sseData(payload: object) {
   return `data: ${JSON.stringify(payload)}\n\n`;
@@ -65,13 +76,37 @@ export async function POST(
   }
 
   const db = await getDb();
-  const session = await db.get<{ id: string }>(
-    "SELECT id FROM chat_sessions WHERE id = ? AND user_id = ?",
+  const session = await db.get<{
+    id: string;
+    session_type: string;
+    story_id: string | null;
+    character_id: string | null;
+    world_id: string | null;
+  }>(
+    "SELECT id, session_type, story_id, character_id, world_id FROM chat_sessions WHERE id = ? AND user_id = ?",
     sessionId,
     userId,
   );
   if (!session) {
     return NextResponse.json({ code: 404, msg: "会话不存在" }, { status: 404 });
+  }
+
+  // 在写入本轮用户消息之前组装上下文（系统/世界/角色/文风/历史 + 当前指令）
+  // 构建多模型降级链：主模型在前，已启用且已配置凭据的备用模型在后（见文档 5.8.5）
+  const primaryModelId = await ModelManager.getSessionModel(sessionId, userId);
+  const providerChain = ModelManager.getFallbackModelIds(primaryModelId)
+    .map((mid) => ModelManager.getModelConfig(mid))
+    .filter((c): c is ModelConfig => !!c)
+    .map((c) => ({ config: c, provider: resolveProvider(c) }))
+    .filter(
+      (x): x is { config: ModelConfig; provider: ResolvedProvider } =>
+        x.provider !== null,
+    );
+  let contextMessages: ChatMessage[] = [];
+  try {
+    contextMessages = await buildChatContext(db, sessionId, session, parsed.data.content);
+  } catch {
+    contextMessages = [{ role: "user", content: parsed.data.content }];
   }
 
   const userMessageId = id("msg");
@@ -111,35 +146,111 @@ export async function POST(
           }
         }, HEARTBEAT_MS);
 
-        const chunks = [
-          "已收到你的创作指令，",
-          "这是一个 MVP 版本的流式回复。",
-          "你可以继续扩展为真实模型输出。",
-        ];
-
         let fullText = "";
         let seq = 1;
-        for (const part of chunks) {
-          if (Date.now() - streamStarted > MAX_STREAM_MS) {
-            controller.enqueue(sseData({ type: "done", reason: "timeout", seq }));
-            closed = true;
-            stopHeartbeat();
-            controller.close();
-            return;
-          }
-          if (consumeStop(sessionId)) {
-            controller.enqueue(
-              sseData({ type: "done", reason: "stopped", seq, incomplete: true }),
-            );
-            closed = true;
-            stopHeartbeat();
-            controller.close();
-            return;
-          }
+        let stopped = false;
+        let timedOut = false;
+        let usedModelName = "mock-model";
+
+        const emit = (part: string) => {
           fullText += part;
           controller.enqueue(sseData({ type: "content", content: part, seq }));
           seq += 1;
-          await new Promise((resolve) => setTimeout(resolve, 280));
+        };
+
+        if (providerChain.length > 0) {
+          // 真实模型：按降级链依次尝试，主模型失败且尚无输出时自动切换备用模型
+          let producedOutput = false;
+          for (let i = 0; i < providerChain.length; i++) {
+            if (stopped || timedOut || producedOutput) break;
+            const { config, provider } = providerChain[i];
+            usedModelName = config.modelName;
+            const abort = new AbortController();
+            const stopPoll = setInterval(() => {
+              if (consumeStop(sessionId)) {
+                stopped = true;
+                abort.abort();
+              }
+              if (Date.now() - streamStarted > MAX_STREAM_MS) {
+                timedOut = true;
+                abort.abort();
+              }
+            }, 500);
+            try {
+              for await (const delta of streamChat(provider, contextMessages, {
+                temperature: config.defaultTemperature,
+                maxTokens: config.maxTokens,
+                signal: abort.signal,
+              })) {
+                emit(delta);
+                producedOutput = true;
+              }
+            } catch (streamErr) {
+              if (stopped || timedOut) break;
+              await logBasicSafe("warn", "live model failed, trying fallback", {
+                category: "chat_generate",
+                meta: {
+                  sessionId,
+                  modelId: config.id,
+                  isLast: i === providerChain.length - 1,
+                  message:
+                    streamErr instanceof Error ? streamErr.message : String(streamErr),
+                },
+                user_id: userId,
+              });
+              // 已产生部分输出时无法干净切换模型，停止；否则继续尝试下一个模型
+              if (fullText.length > 0) {
+                producedOutput = true;
+                break;
+              }
+            } finally {
+              clearInterval(stopPoll);
+            }
+          }
+
+          // 全部真实模型均失败且无任何输出时回退到占位输出，保证可用
+          if (!stopped && !timedOut && fullText.length === 0) {
+            await logBasicSafe("error", "all live models failed, fallback to mock", {
+              category: "chat_generate",
+              meta: { sessionId },
+              user_id: userId,
+            });
+            usedModelName = "mock-model";
+            for (const part of MOCK_CHUNKS) {
+              emit(part);
+            }
+          }
+        } else {
+          // 未配置真实模型：保留 MVP 占位流式输出
+          for (const part of MOCK_CHUNKS) {
+            if (Date.now() - streamStarted > MAX_STREAM_MS) {
+              timedOut = true;
+              break;
+            }
+            if (consumeStop(sessionId)) {
+              stopped = true;
+              break;
+            }
+            emit(part);
+            await new Promise((resolve) => setTimeout(resolve, 280));
+          }
+        }
+
+        if (stopped) {
+          controller.enqueue(
+            sseData({ type: "done", reason: "stopped", seq, incomplete: true }),
+          );
+          closed = true;
+          stopHeartbeat();
+          controller.close();
+          return;
+        }
+        if (timedOut) {
+          controller.enqueue(sseData({ type: "done", reason: "timeout", seq }));
+          closed = true;
+          stopHeartbeat();
+          controller.close();
+          return;
         }
 
         const assistantMessageId = id("msg");
@@ -152,8 +263,8 @@ export async function POST(
           fullText,
           Math.ceil(parsed.data.content.length / 4),
           Math.ceil(fullText.length / 4),
-          800,
-          "mock-model",
+          Date.now() - streamStarted,
+          usedModelName,
           nowIso(),
         );
 
@@ -163,6 +274,48 @@ export async function POST(
           nowIso(),
           sessionId,
         );
+
+        // 生成主循环集成：对生成内容自动触发冲突检测（P0/P1 拦截提示）
+        // 非阻塞——失败不影响本轮生成结果，仅在流中追加一个 conflict 事件
+        if (fullText.trim().length > 0) {
+          try {
+            const characterIds = session.character_id ? [session.character_id] : [];
+            const conflicts = await conflictDetector.detect(
+              fullText,
+              session.world_id,
+              characterIds,
+            );
+            if (conflicts.length > 0) {
+              const blocking = conflicts.some(
+                (c) => c.level === "P0" || c.level === "P1",
+              );
+              controller.enqueue(
+                sseData({
+                  type: "conflict",
+                  blocking,
+                  conflicts: conflicts.map((c) => ({
+                    level: c.level,
+                    conflictPoint: c.conflictPoint,
+                    reason: c.reason,
+                    rewriteSuggestions: c.rewriteSuggestions,
+                  })),
+                }),
+              );
+            }
+          } catch (conflictErr) {
+            await logBasicSafe("warn", "conflict detection failed", {
+              category: "chat_generate",
+              meta: {
+                sessionId,
+                message:
+                  conflictErr instanceof Error
+                    ? conflictErr.message
+                    : String(conflictErr),
+              },
+              user_id: userId,
+            });
+          }
+        }
 
         controller.enqueue(
           sseData({ type: "done", message_id: assistantMessageId, seq }),

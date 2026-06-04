@@ -2,6 +2,105 @@ import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { CacheService, cacheKeys } from "@/lib/cache";
+import { RecommendationEngine } from "@/lib/recommendation-engine";
+
+type DbHandle = Awaited<ReturnType<typeof getDb>>;
+
+/** 汇总用户点赞作品的标签（按点赞时间倒序展开），用于标签偏好画像 */
+async function collectLikedTags(
+  db: DbHandle,
+  likeRows: Array<{ target_type: string; target_id: string; created_at: string }>,
+): Promise<string[]> {
+  const sorted = [...likeRows].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+  const tableByType: Record<string, string> = {
+    story: "stories",
+    character: "characters",
+    world: "worlds",
+  };
+  const idsByType: Record<string, string[]> = { story: [], character: [], world: [] };
+  for (const l of sorted) {
+    if (idsByType[l.target_type]) idsByType[l.target_type].push(l.target_id);
+  }
+  const tagsById = new Map<string, string[]>();
+  for (const [type, ids] of Object.entries(idsByType)) {
+    if (!ids.length) continue;
+    const placeholders = ids.map(() => "?").join(",");
+    const rows = await db.all<Array<{ id: string; tags_json: string }>>(
+      `SELECT id, tags_json FROM ${tableByType[type]} WHERE id IN (${placeholders})`,
+      ...ids,
+    );
+    for (const r of rows) {
+      try {
+        tagsById.set(r.id, JSON.parse(r.tags_json || "[]"));
+      } catch {
+        tagsById.set(r.id, []);
+      }
+    }
+  }
+  const result: string[] = [];
+  for (const l of sorted) {
+    const t = tagsById.get(l.target_id);
+    if (t) result.push(...t);
+  }
+  return result;
+}
+
+/** 基于推荐引擎对候选作品做个性化重排（仅登录用户 + recommended 排序） */
+async function rankPersonalized(
+  db: DbHandle,
+  userId: string,
+  items: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const likeRows = await db.all<Array<{ target_type: string; target_id: string; created_at: string }>>(
+    "SELECT target_type, target_id, created_at FROM likes WHERE user_id = ?",
+    userId,
+  );
+  const followRows = await db.all<Array<{ author_id: string; created_at: string }>>(
+    "SELECT author_id, created_at FROM follows WHERE user_id = ?",
+    userId,
+  );
+
+  const likedTags = await collectLikedTags(db, likeRows);
+  const profile = RecommendationEngine.buildUserProfile(
+    userId,
+    likeRows,
+    followRows,
+    [],
+    likedTags,
+  );
+
+  const authorIds = Array.from(
+    new Set(items.map((it) => String(it.author_id ?? "")).filter(Boolean)),
+  );
+  const authorFollowersMap: Record<string, number> = {};
+  if (authorIds.length > 0) {
+    const placeholders = authorIds.map(() => "?").join(",");
+    const followerRows = await db.all<Array<{ author_id: string; cnt: number }>>(
+      `SELECT author_id, COUNT(*) AS cnt FROM follows WHERE author_id IN (${placeholders}) GROUP BY author_id`,
+      ...authorIds,
+    );
+    for (const r of followerRows) authorFollowersMap[r.author_id] = r.cnt;
+  }
+
+  const works = items.map((it) => ({
+    ...it,
+    id: String(it.id),
+    type: String(it.feed_kind) as "story" | "character" | "world",
+    like_count: Number(it.like_count ?? 0),
+    favorite_count: Number(it.favorite_count ?? 0),
+    author_id: String(it.author_id ?? ""),
+    tags_json: String(it.tags_json ?? "[]"),
+    publish_at: String(it.publish_at ?? ""),
+  }));
+
+  return RecommendationEngine.sortByRecommendationScore(
+    works,
+    profile,
+    authorFollowersMap,
+  ).slice(0, 30);
+}
 
 const ORDER_SQL: Record<string, Record<string, string>> = {
   story: {
@@ -37,9 +136,13 @@ export async function GET(req: Request) {
   const endDate = url.searchParams.get("endDate") ?? "";
 
   const tags = tagsParam ? tagsParam.split(",").filter(t => t.trim()) : [];
-  
-  const cacheKey = cacheKeys.feed(`${kind}-${sort}-${search}-${tagsParam}-${author}-${minRating}`);
-  const cached = await CacheService.get<any>(cacheKey);
+
+  // recommended + 登录用户：启用推荐引擎个性化重排（按用户区分缓存）
+  const personalize = sort === "recommended" && !!userId;
+  const candidateLimit = personalize ? 100 : 30;
+
+  const cacheKey = cacheKeys.feed(`${kind}-${sort}-${search}-${tagsParam}-${author}-${minRating}${personalize ? `-u:${userId}` : ""}`);
+  const cached = await CacheService.get<Record<string, unknown>>(cacheKey);
   if (cached) {
     return NextResponse.json({
       code: 200,
@@ -54,8 +157,8 @@ export async function GET(req: Request) {
   const db = await getDb();
 
   let items: Record<string, unknown>[];
-  const params: any[] = [];
-  let whereConditions: string[] = [];
+  const params: (string | number)[] = [];
+  const whereConditions: string[] = [];
 
   if (userId) {
     params.push(userId);
@@ -105,7 +208,7 @@ export async function GET(req: Request) {
        ) uf ON uf.author_id = c.author_id
        ${whereClause}
        ORDER BY ${order}
-       LIMIT 30`,
+       LIMIT ${candidateLimit}`,
       ...params,
     );
   } else if (kind === "world") {
@@ -152,7 +255,7 @@ export async function GET(req: Request) {
        ) uf ON uf.author_id = w.author_id
        ${whereClause}
        ORDER BY ${order}
-       LIMIT 30`,
+       LIMIT ${candidateLimit}`,
       ...params,
     );
   } else {
@@ -207,9 +310,13 @@ export async function GET(req: Request) {
        ) uf ON uf.author_id = s.author_id
        ${whereClause}
        ORDER BY ${order}
-       LIMIT 30`,
+       LIMIT ${candidateLimit}`,
       ...params,
     );
+  }
+
+  if (personalize && userId && items.length > 0) {
+    items = await rankPersonalized(db, userId, items);
   }
 
   const data = { user_id: userId, kind, items };

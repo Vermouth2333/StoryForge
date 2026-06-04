@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Comment {
   id: string;
@@ -43,11 +43,7 @@ export default function WorldCommentsPage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    loadComments();
-  }, [params.id, page]);
-
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     setLoading(true);
     const data = await fetchComments(params.id, page);
     if (data.code === 200) {
@@ -55,7 +51,12 @@ export default function WorldCommentsPage({ params }: { params: { id: string } }
       setTotalPages(data.data.pagination.totalPages);
     }
     setLoading(false);
-  };
+  }, [params.id, page]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadComments();
+  }, [loadComments]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

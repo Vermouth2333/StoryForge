@@ -44,7 +44,7 @@ export async function GET(
     }
 
     let whereClause = "story_id = ?";
-    const params2: any[] = [storyId];
+    const params2: (string | number)[] = [storyId];
 
     if (level && ["P0", "P1", "P2"].includes(level)) {
       whereClause += " AND conflict_level = ?";
@@ -69,7 +69,7 @@ export async function GET(
     );
 
     const formattedLogs = logs.map((log) => {
-      let details: any = {};
+      let details: Record<string, unknown> = {};
       try {
         details = log.conflict_details_json
           ? JSON.parse(log.conflict_details_json as string)

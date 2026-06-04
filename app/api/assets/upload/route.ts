@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
   const db = await getDb();
   
   let query = "SELECT * FROM assets WHERE user_id = ?";
-  const params: any[] = [userId];
+  const params: (string | number)[] = [userId];
   
   if (targetType && targetId) {
     query += " AND target_type = ? AND target_id = ?";

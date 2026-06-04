@@ -79,7 +79,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   
   // 构建节点树
   const nodeMap = new Map();
-  const rootNodes: any[] = [];
+  const rootNodes: Record<string, unknown>[] = [];
   
   for (const node of nodes) {
     nodeMap.set(node.id, { ...node, children: [] });

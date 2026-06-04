@@ -4,11 +4,25 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+interface WorkItem {
+  id: string;
+  title?: string;
+  name?: string;
+  summary?: string;
+  like_count?: number;
+  favorite_count?: number;
+}
+
 interface AuthorData {
-  author: any;
-  stats: any;
+  author: { username?: string; bio?: string };
+  stats: {
+    stories: { count: number };
+    characters: { count: number };
+    worlds: { count: number };
+    followers: number;
+  };
   is_following: boolean;
-  works: { stories: any[], characters: any[], worlds: any[] };
+  works: { stories: WorkItem[], characters: WorkItem[], worlds: WorkItem[] };
 }
 
 export default function AuthorPage({ params }: { params: { authorId: string } }) {

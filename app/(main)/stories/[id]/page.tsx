@@ -44,8 +44,8 @@ type Comment = {
 
 type ReviewData = {
   stats: { avg_rating: number; total_count: number };
-  reviews: any[];
-  user_review: any;
+  reviews: { id: string; username?: string; rating: number; content?: string }[];
+  user_review: { rating: number; content?: string } | null;
 };
 
 export default function StoryDetailPage() {

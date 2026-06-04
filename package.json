@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backup": "node --experimental-strip-types scripts/backup.ts",
+    "restore": "node --experimental-strip-types scripts/restore.ts"
   },
   "dependencies": {
     "ioredis": "^5.10.1",

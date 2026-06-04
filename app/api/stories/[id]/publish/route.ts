@@ -5,6 +5,7 @@ import { getDb, nowIso } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
+import { verifyReplayGuard } from "@/lib/anti-replay";
 
 export async function POST(
   req: Request,
@@ -33,6 +34,11 @@ export async function POST(
         headers: { "Retry-After": String(Math.ceil(rlIp.retryAfterMs / 1000)) },
       },
     );
+  }
+
+  const replay = await verifyReplayGuard(req, userId);
+  if (!replay.ok) {
+    return NextResponse.json({ code: replay.status, msg: replay.msg }, { status: replay.status });
   }
 
   const story = await db.get<{ id: string; title: string }>(

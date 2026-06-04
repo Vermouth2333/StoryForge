@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { replayHeaders } from "@/lib/replay-headers";
 
 type NotificationItem = {
   id: string;
@@ -124,13 +124,13 @@ export default function MyPage() {
   }
 
   async function publishStory(story: MyStoryItem) {
-    const res = await fetch(`/api/stories/${story.id}/publish`, { method: "POST" });
+    const res = await fetch(`/api/stories/${story.id}/publish`, { method: "POST", headers: replayHeaders() });
     await res.json();
     await loadMyStories();
   }
 
   async function publishCharacter(character: MyCharacterItem) {
-    const res = await fetch(`/api/characters/${character.id}/publish`, { method: "POST" });
+    const res = await fetch(`/api/characters/${character.id}/publish`, { method: "POST", headers: replayHeaders() });
     await res.json();
     await loadMyCharacters();
   }
@@ -142,7 +142,7 @@ export default function MyPage() {
   }
 
   async function publishWorld(world: MyWorldItem) {
-    const res = await fetch(`/api/worlds/${world.id}/publish`, { method: "POST" });
+    const res = await fetch(`/api/worlds/${world.id}/publish`, { method: "POST", headers: replayHeaders() });
     await res.json();
     await loadMyWorlds();
   }
@@ -184,11 +184,14 @@ export default function MyPage() {
   }
 
   useEffect(() => {
+    // 挂载时加载数据，属于与外部系统（服务端）同步，刻意为之
+    /* eslint-disable react-hooks/set-state-in-effect */
     void loadNotifications();
     void loadMyStories();
     void loadMyCharacters();
     void loadMyWorlds();
     void loadMyFavorites();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   return (

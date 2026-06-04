@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { replayHeaders } from "@/lib/replay-headers";
 
 type Profile = {
   id: string;
@@ -365,7 +366,7 @@ export default function SettingsPage() {
               try {
                 const res = await fetch("/api/account/delete", {
                   method: "POST",
-                  headers: { "Content-Type": "application/json" },
+                  headers: { "Content-Type": "application/json", ...replayHeaders() },
                   body: JSON.stringify({
                     confirm: deleteConfirm.trim(),
                     works_action: worksAction,

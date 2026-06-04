@@ -3,6 +3,9 @@ import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
 import { scanTextBundle } from "@/lib/content-filter";
+import { ModelManager } from "@/lib/model-manager";
+import { resolveProvider, streamChat } from "@/lib/ai-provider";
+import { buildChatContext } from "@/lib/prompt-context";
 
 const rewriteSchema = z.object({
   paragraph_id: z.string(),
@@ -35,11 +38,12 @@ export async function POST(
     const db = await getDb();
     const session = await db.get<{
       id: string;
+      session_type: string;
       story_id: string | null;
       character_id: string | null;
       world_id: string | null;
     }>(
-      "SELECT id, story_id, character_id, world_id FROM chat_sessions WHERE id = ? AND user_id = ?",
+      "SELECT id, session_type, story_id, character_id, world_id FROM chat_sessions WHERE id = ? AND user_id = ?",
       sessionId,
       userId
     );
@@ -53,33 +57,64 @@ export async function POST(
       return NextResponse.json({ code: 400, msg: scanResult.msg }, { status: 400 });
     }
 
-    const contextMessages = await db.all(
-      `SELECT role, content FROM chat_messages
-       WHERE session_id = ? AND id != ?
-       ORDER BY created_at DESC
-       LIMIT 10`,
-      sessionId,
-      parsed.data.paragraph_id
-    );
+    const rewriteInstruction =
+      parsed.data.instruction || "请重新生成这段内容，保持相同的风格和情节走向";
 
-    const contextPrompt = contextMessages
-      .reverse()
-      .map((m) => `${m.role}: ${m.content}`)
-      .join("\n");
+    // 段落级再生成：接入真实模型（未配置时回退到占位输出）
+    const modelId = await ModelManager.getSessionModel(sessionId, userId);
+    const modelConfig = ModelManager.getModelConfig(modelId);
+    const provider = modelConfig ? resolveProvider(modelConfig) : null;
 
-    const rewriteInstruction = parsed.data.instruction || "请重新生成这段内容，保持相同的风格和情节走向";
+    const mockRewrite = `[重新生成的段落]\n\n基于以下上下文和指令重新生成的内容：\n\n指令：${rewriteInstruction}\n\n这是模拟的重新生成结果（未配置真实模型）。在环境变量中配置 OPENAI_API_KEY 等即可启用真实模型输出。`;
 
-    const mockRewrite = `[重新生成的段落]\n\n基于以下上下文和指令重新生成的内容：\n\n指令：${rewriteInstruction}\n\n这是模拟的重新生成结果。在实际实现中，这里应该调用AI模型来生成新的段落内容。`;
+    let rewrittenContent = mockRewrite;
+    let usedModelName = "mock-model";
+
+    if (provider && modelConfig) {
+      try {
+        const rewritePrompt = [
+          "请在保持原有文风、人物人设与世界设定一致的前提下，重写下面这段内容。只输出重写后的正文，不要追加解释。",
+          "",
+          `【原段落】\n${parsed.data.original_content}`,
+          "",
+          `【改写要求】\n${rewriteInstruction}`,
+        ].join("\n");
+        const contextMessages = await buildChatContext(
+          db,
+          sessionId,
+          session,
+          rewritePrompt,
+        );
+        let acc = "";
+        for await (const delta of streamChat(provider, contextMessages, {
+          temperature: modelConfig.defaultTemperature,
+          maxTokens: modelConfig.maxTokens,
+        })) {
+          acc += delta;
+        }
+        const trimmed = acc.trim();
+        if (trimmed.length > 0) {
+          const outScan = scanTextBundle([trimmed], 50000);
+          if (outScan.ok) {
+            rewrittenContent = trimmed;
+            usedModelName = modelConfig.modelName;
+          }
+        }
+      } catch {
+        // 真实模型失败时保留占位结果，不中断请求
+      }
+    }
 
     const rewriteMessageId = id("msg");
     const now = nowIso();
 
     await db.run(
-      `INSERT INTO chat_messages (id, session_id, role, content, created_at)
-       VALUES (?, ?, 'assistant', ?, ?)`,
+      `INSERT INTO chat_messages (id, session_id, role, content, model_name, created_at)
+       VALUES (?, ?, 'assistant', ?, ?, ?)`,
       rewriteMessageId,
       sessionId,
-      mockRewrite,
+      rewrittenContent,
+      usedModelName,
       now
     );
 
@@ -88,7 +123,8 @@ export async function POST(
       data: {
         message_id: rewriteMessageId,
         original_content: parsed.data.original_content,
-        rewritten_content: mockRewrite,
+        rewritten_content: rewrittenContent,
+        model_name: usedModelName,
         suggestion: "auto_fix_draft",
       },
       msg: "重新生成成功",

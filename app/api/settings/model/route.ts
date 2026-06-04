@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    ModelManager.setUserDefaultModel(userId, modelId);
+    await ModelManager.setUserDefaultModel(userId, modelId);
 
     return NextResponse.json({
       code: 200,

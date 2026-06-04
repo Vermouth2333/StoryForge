@@ -8,6 +8,24 @@ export interface ConsistencyViolation {
   suggestion: string;
 }
 
+interface ChapterLike {
+  content?: string;
+  title?: string;
+  [key: string]: unknown;
+}
+
+interface CharacterLike {
+  id: string;
+  name?: string;
+  personality?: string;
+  [key: string]: unknown;
+}
+
+interface WorldLike {
+  setting_notes?: string;
+  [key: string]: unknown;
+}
+
 export class ConsistencyChecker {
   /**
    * 检查故事一致性
@@ -56,8 +74,8 @@ export class ConsistencyChecker {
    * 检查角色一致性
    */
   private checkCharacterConsistency(
-    chapters: any[],
-    characters: any[]
+    chapters: ChapterLike[],
+    characters: CharacterLike[]
   ): ConsistencyViolation[] {
     const violations: ConsistencyViolation[] = [];
     
@@ -107,7 +125,7 @@ export class ConsistencyChecker {
   /**
    * 检查时间线一致性
    */
-  private checkTimelineConsistency(chapters: any[]): ConsistencyViolation[] {
+  private checkTimelineConsistency(chapters: ChapterLike[]): ConsistencyViolation[] {
     const violations: ConsistencyViolation[] = [];
     
     // 检测季节混用
@@ -158,7 +176,7 @@ export class ConsistencyChecker {
   /**
    * 检查地点一致性
    */
-  private checkLocationConsistency(chapters: any[]): ConsistencyViolation[] {
+  private checkLocationConsistency(chapters: ChapterLike[]): ConsistencyViolation[] {
     const violations: ConsistencyViolation[] = [];
     
     // 检测地点关键词
@@ -210,8 +228,8 @@ export class ConsistencyChecker {
    * 检查世界观一致性
    */
   private checkWorldConsistency(
-    chapters: any[],
-    world: any
+    chapters: ChapterLike[],
+    world: WorldLike
   ): ConsistencyViolation[] {
     const violations: ConsistencyViolation[] = [];
     

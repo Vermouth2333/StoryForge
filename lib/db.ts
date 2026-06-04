@@ -314,6 +314,30 @@ async function migrateSchema(db: Database) {
 
   await addColumnIfMissing(db, "characters", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");
   await addColumnIfMissing(db, "worlds", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");
+
+  // 会话级模型选择持久化
+  await addColumnIfMissing(db, "chat_sessions", "model_id", "model_id TEXT");
+
+  // 用户级设置持久化（含默认模型等键值）
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
+    );
+  `);
+
+  // 防重放：敏感接口使用过的 nonce（5 分钟时窗内不可复用）
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS used_nonces (
+      nonce TEXT PRIMARY KEY,
+      user_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_used_nonces_created ON used_nonces(created_at);
+  `);
 }
 
 

@@ -32,7 +32,7 @@ export async function POST(
       );
     }
 
-    ModelManager.setSessionModel(id, modelId);
+    await ModelManager.setSessionModel(id, modelId);
 
     return NextResponse.json({
       code: 200,

@@ -60,7 +60,7 @@ export async function GET(
       });
     }
 
-    let features: any = {};
+    let features: Record<string, unknown> = {};
     try {
       features = styleAnchor.features_json
         ? JSON.parse(styleAnchor.features_json)

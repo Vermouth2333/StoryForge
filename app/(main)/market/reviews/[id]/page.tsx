@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface Comment {
   id: string;
@@ -64,32 +64,34 @@ export default function CommentDetailPage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    loadComment();
-  }, [params.id]);
-
-  useEffect(() => {
-    if (comment) {
-      loadReplies();
-    }
-  }, [params.id, page]);
-
-  const loadComment = async () => {
+  const loadComment = useCallback(async () => {
     setLoading(true);
     const data = await fetchComment(params.id);
     if (data.code === 200) {
       setComment(data.data);
     }
     setLoading(false);
-  };
+  }, [params.id]);
 
-  const loadReplies = async () => {
+  const loadReplies = useCallback(async () => {
     const data = await fetchReplies(params.id, page);
     if (data.code === 200) {
       setReplies(data.data.replies);
       setTotalPages(data.data.pagination.totalPages);
     }
-  };
+  }, [params.id, page]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadComment();
+  }, [loadComment]);
+
+  useEffect(() => {
+    if (comment) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadReplies();
+    }
+  }, [comment, loadReplies]);
 
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
