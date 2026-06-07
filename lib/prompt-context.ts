@@ -62,19 +62,15 @@ async function retrieveWorldKnowledge(
   if (!tokenized) return [];
 
   const rag = new RagEngine();
-  rag.clear();
-  for (const e of entries) {
-    rag.indexKnowledgeEntry({
-      id: e.id,
-      name: e.title,
-      content: e.body,
-      world_id: worldId,
-    });
-  }
+  await rag.syncKnowledgeEntries(
+    worldId,
+    entries.map((e) => ({ id: e.id, name: e.title, content: e.body })),
+  );
 
-  return rag
-    .retrieve(tokenized, { types: ["knowledge"], limit: MAX_RAG_ENTRIES })
-    .map((r) => r.content);
+  const retrieved = await rag.retrieveKnowledgeForWorld(worldId, tokenized, {
+    limit: MAX_RAG_ENTRIES,
+  });
+  return retrieved.map((r) => r.content);
 }
 
 export async function buildChatContext(

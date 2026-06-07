@@ -52,7 +52,7 @@ export class RecommendationEngine {
       .slice(0, 100)
       .map((v) => v.target_id);
 
-    const preferredTags = this.extractPreferredTags(likedTags, readingHistory);
+    const preferredTags = this.extractPreferredTags(likedTags);
 
     return {
       userId,
@@ -65,7 +65,7 @@ export class RecommendationEngine {
     };
   }
 
-  private static extractPreferredTags(likedTags: string[], viewHistory: string[]): string[] {
+  private static extractPreferredTags(likedTags: string[]): string[] {
     const tagFrequency: Record<string, number> = {};
 
     likedTags.forEach((tag, idx) => {

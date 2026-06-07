@@ -313,7 +313,7 @@ export class ConflictDetector {
           worldId,
           content.slice(0, 500), // 只保存前500字
           conflict.level,
-          JSON.stringify(conflict),
+          JSON.stringify({ ...conflict, characterIds }),
           nowIso(),
         ]
       );

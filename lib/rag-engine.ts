@@ -1,3 +1,5 @@
+import { getDb, nowIso } from "@/lib/db";
+
 export interface VectorEntry {
   id: string;
   type: "character" | "world" | "knowledge" | "story";
@@ -14,6 +16,82 @@ export interface VectorEntry {
 export interface SearchResult {
   entry: VectorEntry;
   score: number;
+}
+
+interface RagVectorRow {
+  id: string;
+  type: string;
+  resource_id: string;
+  resource_type: string;
+  world_id: string | null;
+  content: string;
+  embedding_json: string | null;
+}
+
+function toWordTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function parseEmbedding(value: string | null): number[] | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.every((x) => typeof x === "number")) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function createEmbedding(input: string): Promise<number[] | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  const baseUrl = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+  const model = process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small";
+
+  try {
+    const res = await fetch(`${baseUrl}/embeddings`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        input,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      data?: Array<{ embedding?: number[] }>;
+    };
+    const emb = json.data?.[0]?.embedding;
+    if (!emb || !Array.isArray(emb)) return null;
+    return emb;
+  } catch {
+    return null;
+  }
 }
 
 export class VectorStore {
@@ -190,6 +268,127 @@ export class RagEngine {
     });
   }
 
+  async syncKnowledgeEntries(
+    worldId: string,
+    entries: Array<{ id: string; name: string; content: string; tags?: string[] }>,
+  ): Promise<void> {
+    const db = await getDb();
+    const existing = await db.all<Array<{ id: string; content: string }>>(
+      "SELECT id, content FROM rag_vectors WHERE type = 'knowledge' AND world_id = ?",
+      worldId,
+    );
+    const byId = new Map(existing.map((r) => [r.id, r.content]));
+
+    for (const entry of entries) {
+      const ragId = `knowledge_${entry.id}`;
+      const mergedContent = [entry.name, entry.content].filter(Boolean).join(" ").slice(0, 4000);
+      const oldContent = byId.get(ragId);
+
+      if (oldContent === mergedContent) {
+        this.indexKnowledgeEntry({
+          id: entry.id,
+          name: entry.name,
+          content: entry.content,
+          world_id: worldId,
+          tags: entry.tags,
+        });
+        continue;
+      }
+
+      const embedding = await createEmbedding(mergedContent);
+      await db.run(
+        `INSERT INTO rag_vectors
+        (id, type, resource_id, resource_type, world_id, content, tags_json, embedding_json, updated_at)
+         VALUES (?, 'knowledge', ?, 'knowledge', ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           content = excluded.content,
+           tags_json = excluded.tags_json,
+           embedding_json = excluded.embedding_json,
+           updated_at = excluded.updated_at`,
+        ragId,
+        entry.id,
+        worldId,
+        mergedContent,
+        JSON.stringify(entry.tags || []),
+        embedding ? JSON.stringify(embedding) : null,
+        nowIso(),
+      );
+
+      this.vectorStore.addEntry({
+        id: ragId,
+        type: "knowledge",
+        content: mergedContent,
+        metadata: {
+          resourceId: entry.id,
+          resourceType: "knowledge",
+          tags: entry.tags,
+          createdAt: new Date(),
+        },
+        embedding: embedding || undefined,
+      });
+    }
+  }
+
+  async retrieveKnowledgeForWorld(
+    worldId: string,
+    query: string,
+    options: { limit?: number; minScore?: number } = {},
+  ): Promise<Array<{ type: string; resourceId: string; content: string; score: number }>> {
+    const { limit = 5, minScore = 0.1 } = options;
+    const db = await getDb();
+    const rows = await db.all<RagVectorRow[]>(
+      `SELECT id, type, resource_id, resource_type, world_id, content, embedding_json
+       FROM rag_vectors
+       WHERE type = 'knowledge' AND world_id = ?`,
+      worldId,
+    );
+    if (rows.length === 0) return [];
+
+    const queryEmbedding = await createEmbedding(query);
+    if (queryEmbedding) {
+      const scored = rows
+        .map((row) => {
+          const emb = parseEmbedding(row.embedding_json);
+          return {
+            row,
+            score: emb ? cosineSimilarity(queryEmbedding, emb) : -1,
+          };
+        })
+        .filter((x) => x.score >= minScore)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit)
+        .map(({ row, score }) => ({
+          type: row.resource_type,
+          resourceId: row.resource_id,
+          content: row.content.slice(0, 500),
+          score,
+        }));
+      if (scored.length > 0) return scored;
+    }
+
+    // Fallback: keyword retrieval from persisted content when embedding is unavailable.
+    const words = toWordTokens(query);
+    const keyword = rows
+      .map((row) => {
+        const haystack = row.content.toLowerCase();
+        const matches = words.reduce((acc, word) => (haystack.includes(word) ? acc + 1 : acc), 0);
+        return {
+          row,
+          score: words.length > 0 ? matches / words.length : 0,
+        };
+      })
+      .filter((x) => x.score >= minScore)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(({ row, score }) => ({
+        type: row.resource_type,
+        resourceId: row.resource_id,
+        content: row.content.slice(0, 500),
+        score,
+      }));
+    return keyword;
+  }
+
   indexStoryChapter(chapter: {
     id: string;
     story_id: string;
@@ -249,9 +448,20 @@ export class RagEngine {
       (item) => `[${item.type}] ${item.content}`
     );
 
+    const maxChars = Math.max(200, maxTokens * 4);
+    const compactSections: string[] = [];
+    let used = 0;
+    for (const section of contextSections) {
+      if (used >= maxChars) break;
+      const rest = maxChars - used;
+      const piece = section.slice(0, rest);
+      compactSections.push(piece);
+      used += piece.length;
+    }
+
     return (
       "参考信息：\n" +
-      contextSections.join("\n\n") +
+      compactSections.join("\n\n") +
       "\n\n请基于以上参考信息回答用户的问题。"
     );
   }

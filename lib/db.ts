@@ -338,6 +338,22 @@ async function migrateSchema(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_used_nonces_created ON used_nonces(created_at);
   `);
+
+  // RAG 向量缓存：持久化知识条目内容与 embedding，避免仅依赖进程内存
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS rag_vectors (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      resource_id TEXT NOT NULL,
+      resource_type TEXT NOT NULL,
+      world_id TEXT,
+      content TEXT NOT NULL,
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      embedding_json TEXT,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_rag_vectors_world_type ON rag_vectors(world_id, type);
+  `);
 }
 
 
