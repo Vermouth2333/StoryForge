@@ -2,14 +2,15 @@ import { getDb, id, nowIso } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ storyId: string; branchId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; branchId: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { storyId, branchId } = params_data;
+  const storyId = params_data.id;
+  const { branchId } = params_data;
   
   const db = await getDb();
   
@@ -57,9 +58,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ storyId: string; branchId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; branchId: string }> }) {
   const params_data = await params;
-  const { storyId, branchId } = params_data;
+  const storyId = params_data.id;
+  const { branchId } = params_data;
   
   const db = await getDb();
   

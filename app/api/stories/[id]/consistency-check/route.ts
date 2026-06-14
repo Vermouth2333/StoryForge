@@ -2,14 +2,14 @@ import { getCurrentUserId } from "@/lib/auth";
 import { consistencyChecker } from "@/lib/consistency-checker";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ storyId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { storyId } = params_data;
+  const storyId = params_data.id;
   
   // 执行一致性检查
   const violations = await consistencyChecker.checkStory(storyId);
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ storyId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const params_data = await params;
-  const { storyId } = params_data;
+  const storyId = params_data.id;
   
   const { getDb } = await import("@/lib/db");
   const db = await getDb();

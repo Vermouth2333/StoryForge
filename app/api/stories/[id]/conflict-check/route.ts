@@ -2,14 +2,14 @@ import { getCurrentUserId } from "@/lib/auth";
 import { conflictDetector } from "@/lib/conflict-detector";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ storyId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { storyId } = params_data;
+  const storyId = params_data.id;
   const body = await request.json();
   const { content, character_ids } = body;
   
@@ -36,9 +36,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ storyId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const params_data = await params;
-  const { storyId } = params_data;
+  const storyId = params_data.id;
   
   // 获取该故事的冲突历史
   const { getDb } = await import("@/lib/db");

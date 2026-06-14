@@ -1,15 +1,15 @@
-import { getDb, id, nowIso } from "@/lib/db";
+import { getDb, id as genId, nowIso } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { sessionId } = params_data;
+  const sessionId = params_data.id;
   
   const db = await getDb();
   
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   );
   
   // 创建存档
-  const archiveId = id("archive");
+  const archiveId = genId("archive");
   const now = nowIso();
   
   await db.run(
@@ -74,14 +74,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ sessionId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { sessionId } = params_data;
+  const sessionId = params_data.id;
   
   const db = await getDb();
   

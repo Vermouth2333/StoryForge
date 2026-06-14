@@ -2,7 +2,7 @@ import { getDb, nowIso } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function PATCH(request: NextRequest, props: { params: Promise<{ commentId: string }> }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ com
   const db = await getDb();
   const body = await request.json();
   const { content } = body;
-  const { commentId } = params;
+  const commentId = params.id;
   
   const comment = await db.get("SELECT * FROM comments WHERE id = ?", [commentId]);
   if (!comment) {
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, props: { params: Promise<{ com
   return NextResponse.json({ success: true });
 }
 
-export async function DELETE(request: NextRequest, props: { params: Promise<{ commentId: string }> }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -39,7 +39,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ co
   }
   
   const db = await getDb();
-  const { commentId } = params;
+  const commentId = params.id;
   
   const comment = await db.get("SELECT * FROM comments WHERE id = ?", [commentId]);
   if (!comment) {

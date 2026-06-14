@@ -1,15 +1,16 @@
-import { getDb, id, nowIso } from "@/lib/db";
+import { getDb, id as genId, nowIso } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ sessionId: string; archiveId: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string; archiveId: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { sessionId, archiveId } = params_data;
+  const sessionId = params_data.id;
+  const { archiveId } = params_data;
   
   const db = await getDb();
   
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   
   if (saveAsNew) {
     // 创建新的会话并导入存档内容
-    const newSessionId = id("session");
+    const newSessionId = genId("session");
     const now = nowIso();
     
     await db.run(
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     
     // 导入消息
     for (const msg of archivedMessages) {
-      const msgId = id("msg");
+      const msgId = genId("msg");
       await db.run(
         `INSERT INTO chat_messages (id, session_id, role, content, token_input, token_output, latency_ms, model_name, created_at) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     
     // 导入存档消息
     for (const msg of archivedMessages) {
-      const msgId = id("msg");
+      const msgId = genId("msg");
       await db.run(
         `INSERT INTO chat_messages (id, session_id, role, content, token_input, token_output, latency_ms, model_name, created_at) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -101,14 +102,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ sessionId: string; archiveId: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; archiveId: string }> }) {
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
   
   const params_data = await params;
-  const { sessionId, archiveId } = params_data;
+  const sessionId = params_data.id;
+  const { archiveId } = params_data;
   
   const db = await getDb();
   

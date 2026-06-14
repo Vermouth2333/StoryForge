@@ -2,7 +2,7 @@ import { getDb, id, nowIso } from "@/lib/db";
 import { getCurrentUserId } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(request: NextRequest, props: { params: Promise<{ commentId: string }> }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const userId = await getCurrentUserId();
   if (!userId) {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ comm
   }
   
   const db = await getDb();
-  const { commentId } = params;
+  const commentId = params.id;
   
   // 检查是否已点赞
   const existingLike = await db.get(
