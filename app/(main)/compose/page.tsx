@@ -18,6 +18,10 @@ export default function ComposePage() {
   const [streamText, setStreamText] = useState("");
   const [busy, setBusy] = useState(false);
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
+  const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
+  const [myWorlds, setMyWorlds] = useState<{ id: string; name: string }[]>([]);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; modelName: string; provider: string }>>([]);
+  const [selectedModelId, setSelectedModelId] = useState("");
 
   async function createStory() {
     const res = await fetch("/api/stories", {
@@ -67,6 +71,7 @@ export default function ComposePage() {
         session_type: "story",
         story_id: storyId || null,
         title: `${storyTitle}-会话`,
+        model_id: selectedModelId || undefined,
       }),
     });
     const sessionJson = await sessionRes.json();
@@ -125,8 +130,30 @@ export default function ComposePage() {
     setMyStories(json.data ?? []);
   }
 
+  async function loadMyCards() {
+    const [charRes, worldRes, modelRes] = await Promise.all([
+      fetch("/api/characters?mine=1"),
+      fetch("/api/worlds?mine=1"),
+      fetch("/api/models"),
+    ]);
+    const charJson = charRes.ok ? await charRes.json() : { data: [] };
+    const worldJson = worldRes.ok ? await worldRes.json() : { data: [] };
+    setMyCharacters((charJson.data ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+    setMyWorlds((worldJson.data ?? []).map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
+    if (modelRes.ok) {
+      const modelJson = await modelRes.json();
+      if (modelJson.code === 200) {
+        const enabled = (modelJson.data ?? []).filter((m: { enabled: boolean }) => m.enabled);
+        setAvailableModels(enabled);
+        if (modelJson.defaultModelId) setSelectedModelId(modelJson.defaultModelId);
+        else if (enabled.length > 0) setSelectedModelId(enabled[0].id);
+      }
+    }
+  }
+
   useEffect(() => {
     void loadMyStories();
+    void loadMyCards();
   }, []);
 
   return (
@@ -197,8 +224,24 @@ export default function ComposePage() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="输入你的创作指令..."
           />
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button className="sf-btn-primary flex items-center gap-2" onClick={generate} disabled={busy}>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {availableModels.length > 0 && (
+              <select
+                className="sf-input max-w-[200px] text-sm"
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+              >
+                {availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.provider})</option>
+                ))}
+              </select>
+            )}
+            {availableModels.length === 0 && (
+              <Link href="/settings" className="text-xs text-[#5B9DFF] hover:underline">
+                前往设置添加 AI 模型
+              </Link>
+            )}
+            <button className="sf-btn-primary flex items-center gap-2" onClick={generate} disabled={busy || availableModels.length === 0}>
               {busy ? (
                 <>
                   <span className="animate-pulse">⏳</span> 生成中...
@@ -232,9 +275,28 @@ export default function ComposePage() {
             <span className="text-xl">🎭</span> 角色与世界
           </h3>
           <div className="flex flex-wrap gap-2">
-            <span className="sf-tag">角色: V</span>
-            <span className="sf-tag">角色: 强尼</span>
-            <span className="sf-tag">世界: 赛博朋克</span>
+            {myCharacters.length > 0 ? (
+              myCharacters.slice(0, 5).map((c) => (
+                <Link key={c.id} className="sf-tag" href={`/characters/${c.id}`}>
+                  {c.name}
+                </Link>
+              ))
+            ) : (
+              <span className="text-xs text-[#5b6b8c]">暂无角色</span>
+            )}
+            {myWorlds.length > 0 ? (
+              myWorlds.slice(0, 5).map((w) => (
+                <Link key={w.id} className="sf-tag" href={`/worlds/${w.id}`}>
+                  {w.name}
+                </Link>
+              ))
+            ) : (
+              <span className="text-xs text-[#5b6b8c]">暂无世界</span>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link className="sf-tag text-xs" href="/characters/new">+ 新建角色</Link>
+            <Link className="sf-tag text-xs" href="/worlds/new">+ 新建世界</Link>
           </div>
           <div className="mt-4 border-t border-dashed border-[#dce9ff] pt-4">
             <p className="text-xs font-medium text-[#1f2a44] mb-3">快捷操作</p>

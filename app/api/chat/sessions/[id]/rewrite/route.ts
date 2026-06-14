@@ -62,7 +62,7 @@ export async function POST(
 
     // 段落级再生成：接入真实模型（未配置时回退到占位输出）
     const modelId = await ModelManager.getSessionModel(sessionId, userId);
-    const modelConfig = ModelManager.getModelConfig(modelId);
+    const modelConfig = await ModelManager.getModelConfig(modelId, userId);
     const provider = modelConfig ? resolveProvider(modelConfig) : null;
 
     const mockRewrite = `[重新生成的段落]\n\n基于以下上下文和指令重新生成的内容：\n\n指令：${rewriteInstruction}\n\n这是模拟的重新生成结果（未配置真实模型）。在环境变量中配置 OPENAI_API_KEY 等即可启用真实模型输出。`;

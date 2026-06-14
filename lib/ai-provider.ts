@@ -40,27 +40,26 @@ export function resolveProvider(config: ModelConfig): ResolvedProvider | null {
   let baseUrlRaw: string | undefined;
   let apiKey: string | undefined;
 
+  // 优先使用用户在模型配置中存储的凭据，其次回退到环境变量
   switch (config.provider) {
     case "openai":
-      baseUrlRaw = env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
-      apiKey = env.OPENAI_API_KEY;
+      baseUrlRaw = config.baseUrl ?? env.OPENAI_BASE_URL ?? "https://api.openai.com/v1";
+      apiKey = config.apiKey ?? env.OPENAI_API_KEY;
       break;
     case "anthropic":
-      // 通过 OpenAI 兼容网关接入（需显式配置端点）
-      baseUrlRaw = env.ANTHROPIC_BASE_URL;
-      apiKey = env.ANTHROPIC_API_KEY;
+      baseUrlRaw = config.baseUrl ?? env.ANTHROPIC_BASE_URL;
+      apiKey = config.apiKey ?? env.ANTHROPIC_API_KEY;
       break;
     case "ollama":
       baseUrlRaw = config.baseUrl
         ? `${config.baseUrl.replace(/\/+$/, "")}/v1`
         : env.OLLAMA_BASE_URL;
-      // 本地 Ollama 无需鉴权，用占位 key 满足协议
-      apiKey = env.OLLAMA_API_KEY ?? "ollama";
+      apiKey = config.apiKey ?? env.OLLAMA_API_KEY ?? "ollama";
       break;
     case "custom":
     default:
-      baseUrlRaw = env.CUSTOM_AI_BASE_URL ?? config.baseUrl;
-      apiKey = env.CUSTOM_AI_API_KEY;
+      baseUrlRaw = config.baseUrl ?? env.CUSTOM_AI_BASE_URL;
+      apiKey = config.apiKey ?? env.CUSTOM_AI_API_KEY;
       break;
   }
 

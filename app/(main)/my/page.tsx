@@ -295,7 +295,7 @@ export default function MyPage() {
       </div>
 
       {/* 我的内容 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 我的故事 */}
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
@@ -347,9 +347,7 @@ export default function MyPage() {
               <button className="sf-tag" onClick={loadMyCharacters}>
                 刷新
               </button>
-              <button className="sf-tag" onClick={createSampleCharacter}>
-                创建
-              </button>
+              <Link className="sf-tag" href="/characters/new">创建</Link>
             </div>
           </div>
           <ul className="space-y-3">
@@ -393,9 +391,7 @@ export default function MyPage() {
               <button className="sf-tag" onClick={loadMyWorlds}>
                 刷新
               </button>
-              <button className="sf-tag" onClick={createSampleWorld}>
-                创建
-              </button>
+              <Link className="sf-tag" href="/worlds/new">创建</Link>
             </div>
           </div>
           <ul className="space-y-3">

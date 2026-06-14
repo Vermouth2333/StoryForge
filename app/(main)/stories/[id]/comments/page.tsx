@@ -87,11 +87,11 @@ export default function StoryCommentsPage({ params }: { params: { id: string } }
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <h1 className="text-xl font-semibold">故事评论</h1>
-          <p className="text-gray-500 text-sm mt-1">与其他读者分享你的想法</p>
+    <div className="mx-auto max-w-2xl py-8">
+      <div className="sf-card">
+        <div className="border-b border-[#DCE9FF] p-4">
+          <h1 className="text-xl font-semibold text-[#1F2A44]">故事评论</h1>
+          <p className="text-sm text-[#5B6B8C] mt-1">与其他读者分享你的想法</p>
         </div>
 
         <div className="p-4">
@@ -100,14 +100,14 @@ export default function StoryCommentsPage({ params }: { params: { id: string } }
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="写下你的评论..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="sf-input resize-none"
               rows={3}
             />
             <div className="flex justify-end mt-2">
               <button
                 type="submit"
                 disabled={!newComment.trim()}
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="sf-btn-primary disabled:opacity-50"
               >
                 发布评论
               </button>
@@ -115,41 +115,42 @@ export default function StoryCommentsPage({ params }: { params: { id: string } }
           </form>
 
           {loading ? (
-            <div className="text-center py-8 text-gray-500">加载中...</div>
+            <div className="text-center py-8 text-[#5B6B8C]">加载中...</div>
           ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">暂无评论</div>
+            <div className="text-center py-8 text-[#5B6B8C]">暂无评论</div>
           ) : (
             <div className="space-y-4">
               {comments.map((comment) => (
                 <div
                   key={comment.id}
-                  className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
+                  className="rounded-xl bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
                 >
                   <div className="flex items-start gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={comment.avatarUrl || "/api/placeholder/avatar"}
                       alt={comment.username}
-                      className="w-10 h-10 rounded-full bg-gray-200"
+                      className="w-10 h-10 rounded-full bg-[#DCE9FF]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{comment.username}</span>
-                        <span className="text-xs text-gray-400">
+                        <span className="font-medium text-[#1F2A44]">{comment.username}</span>
+                        <span className="text-xs text-[#5B6B8C]">
                           {new Date(comment.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <p className="mt-2 text-gray-700">{comment.content}</p>
+                      <p className="mt-2 text-sm text-[#1F2A44]">{comment.content}</p>
                       <div className="flex items-center gap-4 mt-3">
                         <button
                           onClick={() => handleLike(comment.id)}
-                          className={`flex items-center gap-1 text-sm ${
-                            comment.isLiked ? "text-red-500" : "text-gray-500"
-                          }`}
+                          className={`flex items-center gap-1 text-xs ${
+                            comment.isLiked ? "text-red-500" : "text-[#5B6B8C]"
+                          } hover:text-red-500`}
                         >
                           <span>{comment.isLiked ? "❤️" : "🤍"}</span>
                           <span>{comment.likeCount}</span>
                         </button>
-                        <button className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+                        <button className="flex items-center gap-1 text-xs text-[#5B6B8C] hover:text-[#1F2A44]">
                           <span>💬</span>
                           <span>{comment.replyCount}</span>
                         </button>
@@ -163,21 +164,21 @@ export default function StoryCommentsPage({ params }: { params: { id: string } }
 
           {!loading && totalPages > 1 && (
             <div className="flex justify-center mt-6">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50"
+                  className="sf-tag disabled:opacity-50"
                 >
                   上一页
                 </button>
-                <span className="px-4 py-2">
+                <span className="text-sm text-[#5B6B8C]">
                   {page} / {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 border rounded-lg disabled:opacity-50"
+                  className="sf-tag disabled:opacity-50"
                 >
                   下一页
                 </button>

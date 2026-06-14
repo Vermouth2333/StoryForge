@@ -24,7 +24,7 @@ export async function POST(
     const body = await request.json();
     const { modelId } = SwitchSessionModelSchema.parse(body);
 
-    const model = ModelManager.getModelConfig(modelId);
+    const model = await ModelManager.getModelConfig(modelId, userId);
     if (!model) {
       return NextResponse.json(
         { error: '模型不存在' },
@@ -32,7 +32,7 @@ export async function POST(
       );
     }
 
-    await ModelManager.setSessionModel(id, modelId);
+    await ModelManager.setSessionModel(id, modelId, userId);
 
     return NextResponse.json({
       code: 200,

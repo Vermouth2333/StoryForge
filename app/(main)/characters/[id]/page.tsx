@@ -391,13 +391,13 @@ export default function CharacterDetailPage() {
                 value={userReviewText}
                 onChange={(e) => setUserReviewText(e.target.value)}
                 placeholder="写下你的评价（可选）..."
-                className="w-full p-3 border border-[#DCE9FF] rounded-xl text-sm mb-3 resize-none"
+                className="sf-input mb-3 resize-none"
                 rows={3}
               />
               <button
                 onClick={handleSubmitReview}
                 disabled={submittingReview || userRating === 0}
-                className="px-4 py-2 bg-[#5B9DFF] text-white rounded-xl text-sm font-medium hover:bg-[#4A8FEF] transition-colors disabled:opacity-50"
+                className="sf-btn-primary disabled:opacity-50"
               >
                 {submittingReview ? "提交中..." : "提交评价"}
               </button>
@@ -505,13 +505,13 @@ export default function CharacterDetailPage() {
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="发表你的评论..."
-            className="w-full p-3 border border-[#DCE9FF] rounded-xl text-sm mb-3 resize-none"
+            className="sf-input mb-3 resize-none"
             rows={3}
           />
           <button
             onClick={handleSubmitComment}
             disabled={submittingComment || !newComment.trim()}
-            className="px-4 py-2 bg-[#5B9DFF] text-white rounded-xl text-sm font-medium hover:bg-[#4A8FEF] transition-colors disabled:opacity-50"
+            className="sf-btn-primary disabled:opacity-50"
           >
             {submittingComment ? "发表中..." : "发表评论"}
           </button>

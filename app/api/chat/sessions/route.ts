@@ -9,6 +9,7 @@ const createSessionSchema = z.object({
   character_id: z.string().nullable().optional(),
   world_id: z.string().nullable().optional(),
   title: z.string().min(1).max(120),
+  model_id: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -105,8 +106,8 @@ export async function POST(req: Request) {
 
   await db.run(
     `INSERT INTO chat_sessions
-      (id, user_id, session_type, story_id, character_id, world_id, title, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, user_id, session_type, story_id, character_id, world_id, title, model_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     sessionId,
     userId,
     parsed.data.session_type,
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
     parsed.data.character_id ?? null,
     parsed.data.world_id ?? null,
     parsed.data.title,
+    parsed.data.model_id ?? null,
     now,
     now,
   );

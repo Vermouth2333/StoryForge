@@ -11,6 +11,8 @@
     "restore": "node --experimental-strip-types scripts/restore.ts"
   },
   "dependencies": {
+    "@types/d3": "^7.4.3",
+    "d3": "^7.9.0",
     "ioredis": "^5.10.1",
     "jose": "^6.2.2",
     "jszip": "^3.10.1",

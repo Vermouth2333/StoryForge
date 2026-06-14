@@ -318,6 +318,27 @@ async function migrateSchema(db: Database) {
   // 会话级模型选择持久化
   await addColumnIfMissing(db, "chat_sessions", "model_id", "model_id TEXT");
 
+  // 故事-角色关联表（引入角色卡到故事）
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS story_characters (
+      story_id TEXT NOT NULL,
+      character_id TEXT NOT NULL,
+      is_custom INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (story_id, character_id)
+    );
+  `);
+
+  // 故事-世界关联表（引入世界卡到故事）
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS story_worlds (
+      story_id TEXT NOT NULL,
+      world_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (story_id, world_id)
+    );
+  `);
+
   // 用户级设置持久化（含默认模型等键值）
   await db.exec(`
     CREATE TABLE IF NOT EXISTS user_settings (
@@ -327,6 +348,26 @@ async function migrateSchema(db: Database) {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (user_id, key)
     );
+  `);
+
+  // 用户自定义模型配置（API Key 等敏感信息存储于此）
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS user_models (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      base_url TEXT,
+      api_key_encrypted TEXT,
+      model_name TEXT NOT NULL,
+      default_temperature REAL NOT NULL DEFAULT 0.7,
+      max_tokens INTEGER NOT NULL DEFAULT 4096,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_models_user ON user_models(user_id, enabled, sort_order);
   `);
 
   // 防重放：敏感接口使用过的 nonce（5 分钟时窗内不可复用）

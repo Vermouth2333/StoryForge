@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { RELATION_TYPES } from "@/lib/character-relation";
+import { RelationGraph } from "@/components/RelationGraph";
 
 type OutlineNode = {
   id: string;
@@ -62,6 +63,17 @@ type BranchRow = {
   updated_at: string;
 };
 
+type ImportedItem = {
+  id: string;
+  name: string;
+  summary: string;
+  avatar_url?: string | null;
+  cover_asset_id?: string | null;
+  is_custom?: number;
+};
+
+type WorldOption = { id: string; name: string };
+
 function depthOf(nodes: OutlineNode[], id: string): number {
   let d = 0;
   let cur: OutlineNode | undefined = nodes.find((x) => x.id === id);
@@ -95,6 +107,14 @@ export default function StoryOutlineEditPage() {
   const [branchParentId, setBranchParentId] = useState("");
   const [branchDesc, setBranchDesc] = useState("");
   const [exportBranchAppendix, setExportBranchAppendix] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [importedChars, setImportedChars] = useState<ImportedItem[]>([]);
+  const [importedWorlds, setImportedWorlds] = useState<ImportedItem[]>([]);
+  const [worldOptions, setWorldOptions] = useState<WorldOption[]>([]);
+  const [importCharId, setImportCharId] = useState("");
+  const [importWorldId, setImportWorldId] = useState("");
+  const [coverBusy, setCoverBusy] = useState(false);
 
   const ordered = useMemo(() => orderedOutline(nodes), [nodes]);
 
@@ -137,14 +157,16 @@ export default function StoryOutlineEditPage() {
   }
 
   async function load() {
-    const [outlineRes, storyRes, relRes] = await Promise.all([
+    const [outlineRes, storyRes, relRes, importsRes] = await Promise.all([
       fetch(`/api/stories/${storyId}/outline`),
       fetch(`/api/stories/${storyId}`),
       fetch(`/api/stories/${storyId}/relations`),
+      fetch(`/api/stories/${storyId}/imports`),
     ]);
     const outlineJson = await outlineRes.json();
     const storyJson = await storyRes.json();
     const relJson = await relRes.json();
+    const importsJson = importsRes.ok ? await importsRes.json() : null;
     if (!outlineRes.ok) {
       setErr(outlineJson.msg ?? "无权或故事不存在");
       setLoading(false);
@@ -158,9 +180,15 @@ export default function StoryOutlineEditPage() {
     if (storyJson.code === 200) setStoryTitle(storyJson.data?.title ?? "");
     if (relRes.ok && relJson.code === 200) setRelations(relJson.data ?? []);
 
-    const [mineRes, pubRes] = await Promise.all([
+    if (importsJson?.code === 200) {
+      setImportedChars(importsJson.data?.characters ?? []);
+      setImportedWorlds(importsJson.data?.worlds ?? []);
+    }
+
+    const [mineRes, pubRes, worldRes] = await Promise.all([
       fetch("/api/characters?mine=1"),
       fetch("/api/characters"),
+      fetch("/api/worlds"),
     ]);
     const mineJson = mineRes.ok ? await mineRes.json() : { data: [] };
     const pubJson = pubRes.ok ? await pubRes.json() : { data: [] };
@@ -169,6 +197,11 @@ export default function StoryOutlineEditPage() {
       map.set(x.id as string, String(x.name ?? ""));
     }
     setCharOptions([...map.entries()].map(([id, name]) => ({ id, name })));
+
+    if (worldRes.ok) {
+      const worldJson = await worldRes.json();
+      setWorldOptions((worldJson.data ?? []).map((w: { id: string; name: string }) => ({ id: w.id, name: w.name })));
+    }
 
     setLoading(false);
   }
@@ -208,10 +241,98 @@ export default function StoryOutlineEditPage() {
     await load();
   }
 
+  /** 获取同级节点列表（相同 parent_id） */
+  function getSiblings(nodeId: string): OutlineNode[] {
+    const node = nodes.find((x) => x.id === nodeId);
+    if (!node) return [];
+    return nodes
+      .filter((x) => x.parent_id === node.parent_id)
+      .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
+  }
+
+  /** 拖拽放置：将 dragNode 移动到 dropNode 的位置（之前或之后） */
+  async function handleDrop(dragNodeId: string, dropNodeId: string, position: "before" | "after") {
+    const dragNode = nodes.find((x) => x.id === dragNodeId);
+    const dropNode = nodes.find((x) => x.id === dropNodeId);
+    if (!dragNode || !dropNode) return;
+    // 只允许同级拖拽
+    if (dragNode.parent_id !== dropNode.parent_id) return;
+    if (dragNodeId === dropNodeId) return;
+
+    const siblings = getSiblings(dropNodeId);
+    const dropIdx = siblings.findIndex((x) => x.id === dropNodeId);
+    // 计算新 sort_order：取目标位置前后的中间值
+    let newOrder: number;
+    if (position === "before") {
+      const prevOrder = dropIdx > 0 ? siblings[dropIdx - 1].sort_order : dropNode.sort_order - 200;
+      newOrder = (prevOrder + dropNode.sort_order) / 2;
+    } else {
+      const nextOrder = dropIdx < siblings.length - 1 ? siblings[dropIdx + 1].sort_order : dropNode.sort_order + 200;
+      newOrder = (dropNode.sort_order + nextOrder) / 2;
+    }
+    await patchNode(dragNodeId, { sort_order: newOrder });
+    setDragId(null);
+    setDropTarget(null);
+  }
+
   async function removeNode(nodeId: string) {
     if (!confirm("删除该节点及其所有子节点？")) return;
     await fetch(`/api/stories/${storyId}/outline/${nodeId}`, { method: "DELETE" });
     await load();
+  }
+
+  async function importCharacter() {
+    if (!importCharId) return;
+    const res = await fetch(`/api/stories/${storyId}/imports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character_id: importCharId }),
+    });
+    const json = await res.json();
+    if (json.code !== 200) setErr(json.msg ?? "引入失败");
+    else setErr("");
+    setImportCharId("");
+    await load();
+  }
+
+  async function importWorld() {
+    if (!importWorldId) return;
+    const res = await fetch(`/api/stories/${storyId}/imports`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ world_id: importWorldId }),
+    });
+    const json = await res.json();
+    if (json.code !== 200) setErr(json.msg ?? "引入失败");
+    else setErr("");
+    setImportWorldId("");
+    await load();
+  }
+
+  async function removeImport(type: "character" | "world", itemId: string) {
+    await fetch(`/api/stories/${storyId}/imports`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(type === "character" ? { character_id: itemId } : { world_id: itemId }),
+    });
+    await load();
+  }
+
+  async function uploadCover(file: File) {
+    setCoverBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/stories/${storyId}/cover`, {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json();
+      if (json.code !== 200) setErr(json.msg ?? "封面上传失败");
+      else setErr("");
+    } finally {
+      setCoverBusy(false);
+    }
   }
 
   async function addRelation() {
@@ -309,7 +430,7 @@ export default function StoryOutlineEditPage() {
           <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">章节大纲（文档节点结构）</p>
           <h1 className="text-xl font-semibold text-[#1F2A44]">{storyTitle || storyId}</h1>
           <p className="mt-1 text-sm text-[#5B6B8C]">
-            type：chapter / branch / note · 同级按 sort_order；上下移动在同一父节点内交换。
+            拖拽节点可调整同级排序 · type：chapter / branch / note
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -369,6 +490,25 @@ export default function StoryOutlineEditPage() {
 
       {!err ? (
         <>
+          {/* 封面上传 */}
+          <div className="sf-card mb-6 flex flex-wrap items-center gap-4 p-4">
+            <p className="text-sm font-medium text-[#1F2A44]">故事封面</p>
+            <label className={`sf-btn-secondary cursor-pointer ${coverBusy ? "opacity-50 pointer-events-none" : ""}`}>
+              {coverBusy ? "上传中..." : "上传封面"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void uploadCover(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <span className="text-xs text-[#5B6B8C]">支持 JPG/PNG/WebP，最大 10MB</span>
+          </div>
+
           <div className="sf-card mb-6 space-y-3 p-4">
             <p className="text-sm font-medium text-[#1F2A44]">新增节点</p>
             <div className="flex flex-wrap gap-2">
@@ -401,51 +541,83 @@ export default function StoryOutlineEditPage() {
           </div>
 
           <ul className="space-y-3">
-            {ordered.map((n) => (
-              <li
-                key={n.id}
-                className="sf-card p-4"
-                style={{ marginLeft: depthOf(nodes, n.id) * 14 }}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-[10px] font-medium uppercase text-[#5B9DFF]">{n.type}</span>
-                    <input
-                      className="sf-input mt-1 font-medium"
-                      defaultValue={n.title}
-                      key={`${n.id}-${n.updated_at ?? n.sort_order}`}
+            {ordered.map((n) => {
+              const isDragging = dragId === n.id;
+              const isDropBefore = dropTarget === n.id && dragId !== n.id;
+              return (
+                <li
+                  key={n.id}
+                  draggable
+                  onDragStart={() => setDragId(n.id)}
+                  onDragEnd={() => { setDragId(null); setDropTarget(null); }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (dragId && dragId !== n.id) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const midY = rect.top + rect.height / 2;
+                      setDropTarget(n.id);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!dragId || dragId === n.id) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    const position = e.clientY < midY ? "before" : "after";
+                    void handleDrop(dragId, n.id, position);
+                  }}
+                  className={[
+                    "sf-card p-4 cursor-grab active:cursor-grabbing transition-all duration-200",
+                    isDragging ? "opacity-40 scale-95" : "",
+                    isDropBefore ? "border-t-2 border-t-[#5B9DFF]" : "",
+                  ].join(" ")}
+                  style={{ marginLeft: depthOf(nodes, n.id) * 14 }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="cursor-grab text-[#5B6B8C] select-none" title="拖拽排序">⠿</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[10px] font-medium uppercase text-[#5B9DFF]">{n.type}</span>
+                        <input
+                          className="sf-input mt-1 font-medium"
+                          defaultValue={n.title}
+                          key={`${n.id}-${n.updated_at ?? n.sort_order}`}
+                          onBlur={(e) => {
+                            const t = e.target.value.trim();
+                            if (t && t !== n.title) void patchNode(n.id, { title: t });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "up" })}>
+                        上移
+                      </button>
+                      <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "down" })}>
+                        下移
+                      </button>
+                      <button type="button" className="sf-tag text-red-700" onClick={() => void removeNode(n.id)}>
+                        删除
+                      </button>
+                    </div>
+                  </div>
+                  <label className="mt-2 block text-xs text-[#5B6B8C]">
+                    大纲要点 / 附注
+                    <textarea
+                      className="sf-input mt-1 min-h-20 text-sm"
+                      defaultValue={n.content}
+                      key={`c-${n.id}-${n.updated_at ?? ""}`}
                       onBlur={(e) => {
-                        const t = e.target.value.trim();
-                        if (t && t !== n.title) void patchNode(n.id, { title: t });
+                        const v = e.target.value;
+                        if (v !== n.content) void patchNode(n.id, { content: v });
                       }}
+                      onClick={(e) => e.stopPropagation()}
                     />
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "up" })}>
-                      上移
-                    </button>
-                    <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "down" })}>
-                      下移
-                    </button>
-                    <button type="button" className="sf-tag text-red-700" onClick={() => void removeNode(n.id)}>
-                      删除
-                    </button>
-                  </div>
-                </div>
-                <label className="mt-2 block text-xs text-[#5B6B8C]">
-                  大纲要点 / 附注
-                  <textarea
-                    className="sf-input mt-1 min-h-20 text-sm"
-                    defaultValue={n.content}
-                    key={`c-${n.id}-${n.updated_at ?? ""}`}
-                    onBlur={(e) => {
-                      const v = e.target.value;
-                      if (v !== n.content) void patchNode(n.id, { content: v });
-                    }}
-                  />
-                </label>
-              </li>
-            ))}
+                  </label>
+                </li>
+              );
+            })}
             {ordered.length === 0 ? (
               <li className="rounded-xl border border-dashed border-[#DCE9FF] p-6 text-center text-sm text-[#5B6B8C]">
                 暂无节点，请在上方添加。
@@ -591,26 +763,88 @@ export default function StoryOutlineEditPage() {
                 添加关系
               </button>
             </div>
-            <ul className="space-y-2 text-xs">
-              {relations.map((r) => (
-                <li
-                  key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#F8FBFF] p-2 text-[#1F2A44]"
+            <RelationGraph relations={relations} onDelete={(id) => void deleteRelation(id)} />
+          </div>
+
+          {/* 引入角色卡 / 世界卡 */}
+          <div className="sf-card mt-8 space-y-4 p-4">
+            <div>
+              <p className="text-sm font-medium text-[#1F2A44]">引入角色卡与世界卡</p>
+              <p className="mt-1 text-xs text-[#5B6B8C]">
+                从你创建或市场已发布的角色卡/世界卡中引入，AI 创作时将自动参考其设定。
+              </p>
+            </div>
+
+            {/* 引入角色 */}
+            <div>
+              <p className="text-xs font-medium text-[#1F2A44] mb-2">引入角色卡</p>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  className="sf-input min-w-[200px]"
+                  value={importCharId}
+                  onChange={(e) => setImportCharId(e.target.value)}
                 >
-                  <span>
-                    {r.name_left ?? r.character_left_id} → {r.name_right ?? r.character_right_id}{" "}
-                    <strong className="text-[#3F86F5]">{r.relation_type}</strong>
-                    {r.description ? ` · ${r.description}` : ""}
-                  </span>
-                  <button type="button" className="sf-tag text-red-700" onClick={() => void deleteRelation(r.id)}>
-                    删除
-                  </button>
-                </li>
-              ))}
-              {relations.length === 0 ? (
-                <li className="text-[#5B6B8C]">暂无人物关系。</li>
-              ) : null}
-            </ul>
+                  <option value="">选择角色卡</option>
+                  {charOptions.map((c) => (
+                    <option key={`imp-c-${c.id}`} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="sf-btn-primary shrink-0" onClick={() => void importCharacter()}>
+                  引入角色
+                </button>
+              </div>
+              {importedChars.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {importedChars.map((c) => (
+                    <li key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F8FBFF] p-2.5 text-xs">
+                      <span className="text-[#1F2A44]">
+                        <span className="font-medium">{c.name}</span>
+                        {c.is_custom ? <span className="ml-1.5 rounded bg-[#EEF6FF] px-1.5 py-0.5 text-[10px] text-[#5B9DFF]">自定义</span> : <span className="ml-1.5 rounded bg-[#F0FFF0] px-1.5 py-0.5 text-[10px] text-[#22C55E]">引入</span>}
+                        {c.summary ? <span className="ml-2 text-[#5B6B8C]">— {c.summary.slice(0, 40)}</span> : null}
+                      </span>
+                      <button type="button" className="text-red-500 hover:text-red-700 shrink-0" onClick={() => void removeImport("character", c.id)}>
+                        移除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* 引入世界 */}
+            <div>
+              <p className="text-xs font-medium text-[#1F2A44] mb-2">引入世界卡</p>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  className="sf-input min-w-[200px]"
+                  value={importWorldId}
+                  onChange={(e) => setImportWorldId(e.target.value)}
+                >
+                  <option value="">选择世界卡</option>
+                  {worldOptions.map((w) => (
+                    <option key={`imp-w-${w.id}`} value={w.id}>{w.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="sf-btn-primary shrink-0" onClick={() => void importWorld()}>
+                  引入世界
+                </button>
+              </div>
+              {importedWorlds.length > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {importedWorlds.map((w) => (
+                    <li key={w.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F8FBFF] p-2.5 text-xs">
+                      <span className="text-[#1F2A44]">
+                        <span className="font-medium">{w.name}</span>
+                        {w.summary ? <span className="ml-2 text-[#5B6B8C]">— {w.summary.slice(0, 40)}</span> : null}
+                      </span>
+                      <button type="button" className="text-red-500 hover:text-red-700 shrink-0" onClick={() => void removeImport("world", w.id)}>
+                        移除
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </>
       ) : null}

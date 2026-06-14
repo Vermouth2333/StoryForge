@@ -41,14 +41,19 @@ export default function MarketPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [feedSort, setFeedSort] = useState("recommended");
   const [marketTab, setMarketTab] = useState<"story" | "character" | "world">("story");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
 
-  async function loadFeed(sort = feedSort, tab = marketTab) {
+  async function loadFeed(sort = feedSort, tab = marketTab, search = searchQuery) {
     const kind = tab === "story" ? "story" : tab === "character" ? "character" : "world";
-    const res = await fetch(`/api/feed?sort=${sort}&kind=${kind}`);
+    const params = new URLSearchParams({ sort, kind });
+    if (search.trim()) params.set("search", search.trim());
+    const res = await fetch(`/api/feed?${params.toString()}`);
     const json = await res.json();
     setFeed(json.data.items ?? []);
     setFeedSort(sort);
     setMarketTab(tab);
+    setSearchQuery(search);
   }
 
   async function likeFeedItem(targetId: string, kind: FeedItem["feed_kind"]) {
@@ -83,6 +88,18 @@ export default function MarketPage() {
     await loadFeed(feedSort, marketTab);
   }
 
+  function handleSearch() {
+    void loadFeed(feedSort, marketTab, searchInput);
+  }
+
+  function handleTabChange(tab: "story" | "character" | "world") {
+    void loadFeed(feedSort, tab, searchQuery);
+  }
+
+  function handleSortChange(sort: string) {
+    void loadFeed(sort, marketTab, searchQuery);
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFeed("recommended", "story");
@@ -98,42 +115,67 @@ export default function MarketPage() {
         </div>
       </div>
 
+      {/* 搜索栏 */}
+      <div className="sf-card p-4">
+        <div className="flex gap-2">
+          <input
+            className="sf-input flex-1"
+            placeholder="搜索故事、角色、世界..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSearch(); }}
+          />
+          <button type="button" className="sf-btn-primary shrink-0" onClick={handleSearch}>
+            搜索
+          </button>
+          {searchQuery && (
+            <button
+              type="button"
+              className="sf-btn-secondary shrink-0"
+              onClick={() => { setSearchInput(""); void loadFeed(feedSort, marketTab, ""); }}
+            >
+              清除
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* 分类标签 */}
       <div className="flex flex-wrap gap-3">
         <button
           className={`tab-button ${marketTab === "story" ? "active" : ""}`}
-          onClick={() => loadFeed(feedSort, "story")}
+          onClick={() => handleTabChange("story")}
         >
           📖 故事
         </button>
         <button
           className={`tab-button ${marketTab === "character" ? "active" : ""}`}
-          onClick={() => loadFeed(feedSort, "character")}
+          onClick={() => handleTabChange("character")}
         >
           👤 角色
         </button>
         <button
           className={`tab-button ${marketTab === "world" ? "active" : ""}`}
-          onClick={() => loadFeed(feedSort, "world")}
+          onClick={() => handleTabChange("world")}
         >
           🌍 世界
         </button>
         <div className="ml-auto flex gap-2">
           <button
             className={`sort-button ${feedSort === "latest" ? "active" : ""}`}
-            onClick={() => loadFeed("latest", marketTab)}
+            onClick={() => handleSortChange("latest")}
           >
             最新
           </button>
           <button
             className={`sort-button ${feedSort === "updated" ? "active" : ""}`}
-            onClick={() => loadFeed("updated", marketTab)}
+            onClick={() => handleSortChange("updated")}
           >
             更新
           </button>
           <button
             className={`sort-button ${feedSort === "recommended" ? "active" : ""}`}
-            onClick={() => loadFeed("recommended", marketTab)}
+            onClick={() => handleSortChange("recommended")}
           >
             推荐
           </button>

@@ -125,7 +125,7 @@ export default function HistoryPage() {
             onChange={(e) => setSessionKeyword(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && loadSessions()}
           />
-          <button className="sf-btn-secondary" onClick={loadSessions}>
+          <button className="sf-btn-secondary shrink-0" onClick={loadSessions}>
             搜索
           </button>
         </div>
@@ -244,8 +244,8 @@ export default function HistoryPage() {
                     value={snapshotLabel}
                     onChange={(e) => setSnapshotLabel(e.target.value)}
                   />
-                  <button className="sf-btn-primary" onClick={createSessionSnapshot}>
-                    📸 创建检查点
+                  <button className="sf-btn-primary shrink-0" onClick={createSessionSnapshot}>
+                    创建检查点
                   </button>
                 </div>
 

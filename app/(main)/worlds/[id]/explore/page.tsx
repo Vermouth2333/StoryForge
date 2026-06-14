@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AppShell } from "@/components/AppShell";
 
 export default function WorldExplorePage() {
   const params = useParams();
@@ -16,7 +15,6 @@ export default function WorldExplorePage() {
 
   const startExplore = async () => {
     if (!input.trim()) return;
-
     setLoading(true);
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -33,9 +31,7 @@ export default function WorldExplorePage() {
           }),
         });
         const data = await res.json();
-        if (data.code === 200) {
-          setSessionId(data.data.session_id);
-        }
+        if (data.code === 200) setSessionId(data.data.session_id);
       }
 
       const generateRes = await fetch(`/api/chat/sessions/${sessionId}/generate`, {
@@ -53,10 +49,8 @@ export default function WorldExplorePage() {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             const chunk = decoder.decode(value);
             const lines = chunk.split("\n\n");
-
             for (const line of lines) {
               if (line.startsWith("data: ")) {
                 try {
@@ -73,7 +67,7 @@ export default function WorldExplorePage() {
                       return newMessages;
                     });
                   }
-                } catch {}
+                } catch { /* ignore parse errors */ }
               }
             }
           }
@@ -88,87 +82,73 @@ export default function WorldExplorePage() {
   };
 
   return (
-    <AppShell>
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
+    <main className="mx-auto max-w-4xl p-6">
+      <div className="mb-6">
+        <button onClick={() => router.back()} className="sf-tag mb-4 inline-flex">← 返回</button>
+        <h1 className="text-2xl font-bold text-[#1F2A44]">世界探索模式</h1>
+        <p className="mt-2 text-[#5B6B8C]">
+          在这里你可以探索世界的任何细节，询问关于世界观、地理、历史、组织等问题。
+        </p>
+      </div>
+
+      <div className="sf-card mb-6 p-6">
+        <div className="mb-4 h-96 space-y-4 overflow-y-auto">
+          {messages.length === 0 && (
+            <div className="py-12 text-center text-[#5B6B8C]">
+              <p>开始你的世界探索之旅吧！</p>
+              <p className="mt-2 text-sm">可以询问关于这个世界的任何问题</p>
+            </div>
+          )}
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[70%] rounded-xl px-4 py-2 ${
+                msg.role === "user"
+                  ? "bg-[#5B9DFF] text-white"
+                  : "bg-[#F8FBFF] text-[#1F2A44]"
+              }`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {loading && messages[messages.length - 1]?.role === "user" && (
+            <div className="flex justify-start">
+              <div className="rounded-xl bg-[#F8FBFF] px-4 py-2">
+                <span className="animate-pulse text-[#5B6B8C]">AI 正在思考...</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !loading && startExplore()}
+            placeholder="输入你的问题..."
+            disabled={loading}
+            className="sf-input flex-1"
+          />
           <button
-            onClick={() => router.back()}
-            className="text-blue-500 hover:text-blue-600 mb-4"
+            onClick={startExplore}
+            disabled={loading || !input.trim()}
+            className="sf-btn-primary shrink-0 disabled:opacity-50"
           >
-            ← 返回
+            {loading ? "探索中..." : "探索"}
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">世界探索模式</h1>
-          <p className="text-gray-600 mt-2">
-            在这里你可以探索世界的任何细节，询问关于世界观、地理、历史、组织等问题。
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="h-96 overflow-y-auto mb-4 space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center text-gray-500 py-12">
-                <p>开始你的世界探索之旅吧！</p>
-                <p className="text-sm mt-2">可以询问关于这个世界的任何问题</p>
-              </div>
-            )}
-
-            {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                    msg.role === "user"
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-100 text-gray-900"
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-
-            {loading && messages[messages.length - 1]?.role === "user" && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 rounded-lg px-4 py-2">
-                  <span className="animate-pulse">AI 正在思考...</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !loading && startExplore()}
-              placeholder="输入你的问题..."
-              disabled={loading}
-              className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={startExplore}
-              disabled={loading || !input.trim()}
-              className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "探索中..." : "探索"}
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-blue-50 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">探索提示</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• 询问这个世界的基本设定和规则</li>
-            <li>• 探索地理环境、城市、地点</li>
-            <li>• 了解历史大事件和传说</li>
-            <li>• 探索组织、势力、种族</li>
-            <li>• 询问物品、魔法、科技</li>
-          </ul>
         </div>
       </div>
-    </AppShell>
+
+      <div className="rounded-xl bg-[#EEF6FF] p-4">
+        <h3 className="mb-2 font-semibold text-[#1F2A44]">探索提示</h3>
+        <ul className="space-y-1 text-sm text-[#5B6B8C]">
+          <li>· 询问这个世界的基本设定和规则</li>
+          <li>· 探索地理环境、城市、地点</li>
+          <li>· 了解历史大事件和传说</li>
+          <li>· 探索组织、势力、种族</li>
+          <li>· 询问物品、魔法、科技</li>
+        </ul>
+      </div>
+    </main>
   );
 }

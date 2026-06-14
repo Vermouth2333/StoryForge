@@ -94,14 +94,15 @@ export async function POST(
   // 在写入本轮用户消息之前组装上下文（系统/世界/角色/文风/历史 + 当前指令）
   // 构建多模型降级链：主模型在前，已启用且已配置凭据的备用模型在后（见文档 5.8.5）
   const primaryModelId = await ModelManager.getSessionModel(sessionId, userId);
-  const providerChain = ModelManager.getFallbackModelIds(primaryModelId)
-    .map((mid) => ModelManager.getModelConfig(mid))
-    .filter((c): c is ModelConfig => !!c)
-    .map((c) => ({ config: c, provider: resolveProvider(c) }))
-    .filter(
-      (x): x is { config: ModelConfig; provider: ResolvedProvider } =>
-        x.provider !== null,
-    );
+  const fallbackIds = await ModelManager.getFallbackModelIds(primaryModelId, userId);
+  const providerChain = (await Promise.all(
+    fallbackIds.map(async (mid) => {
+      const config = await ModelManager.getModelConfig(mid, userId);
+      if (!config) return null;
+      const provider = resolveProvider(config);
+      return provider ? { config, provider } : null;
+    }),
+  )).filter((x): x is { config: ModelConfig; provider: ResolvedProvider } => x !== null);
   let contextMessages: ChatMessage[] = [];
   try {
     contextMessages = await buildChatContext(db, sessionId, session, parsed.data.content);
