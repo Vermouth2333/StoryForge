@@ -8,6 +8,9 @@ import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 /** POST multipart/form-data，字段名 `file`，仅 JPG/PNG，≤5MB */
 export async function POST(req: Request) {
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
 
   const rl = rateLimitAllow(`avatar_upload:${userId}`, 40, 3_600_000);
   if (!rl.ok) {

@@ -24,12 +24,13 @@ export async function GET(
     status: string;
     tags_json: string;
     like_count: number;
+    favorite_count: number;
     publish_at: string | null;
     updated_at: string;
   }>(
     `SELECT s.id, s.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      s.title, s.summary, s.status, s.tags_json, s.like_count, s.publish_at, s.updated_at
+      s.title, s.summary, s.status, s.tags_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at
      FROM stories s
      LEFT JOIN users u ON u.id = s.author_id
      WHERE s.id = ?`,

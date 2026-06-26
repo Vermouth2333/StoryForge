@@ -20,6 +20,9 @@ export async function PATCH(
 ) {
   const { id: itemId } = await params;
   const adminId = await getCurrentUserId();
+  if (!adminId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
 
   if (parseAdminUserIds().length === 0) {
     return NextResponse.json(

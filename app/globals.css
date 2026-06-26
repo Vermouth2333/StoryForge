@@ -27,6 +27,43 @@
   box-sizing: border-box;
 }
 
+/* 居中旋转 loading */
+.sf-loading {
+  display: flex;
+  min-height: 60vh;
+  align-items: center;
+  justify-content: center;
+}
+.sf-loading::after {
+  content: "";
+  width: 32px;
+  height: 32px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: sf-spin 0.8s linear infinite;
+}
+.sf-loading-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+.sf-loading-sm::after {
+  content: "";
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: sf-spin 0.8s linear infinite;
+}
+@keyframes sf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -57,6 +94,12 @@ body {
   white-space: nowrap;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(91, 157, 255, 0.3);
+  cursor: pointer;
+}
+
+.sf-btn-primary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .sf-btn-primary:hover {
@@ -79,6 +122,12 @@ body {
   font-weight: 600;
   white-space: nowrap;
   transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.sf-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .sf-btn-secondary:hover {

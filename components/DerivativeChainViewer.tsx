@@ -116,7 +116,7 @@ export function DerivativeChainViewer({
       <div className="p-4">
         {loading ? (
           <div className="text-center py-8 text-gray-500">
-            <span className="animate-pulse">加载中...</span>
+            <div className="sf-loading-sm" />
           </div>
         ) : relations.length === 0 ? (
           <div className="text-center py-8 text-gray-500">

@@ -43,6 +43,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 400, msg: "参数错误" }, { status: 400 });
   }
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
   const db = await getDb();
 
   const existing = await db.get<{ id: string }>(

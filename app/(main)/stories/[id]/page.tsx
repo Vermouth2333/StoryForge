@@ -18,6 +18,12 @@ type StoryDetail = {
   updated_at: string;
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  draft: "草稿",
+  published: "已发布",
+  archived: "已归档",
+};
+
 type CharacterRelation = {
   id: string;
   character_left_id: string;
@@ -193,7 +199,7 @@ export default function StoryDetailPage() {
   };
 
   if (loading) {
-    return <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">加载中...</main>;
+    return <main className="sf-loading" />;
   }
   if (!story) {
     return (
@@ -256,7 +262,7 @@ export default function StoryDetailPage() {
             <p className="text-xs text-[#5B6B8C]">收藏</p>
           </div>
           <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.status}</p>
+            <p className="text-lg font-bold text-[#5B9DFF]">{STATUS_LABELS[story.status] ?? story.status}</p>
             <p className="text-xs text-[#5B6B8C]">状态</p>
           </div>
           <Link href={`/authors/${story.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">

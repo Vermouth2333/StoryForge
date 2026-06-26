@@ -13,14 +13,14 @@ const postSchema = z.object({
 async function canViewWorldKnowledge(
   db: Database,
   worldId: string,
-  userId: string,
+  userId: string | null,
 ) {
   const w = await db.get<{ author_id: string; status: string }>(
     "SELECT author_id, status FROM worlds WHERE id = ?",
     worldId,
   );
   if (!w) return { ok: false as const, reason: "not_found" as const };
-  if (w.status === "published" || w.author_id === userId) {
+  if (w.status === "published" || (userId && w.author_id === userId)) {
     return { ok: true as const, world: w };
   }
   return { ok: false as const, reason: "forbidden" as const };

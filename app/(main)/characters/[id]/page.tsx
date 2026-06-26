@@ -284,7 +284,7 @@ export default function CharacterDetailPage() {
   };
 
   if (loading) {
-    return <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">加载中...</main>;
+    return <main className="sf-loading" />;
   }
   if (!row) {
     return (

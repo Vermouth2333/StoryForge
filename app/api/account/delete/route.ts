@@ -17,6 +17,9 @@ const DEMO_ID = "demo_user_google_123456";
 
 export async function POST(req: Request) {
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
 
   if (userId === DEMO_ID) {
     return NextResponse.json({ code: 400, msg: "演示账号不可注销" }, { status: 400 });

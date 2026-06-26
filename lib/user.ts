@@ -16,7 +16,7 @@ export async function ensureUserRow(db: Database, userId: string) {
   );
 }
 
-/** Google OAuth：用户主键为 `google_${sub}` */
+/** Google OAuth：用户主键为 `google_${sub}`。已注销账号重新登录时复活为活跃账号。 */
 export async function ensureGoogleUser(
   db: Database,
   googleSub: string,
@@ -37,10 +37,6 @@ export async function ensureGoogleUser(
     (profile.email && profile.email.split("@")[0]) ||
     `用户_${googleSub.slice(-6)}`;
 
-  if (row?.status === "deleted") {
-    return;
-  }
-
   if (!row) {
     await db.run(
       `INSERT INTO users (id, email, username, avatar_url, status, created_at, updated_at)
@@ -55,23 +51,20 @@ export async function ensureGoogleUser(
     return;
   }
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
+  // 已注销账号重新登录：复活为活跃账号，恢复 Google 资料
+  const fields: string[] = ["status = 'active'", "updated_at = ?"];
+  const values: unknown[] = [now];
   if (profile.email) {
     fields.push("email = ?");
     values.push(profile.email);
   }
-  if (profile.name?.trim()) {
-    fields.push("username = ?");
-    values.push(profile.name.trim());
-  }
+  // 已注销时 username 被改为「已注销用户」，恢复为 Google 名称
+  fields.push("username = ?");
+  values.push(displayName);
   if (profile.picture) {
     fields.push("avatar_url = ?");
     values.push(profile.picture);
   }
-  if (fields.length === 0) return;
-  fields.push("updated_at = ?");
-  values.push(now);
   values.push(id);
   await db.run(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, ...values);
 }

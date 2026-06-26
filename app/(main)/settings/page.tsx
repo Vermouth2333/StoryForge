@@ -102,6 +102,7 @@ export default function SettingsPage() {
           setProfile((p) =>
             p ? { ...p, avatar_url: json.data.avatar_url as string } : p,
           );
+          window.dispatchEvent(new CustomEvent("sf:profile-updated"));
         }
       } else {
         message.error(json.msg ?? "上传失败");
@@ -146,6 +147,7 @@ export default function SettingsPage() {
         if (rj.code === 200 && rj.data) setProfile(rj.data);
         setPhoneInput("");
         setPhoneTouched(false);
+        window.dispatchEvent(new CustomEvent("sf:profile-updated"));
       } else {
         message.error(json.msg ?? "保存失败");
       }
@@ -157,9 +159,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return (
-      <main className="min-h-screen bg-[#F8FBFF] p-6 text-sm text-[#5B6B8C]">加载中...</main>
-    );
+    return <main className="sf-loading" />;
   }
 
   return (

@@ -11,10 +11,10 @@ const patchSchema = z.object({
   fork_outline_node_id: z.string().min(1).optional(),
 });
 
-async function assertStoryOwner(db: Awaited<ReturnType<typeof getDb>>, storyId: string, userId: string) {
+async function assertStoryOwner(db: Awaited<ReturnType<typeof getDb>>, storyId: string, userId: string | null) {
   const row = await db.get<{ author_id: string }>("SELECT author_id FROM stories WHERE id = ?", storyId);
   if (!row) return { ok: false as const, reason: "not_found" as const };
-  if (row.author_id !== userId) return { ok: false as const, reason: "forbidden" as const };
+  if (!userId || row.author_id !== userId) return { ok: false as const, reason: "forbidden" as const };
   return { ok: true as const };
 }
 

@@ -47,6 +47,9 @@ export async function POST(
   }
 
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
 
   const rlUser = rateLimitAllow(`chat_gen:${userId}`, 45, 60_000);
   if (!rlUser.ok) {

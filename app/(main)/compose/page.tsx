@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Tooltip } from "antd";
 import { useEffect, useState } from "react";
 import { replayHeaders } from "@/lib/replay-headers";
 
@@ -9,6 +10,12 @@ type MyStoryItem = {
   title: string;
   status: "draft" | "published" | "archived";
   updated_at: string;
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "草稿",
+  published: "已发布",
+  archived: "已归档",
 };
 
 export default function ComposePage() {
@@ -168,9 +175,15 @@ export default function ComposePage() {
           <button className="sf-btn-primary" onClick={createStory}>
             新建故事
           </button>
-          <button className="sf-btn-secondary" onClick={publishStory}>
-            发布故事
-          </button>
+          <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
+            <button
+              className="sf-btn-secondary"
+              onClick={publishStory}
+              disabled={!storyId}
+            >
+              发布故事
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -203,7 +216,7 @@ export default function ComposePage() {
                   onClick={() => setStoryId(story.id)}
                 >
                   <p className="font-medium text-[#1f2a44] truncate">{story.title}</p>
-                  <p className="text-xs text-[#5b6b8c]">状态: {story.status}</p>
+                  <p className="text-xs text-[#5b6b8c]">状态: {STATUS_LABELS[story.status] ?? story.status}</p>
                 </li>
               ))}
               {myStories.length === 0 && (
@@ -241,23 +254,41 @@ export default function ComposePage() {
                 前往设置添加 AI 模型
               </Link>
             )}
-            <button className="sf-btn-primary flex items-center gap-2" onClick={generate} disabled={busy || availableModels.length === 0}>
-              {busy ? (
-                <>
-                  <span className="animate-pulse">⏳</span> 生成中...
-                </>
-              ) : (
-                <>
-                  <span>✨</span> AI 续写
-                </>
-              )}
-            </button>
-            <button className="sf-btn-secondary flex items-center gap-2" onClick={stopGenerate}>
-              <span>⏹</span> 停止生成
-            </button>
-            <button className="sf-btn-secondary flex items-center gap-2" onClick={createSession}>
-              <span>💬</span> 创建会话
-            </button>
+            <Tooltip title={availableModels.length === 0 ? "请先在设置中添加 AI 模型" : undefined}>
+              <button
+                className="sf-btn-primary flex items-center gap-2"
+                onClick={generate}
+                disabled={busy || availableModels.length === 0}
+              >
+                {busy ? (
+                  <>
+                    <span className="animate-pulse">⏳</span> 生成中...
+                  </>
+                ) : (
+                  <>
+                    <span>✨</span> AI 续写
+                  </>
+                )}
+              </button>
+            </Tooltip>
+            <Tooltip title={!busy ? "当前没有正在生成的内容" : undefined}>
+              <button
+                className="sf-btn-secondary flex items-center gap-2"
+                onClick={stopGenerate}
+                disabled={!busy}
+              >
+                <span>⏹</span> 停止生成
+              </button>
+            </Tooltip>
+            <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
+              <button
+                className="sf-btn-secondary flex items-center gap-2"
+                onClick={createSession}
+                disabled={!storyId}
+              >
+                <span>💬</span> 创建会话
+              </button>
+            </Tooltip>
           </div>
           <div className="mt-5 rounded-xl bg-[#eef6ff] p-5">
             <p className="font-semibold text-[#1f2a44] mb-2 flex items-center gap-2">
@@ -301,9 +332,15 @@ export default function ComposePage() {
           <div className="mt-4 border-t border-dashed border-[#dce9ff] pt-4">
             <p className="text-xs font-medium text-[#1f2a44] mb-3">快捷操作</p>
             <div className="space-y-2">
-              <button className="w-full sf-tag text-left" onClick={createSession}>
-                + 创建新会话
-              </button>
+              <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
+                <button
+                  className="w-full sf-tag text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={createSession}
+                  disabled={!storyId}
+                >
+                  + 创建新会话
+                </button>
+              </Tooltip>
               {storyId && (
                 <button className="w-full sf-tag text-left" onClick={publishStory}>
                   + 发布当前故事

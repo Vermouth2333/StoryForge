@@ -77,6 +77,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [refreshSidebar]);
 
+  // 监听其他页面触发的资料变更（如设置页保存后派发 "sf:profile-updated"）
+  useEffect(() => {
+    const onProfileUpdated = () => void refreshSidebar();
+    window.addEventListener("sf:profile-updated", onProfileUpdated);
+    return () => window.removeEventListener("sf:profile-updated", onProfileUpdated);
+  }, [refreshSidebar]);
+
   const marketActive = pathname.startsWith("/market") || pathname === "/";
   const composeActive = pathname.startsWith("/compose");
   const myActive = pathname.startsWith("/my");
@@ -115,7 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside
         id="mobile-nav-drawer"
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:relative md:z-0 md:max-w-none md:translate-x-0 md:shadow-none",
+          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:sticky md:top-0 md:z-0 md:h-screen md:max-w-none md:translate-x-0 md:shadow-none",
           "md:w-16 md:min-w-16 lg:w-64 lg:min-w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         ].join(" ")}

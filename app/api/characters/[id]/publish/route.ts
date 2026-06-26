@@ -13,6 +13,9 @@ export async function POST(
 ) {
   const { id } = await params;
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
   const db = await getDb();
 
   const rlUser = rateLimitAllow(`publish:${userId}`, 35, 3_600_000);

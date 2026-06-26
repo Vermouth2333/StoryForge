@@ -12,11 +12,11 @@ const patchSchema = z.object({
 async function assertStoryAuthor(
   db: Awaited<ReturnType<typeof getDb>>,
   storyId: string,
-  userId: string,
+  userId: string | null,
 ) {
   const s = await db.get<{ author_id: string }>("SELECT author_id FROM stories WHERE id = ?", storyId);
   if (!s) return { ok: false as const, reason: "not_found" };
-  if (s.author_id !== userId) return { ok: false as const, reason: "forbidden" };
+  if (!userId || s.author_id !== userId) return { ok: false as const, reason: "forbidden" };
   return { ok: true as const };
 }
 

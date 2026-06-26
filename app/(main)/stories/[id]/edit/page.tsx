@@ -420,7 +420,7 @@ export default function StoryOutlineEditPage() {
   if (!storyId) return null;
 
   if (loading) {
-    return <main className="mx-auto max-w-3xl p-6 text-sm text-[#5B6B8C]">加载大纲...</main>;
+    return <main className="sf-loading" />;
   }
 
   return (

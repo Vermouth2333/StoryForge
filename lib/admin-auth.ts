@@ -6,6 +6,7 @@ export function parseAdminUserIds(): string[] {
     .filter(Boolean);
 }
 
-export function isAdminUser(userId: string): boolean {
+export function isAdminUser(userId: string | null | undefined): boolean {
+  if (!userId) return false;
   return parseAdminUserIds().includes(userId);
 }

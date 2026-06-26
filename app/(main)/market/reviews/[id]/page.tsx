@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useParams } from "next/navigation";
 
 interface Comment {
   id: string;
@@ -52,7 +53,8 @@ async function toggleLike(targetId: string) {
   return res.json();
 }
 
-export default function CommentDetailPage({ params }: { params: { id: string } }) {
+export default function CommentDetailPage() {
+  const params = useParams<{ id: string }>();
   const [comment, setComment] = useState<Comment | null>(null);
   const [replies, setReplies] = useState<Reply[]>([]);
   const [newReply, setNewReply] = useState("");
@@ -107,7 +109,7 @@ export default function CommentDetailPage({ params }: { params: { id: string } }
   };
 
   if (loading) {
-    return <div className="mx-auto max-w-2xl py-8"><div className="py-8 text-center text-[#5B6B8C]">加载中...</div></div>;
+    return <div className="sf-loading" />;
   }
 
   if (!comment) {

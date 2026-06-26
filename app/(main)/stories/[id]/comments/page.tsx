@@ -115,10 +115,9 @@ export default function StoryCommentsPage({ params }: { params: { id: string } }
           </form>
 
           {loading ? (
-            <div className="text-center py-8 text-[#5B6B8C]">加载中...</div>
+            <div className="sf-loading-sm" />
           ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-[#5B6B8C]">暂无评论</div>
-          ) : (
+            <div className="text-center py-8 text-[#5B6B8C]">暂无评论</div>          ) : (
             <div className="space-y-4">
               {comments.map((comment) => (
                 <div

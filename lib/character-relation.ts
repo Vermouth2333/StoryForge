@@ -18,11 +18,11 @@ export function orderedCharPair(a: string, b: string): [string, string] {
 export async function canUseCharacterInRelation(
   db: Database,
   characterId: string,
-  userId: string,
+  userId: string | null,
 ): Promise<boolean> {
   const r = await db.get<{ author_id: string; status: string }>(
     "SELECT author_id, status FROM characters WHERE id = ?",
     characterId,
   );
-  return Boolean(r && (r.status === "published" || r.author_id === userId));
+  return Boolean(r && (r.status === "published" || (userId && r.author_id === userId)));
 }

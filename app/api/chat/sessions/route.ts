@@ -14,6 +14,9 @@ const createSessionSchema = z.object({
 
 export async function GET(req: Request) {
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
   const url = new URL(req.url);
   const storyId = url.searchParams.get("story_id");
   const keyword = (url.searchParams.get("q") ?? "").trim();
