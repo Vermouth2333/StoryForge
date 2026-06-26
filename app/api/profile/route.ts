@@ -4,6 +4,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { getDb, nowIso } from "@/lib/db";
 import { maskCnPhone, sanitizePlainText } from "@/lib/text";
 import { ensureUserRow } from "@/lib/user";
+import { isAdminUser } from "@/lib/admin-auth";
 
 const patchSchema = z.object({
   username: z.string().min(1).max(40).optional(),
@@ -15,6 +16,9 @@ const patchSchema = z.object({
 
 export async function GET() {
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
   const db = await getDb();
   await ensureUserRow(db, userId);
 
@@ -43,11 +47,14 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json({ code: 200, data: row, msg: "ok" });
+  return NextResponse.json({ code: 200, data: { ...row, is_admin: isAdminUser(userId) }, msg: "ok" });
 }
 
 export async function PATCH(req: Request) {
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
   const body = await req.json();
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {

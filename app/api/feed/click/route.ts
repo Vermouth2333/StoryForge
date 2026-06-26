@@ -14,6 +14,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 400, msg: "参数错误" }, { status: 400 });
   }
   const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 200, msg: "ok" });
+  }
   const db = await getDb();
   await db.run(
     "INSERT INTO feed_clicks (id, user_id, story_id, created_at) VALUES (?, ?, ?, ?)",

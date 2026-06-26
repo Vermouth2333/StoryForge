@@ -1,4 +1,6 @@
 import { StyleFeatures } from "./style-anchor";
+import { resolveProvider, streamChat, type ChatMessage } from "./ai-provider";
+import { ModelManager } from "./model-manager";
 
 export interface GenerationResult {
   content: string;
@@ -22,37 +24,48 @@ export interface StyleInjectionOptions {
 }
 
 export class AIGenerator {
+  /**
+   * 使用用户配置的真实模型生成内容。
+   * 需要用户在设置页或环境变量中配置 API Key，否则返回 null。
+   */
   async generate(
     prompt: string,
     options?: {
+      userId?: string;
       modelId?: string;
       maxTokens?: number;
       temperature?: number;
     }
-  ): Promise<GenerationResult> {
-    const modelId = options?.modelId || "openai-gpt-4";
+  ): Promise<GenerationResult | null> {
+    const userId = options?.userId;
+    if (!userId) return null;
 
-    const mockResponse = await this.mockGenerate(prompt, options);
+    const modelId = options?.modelId || (await ModelManager.getUserDefaultModel(userId));
+    if (!modelId) return null;
 
-    return {
-      content: mockResponse.content,
-      tokenCount: mockResponse.tokenCount,
-      model: modelId,
-      timestamp: new Date(),
-    };
-  }
+    const modelConfig = await ModelManager.getModelConfig(modelId, userId);
+    if (!modelConfig) return null;
 
-  private async mockGenerate(
-    prompt: string,
-    options?: { maxTokens?: number; temperature?: number }
-  ): Promise<{ content: string; tokenCount: number }> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    
-    const content = `根据您的提示，我已生成了相关内容。这是一个模拟响应，实际实现时会调用真实的 AI 模型。\n\n提示摘要: ${prompt.slice(0, 100)}...`;
-    
+    const provider = resolveProvider(modelConfig);
+    if (!provider) return null;
+
+    const messages: ChatMessage[] = [
+      { role: "user", content: prompt },
+    ];
+
+    let content = "";
+    for await (const delta of streamChat(provider, messages, {
+      temperature: options?.temperature ?? modelConfig.defaultTemperature,
+      maxTokens: options?.maxTokens ?? modelConfig.maxTokens,
+    })) {
+      content += delta;
+    }
+
     return {
       content,
       tokenCount: content.length,
+      model: modelConfig.modelName,
+      timestamp: new Date(),
     };
   }
 
@@ -137,8 +150,9 @@ export class AIGenerator {
   }
 
   async rewrite(
-    request: RewriteRequest
-  ): Promise<GenerationResult> {
+    request: RewriteRequest,
+    userId?: string
+  ): Promise<GenerationResult | null> {
     let prompt = request.content;
 
     if (request.styleFeatures) {
@@ -162,6 +176,7 @@ export class AIGenerator {
       : 2000;
 
     return this.generate(prompt, {
+      userId,
       maxTokens,
       temperature: 0.8,
     });
@@ -169,11 +184,13 @@ export class AIGenerator {
 
   async summarize(
     content: string,
-    maxLength: number = 200
-  ): Promise<GenerationResult> {
+    maxLength: number = 200,
+    userId?: string
+  ): Promise<GenerationResult | null> {
     const prompt = `请用不超过${maxLength}字总结以下内容，保持核心信息完整：\n\n${content}`;
 
     return this.generate(prompt, {
+      userId,
       maxTokens: maxLength * 2,
       temperature: 0.3,
     });
@@ -182,8 +199,9 @@ export class AIGenerator {
   async expand(
     content: string,
     targetLength: number,
-    styleFeatures?: StyleFeatures
-  ): Promise<GenerationResult> {
+    styleFeatures?: StyleFeatures,
+    userId?: string
+  ): Promise<GenerationResult | null> {
     let prompt = `请将以下内容扩展至约${targetLength}字，增加细节描写和背景信息：\n\n${content}`;
 
     if (styleFeatures) {
@@ -195,6 +213,7 @@ export class AIGenerator {
     }
 
     return this.generate(prompt, {
+      userId,
       maxTokens: targetLength * 2,
       temperature: 0.8,
     });

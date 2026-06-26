@@ -19,6 +19,7 @@ type ProfileLite = {
   id?: string;
   username: string | null;
   avatar_url: string | null;
+  is_admin?: boolean;
 };
 
 function navClass(active: boolean) {
@@ -44,13 +45,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ]);
     const pJson = await pRes.json().catch(() => null);
     const uJson = await uRes.json().catch(() => null);
-    if (pRes.status === 410 || pJson?.code === 410) {
+    if (pRes.status === 401 || pRes.status === 410 || pJson?.code === 401 || pJson?.code === 410) {
       setProfile(null);
     } else if (pJson?.code === 200 && pJson.data) {
       setProfile({
         id: String(pJson.data.id),
         username: pJson.data.username ?? null,
         avatar_url: pJson.data.avatar_url ?? null,
+        is_admin: pJson.data.is_admin ?? false,
       });
     }
     if (uJson?.code === 200 && uJson.data) {
@@ -203,34 +205,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="mt-auto space-y-4 border-t border-[var(--border)] px-4 py-5 lg:px-5 bg-gradient-to-t from-[#F8FBFF] to-white">
-            <div className="rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-hover)] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
-              <span className="hidden lg:inline">未读通知：</span>
-              <span className="text-lg">{unread}</span>
-            </div>
-
-            <div className="flex flex-col gap-4 lg:flex-col">
-              <div className="flex items-center gap-3 bg-[#F8FBFF] rounded-xl p-3">
-                {profile?.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={profile.avatar_url}
-                    alt=""
-                    className="h-10 w-10 shrink-0 rounded-full border-2 border-[var(--primary-soft)] object-cover shadow-sm"
-                  />
-                ) : (
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] bg-white text-xs text-[var(--text-secondary)] font-medium">
-                    用户
-                  </div>
-                )}
-                <p className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)] md:hidden lg:block">
-                  {profile?.username ?? "访客"}
-                </p>
+            {profile && (
+              <div className="rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-hover)] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
+                <span className="hidden lg:inline">未读通知：</span>
+                <span className="text-lg">{unread}</span>
               </div>
-              {!profile ? (
-                <a href="/api/auth/google" className="sf-btn-primary block w-full text-center no-underline text-sm">
-                  Google 登录
-                </a>
-              ) : (
+            )}
+
+            {profile ? (
+              <div className="flex flex-col gap-4 lg:flex-col">
+                <div className="flex items-center gap-3 bg-[#F8FBFF] rounded-xl p-3">
+                  {profile.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile.avatar_url}
+                      alt=""
+                      className="h-10 w-10 shrink-0 rounded-full border-2 border-[var(--primary-soft)] object-cover shadow-sm"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] bg-white text-xs text-[var(--text-secondary)] font-medium">
+                      用户
+                    </div>
+                  )}
+                  <p className="min-w-0 truncate text-sm font-semibold text-[var(--foreground)] md:hidden lg:block">
+                    {profile.username ?? "访客"}
+                  </p>
+                </div>
                 <button
                   type="button"
                   className="sf-btn-secondary block w-full text-sm"
@@ -241,19 +241,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   退出登录
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <a href="/api/auth/google" className="sf-btn-primary block w-full text-center no-underline text-sm">
+                Google 登录
+              </a>
+            )}
 
-            <Link
-              href="/admin/moderation"
-              className="block text-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors lg:text-left"
-              onClick={closeMobile}
-            >
-              审核台
-            </Link>
-            <p className="hidden text-[10px] leading-relaxed text-[var(--text-secondary)] lg:block opacity-70">
-              OAuth 需配置 GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET、JWT_SECRET（&gt;=16 字符）；回调 /api/auth/google/callback。
-            </p>
+            {profile?.is_admin && (
+              <Link
+                href="/admin/moderation"
+                className="block text-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors lg:text-left"
+                onClick={closeMobile}
+              >
+                审核台
+              </Link>
+            )}
           </div>
         </div>
       </aside>

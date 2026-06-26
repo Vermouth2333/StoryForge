@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -18,24 +19,23 @@ type ModRow = {
 };
 
 export default function ModerationPage() {
+  const { message } = App.useApp();
   const [rows, setRows] = useState<ModRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [msg, setMsg] = useState("");
   const [remark, setRemark] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
-    setMsg("");
     const res = await fetch("/api/admin/moderation");
     const json = await res.json();
     if (json.code === 200) {
       setRows(json.data ?? []);
     } else {
-      setMsg(json.msg ?? "加载失败");
+      message.error(json.msg ?? "加载失败");
       setRows([]);
     }
     setLoading(false);
-  }, []);
+  }, [message]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -45,7 +45,7 @@ export default function ModerationPage() {
   async function decide(item: ModRow, status: "approved" | "taken_down" | "rejected") {
     const note = remark[item.id]?.trim() ?? "";
     if (status === "rejected" && !note) {
-      setMsg("驳回时请填写备注");
+      message.warning("驳回时请填写备注");
       return;
     }
     const res = await fetch(`/api/admin/moderation/${item.id}`, {
@@ -55,10 +55,10 @@ export default function ModerationPage() {
     });
     const json = await res.json();
     if (json.code !== 200) {
-      setMsg(json.msg ?? "操作失败");
+      message.error(json.msg ?? "操作失败");
       return;
     }
-    setMsg("");
+    message.success("操作成功");
     await load();
   }
 
@@ -77,12 +77,6 @@ export default function ModerationPage() {
           返回首页
         </Link>
       </div>
-
-      {msg ? (
-        <div className="mt-4 rounded-lg border border-[#DCE9FF] bg-[#FFF8F8] px-4 py-3 text-sm text-[#1F2A44]">
-          {msg}
-        </div>
-      ) : null}
 
       <div className="mt-6 flex gap-2">
         <button type="button" className="sf-tag" onClick={() => void load()} disabled={loading}>

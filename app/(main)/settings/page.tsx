@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,9 +19,9 @@ type Profile = {
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { message } = App.useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const [username, setUsername] = useState("");
@@ -87,7 +88,6 @@ export default function SettingsPage() {
 
   async function uploadAvatar(file: File) {
     setAvatarBusy(true);
-    setMsg("");
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -96,12 +96,18 @@ export default function SettingsPage() {
         body: fd,
       });
       const json = await res.json();
-      setMsg(json.msg ?? "上传完成");
-      if (json.code === 200 && json.data?.avatar_url) {
-        setProfile((p) =>
-          p ? { ...p, avatar_url: json.data.avatar_url as string } : p,
-        );
+      if (json.code === 200) {
+        message.success(json.msg ?? "上传完成");
+        if (json.data?.avatar_url) {
+          setProfile((p) =>
+            p ? { ...p, avatar_url: json.data.avatar_url as string } : p,
+          );
+        }
+      } else {
+        message.error(json.msg ?? "上传失败");
       }
+    } catch {
+      message.error("上传失败，请稍后重试");
     } finally {
       setAvatarBusy(false);
     }
@@ -109,7 +115,6 @@ export default function SettingsPage() {
 
   async function save() {
     setSaving(true);
-    setMsg("");
     try {
       const body: Record<string, unknown> = {
         username: username.trim(),
@@ -134,12 +139,18 @@ export default function SettingsPage() {
         router.replace("/");
         return;
       }
-      setMsg(json.msg ?? "保存成功");
-      const reload = await fetch("/api/profile");
-      const rj = await reload.json();
-      if (rj.code === 200 && rj.data) setProfile(rj.data);
-      setPhoneInput("");
-      setPhoneTouched(false);
+      if (json.code === 200) {
+        message.success(json.msg ?? "保存成功");
+        const reload = await fetch("/api/profile");
+        const rj = await reload.json();
+        if (rj.code === 200 && rj.data) setProfile(rj.data);
+        setPhoneInput("");
+        setPhoneTouched(false);
+      } else {
+        message.error(json.msg ?? "保存失败");
+      }
+    } catch {
+      message.error("保存失败，请稍后重试");
     } finally {
       setSaving(false);
     }
@@ -295,9 +306,6 @@ export default function SettingsPage() {
           >
             {saving ? "保存中..." : "保存更改"}
           </button>
-
-          {/* 提示消息 */}
-          {msg && <p className="text-center text-sm text-[#5B6B8C]">{msg}</p>}
         </div>
       </div>
 
@@ -367,12 +375,18 @@ export default function SettingsPage() {
                     <button
                       className="text-xs text-[#5B9DFF] hover:underline"
                       onClick={async () => {
-                        await fetch("/api/settings/model", {
+                        const r = await fetch("/api/settings/model", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ modelId: m.id }),
                         });
-                        await loadModels();
+                        const j = await r.json();
+                        if (j.code === 200) {
+                          message.success("已设为默认模型");
+                          await loadModels();
+                        } else {
+                          message.error(j.msg ?? "操作失败");
+                        }
                       }}
                     >
                       设为默认
@@ -401,8 +415,14 @@ export default function SettingsPage() {
                     className="text-xs text-red-400 hover:text-red-600"
                     onClick={async () => {
                       if (!confirm("确定删除此模型？")) return;
-                      await fetch(`/api/models?id=${m.id}`, { method: "DELETE" });
-                      await loadModels();
+                      const r = await fetch(`/api/models?id=${m.id}`, { method: "DELETE" });
+                      const j = await r.json();
+                      if (j.code === 200) {
+                        message.success("模型已删除");
+                        await loadModels();
+                      } else {
+                        message.error(j.msg ?? "删除失败");
+                      }
                     }}
                   >
                     删除
@@ -517,11 +537,10 @@ export default function SettingsPage() {
                 disabled={modelBusy}
                 onClick={async () => {
                   if (!modelForm.name.trim() || !modelForm.modelName.trim()) {
-                    setMsg("名称和模型 ID 不能为空");
+                    message.warning("名称和模型 ID 不能为空");
                     return;
                   }
                   setModelBusy(true);
-                  setMsg("");
                   try {
                     const payload: Record<string, unknown> = {
                       name: modelForm.name.trim(),
@@ -555,10 +574,12 @@ export default function SettingsPage() {
                       setEditingModel(null);
                       setModelForm({ name: "", provider: "openai", modelName: "", baseUrl: "", apiKey: "", defaultTemperature: 0.7, maxTokens: 4096, enabled: true });
                       await loadModels();
-                      setMsg(editingModel ? "模型已更新" : "模型已添加");
+                      message.success(editingModel ? "模型已更新" : "模型已添加");
                     } else {
-                      setMsg(json.msg ?? "操作失败");
+                      message.error(json.msg ?? "操作失败");
                     }
+                  } catch {
+                    message.error("操作失败，请稍后重试");
                   } finally {
                     setModelBusy(false);
                   }
@@ -654,7 +675,6 @@ export default function SettingsPage() {
             disabled={deleteBusy || deleteConfirm !== "确认注销"}
             onClick={async () => {
               setDeleteBusy(true);
-              setMsg("");
               try {
                 const res = await fetch("/api/account/delete", {
                   method: "POST",
@@ -665,10 +685,14 @@ export default function SettingsPage() {
                   }),
                 });
                 const json = await res.json();
-                setMsg(json.msg ?? "");
                 if (json.code === 200) {
+                  message.success("账号已注销");
                   router.replace("/");
+                } else {
+                  message.error(json.msg ?? "注销失败");
                 }
+              } catch {
+                message.error("注销失败，请稍后重试");
               } finally {
                 setDeleteBusy(false);
               }

@@ -31,6 +31,7 @@ export class RewriteSuggestionEngine {
   async generateSuggestions(
     text: string,
     options?: {
+      userId?: string;
       maxSuggestions?: number;
       focusAreas?: string[];
     }
@@ -68,9 +69,12 @@ export class RewriteSuggestionEngine {
   - type: 类型(grammar/style/clarity/conciseness/vocabulary)`;
 
     const result = await this.aiGenerator.generate(prompt, {
+      userId: options?.userId,
       maxTokens: 2000,
       temperature: 0.3,
     });
+
+    if (!result) return [];
 
     try {
       const data = JSON.parse(result.content);
@@ -128,7 +132,8 @@ export class RewriteSuggestionEngine {
   }
 
   async rewriteForConflict(
-    request: ConflictRewriteRequest
+    request: ConflictRewriteRequest,
+    userId?: string
   ): Promise<ConflictRewriteResult> {
     const { content, conflictDetails } = request;
 
@@ -150,9 +155,18 @@ export class RewriteSuggestionEngine {
 - suggestions: 改写建议数组`;
 
     const result = await this.aiGenerator.generate(prompt, {
+      userId,
       maxTokens: 3000,
       temperature: 0.6,
     });
+
+    if (!result) {
+      return {
+        rewrittenText: content,
+        instructions: "未配置 AI 模型，无法生成改写建议",
+        suggestions: [],
+      };
+    }
 
     try {
       const data = JSON.parse(result.content);
@@ -170,22 +184,25 @@ export class RewriteSuggestionEngine {
     }
   }
 
-  async improveClarity(text: string): Promise<RewriteSuggestion[]> {
+  async improveClarity(text: string, userId?: string): Promise<RewriteSuggestion[]> {
     return this.generateSuggestions(text, {
+      userId,
       maxSuggestions: 5,
       focusAreas: ["clarity"],
     });
   }
 
-  async improveStyle(text: string): Promise<RewriteSuggestion[]> {
+  async improveStyle(text: string, userId?: string): Promise<RewriteSuggestion[]> {
     return this.generateSuggestions(text, {
+      userId,
       maxSuggestions: 5,
       focusAreas: ["style", "vocabulary"],
     });
   }
 
-  async improveConciseness(text: string): Promise<RewriteSuggestion[]> {
+  async improveConciseness(text: string, userId?: string): Promise<RewriteSuggestion[]> {
     return this.generateSuggestions(text, {
+      userId,
       maxSuggestions: 5,
       focusAreas: ["conciseness"],
     });
