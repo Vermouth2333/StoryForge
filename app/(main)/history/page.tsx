@@ -29,6 +29,8 @@ export default function HistoryPage() {
   const [selectedSessionForHistory, setSelectedSessionForHistory] = useState("");
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [messagePage, setMessagePage] = useState(1);
+  const [messagePageSize] = useState(20);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [sessionKeyword, setSessionKeyword] = useState("");
   const [sessionSnapshots, setSessionSnapshots] = useState<SessionSnapshotItem[]>([]);
   const [snapshotLabel, setSnapshotLabel] = useState("");
@@ -48,11 +50,13 @@ export default function HistoryPage() {
 
   async function loadMessages(sessionIdParam: string, page = 1) {
     const res = await fetch(
-      `/api/chat/sessions/${sessionIdParam}/messages?page=${page}&page_size=20`,
+      `/api/chat/sessions/${sessionIdParam}/messages?page=${page}&page_size=${messagePageSize}`,
     );
     const json = await res.json();
-    setMessages(json.data ?? []);
+    const list: MessageItem[] = json.data ?? [];
+    setMessages(list);
     setMessagePage(page);
+    setHasMoreMessages(list.length >= messagePageSize);
   }
 
   async function loadSessionSnapshots(sid: string) {
@@ -132,7 +136,7 @@ export default function HistoryPage() {
       </div>
 
       {/* 会话列表和消息 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_1fr] gap-6">
         {/* 会话列表 */}
         <div className="sf-card p-5">
           <div className="flex items-center justify-between mb-4">
@@ -141,7 +145,7 @@ export default function HistoryPage() {
             </h3>
             <span className="text-xs text-[#5b6b8c]">{sessions.length} 个会话</span>
           </div>
-          <div className="space-y-2 max-h-[500px] overflow-y-auto">
+          <div className="space-y-2 max-h-[700px] overflow-y-auto">
             {sessions.map((s) => (
               <div
                 key={s.id}
@@ -177,7 +181,7 @@ export default function HistoryPage() {
           {selectedSessionForHistory ? (
             <>
               {/* 消息列表 */}
-              <div className="space-y-3 max-h-[400px] overflow-y-auto mb-4">
+              <div className="space-y-3 max-h-[600px] overflow-y-auto mb-4">
                 {messages.map((m) => (
                   <div
                     key={m.id}
@@ -215,23 +219,25 @@ export default function HistoryPage() {
               </div>
 
               {/* 分页 */}
-              {messages.length > 0 && (
+              {messages.length > 0 && (messagePage > 1 || hasMoreMessages) && (
                 <div className="flex items-center justify-center gap-3 mb-4">
-                  <button
-                    className="sf-tag"
-                    onClick={() =>
-                      loadMessages(selectedSessionForHistory, Math.max(1, messagePage - 1))
-                    }
-                  >
-                    上一页
-                  </button>
+                  {messagePage > 1 && (
+                    <button
+                      className="sf-tag"
+                      onClick={() => loadMessages(selectedSessionForHistory, messagePage - 1)}
+                    >
+                      上一页
+                    </button>
+                  )}
                   <span className="text-sm text-[#5b6b8c]">第 {messagePage} 页</span>
-                  <button
-                    className="sf-tag"
-                    onClick={() => loadMessages(selectedSessionForHistory, messagePage + 1)}
-                  >
-                    下一页
-                  </button>
+                  {hasMoreMessages && (
+                    <button
+                      className="sf-tag"
+                      onClick={() => loadMessages(selectedSessionForHistory, messagePage + 1)}
+                    >
+                      下一页
+                    </button>
+                  )}
                 </div>
               )}
 

@@ -20,7 +20,7 @@ export async function GET(
   const row = await db.get<Record<string, unknown>>(
     `SELECT c.id, c.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      c.name, c.avatar_url, c.summary, c.personality, c.tags_json, c.status, c.like_count, c.publish_at, c.updated_at
+      c.name, c.avatar_url, c.summary, c.personality, c.tags_json, c.status, c.like_count, c.favorite_count, c.publish_at, c.updated_at
      FROM characters c
      LEFT JOIN users u ON u.id = c.author_id
      WHERE c.id = ?`,
@@ -29,7 +29,38 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ code: 404, msg: "角色不存在" }, { status: 404 });
   }
-  return NextResponse.json({ code: 200, data: row, msg: "ok" });
+  const userId = await getCurrentUserId();
+  let likedByMe = false;
+  let favoritedByMe = false;
+  let isFollowing = false;
+  if (userId) {
+    const likeRow = await db.get<{ id: string }>(
+      "SELECT id FROM likes WHERE user_id = ? AND target_type = 'character' AND target_id = ?",
+      userId,
+      id,
+    );
+    likedByMe = Boolean(likeRow);
+    const favRow = await db.get<{ id: string }>(
+      "SELECT id FROM favorites WHERE user_id = ? AND target_type = 'character' AND target_id = ?",
+      userId,
+      id,
+    );
+    favoritedByMe = Boolean(favRow);
+    const authorId = String(row.author_id ?? "");
+    if (authorId && authorId !== userId) {
+      const followRow = await db.get<{ id: string }>(
+        "SELECT id FROM follows WHERE user_id = ? AND author_id = ?",
+        userId,
+        authorId,
+      );
+      isFollowing = Boolean(followRow);
+    }
+  }
+  return NextResponse.json({
+    code: 200,
+    data: { ...row, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
+    msg: "ok",
+  });
 }
 
 export async function PATCH(

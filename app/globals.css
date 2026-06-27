@@ -157,6 +157,11 @@ body {
   background: color-mix(in srgb, var(--primary-soft) 70%, var(--primary) 30%);
 }
 
+button.sf-tag,
+a.sf-tag {
+  cursor: pointer;
+}
+
 .sf-input {
   width: 100%;
   border: 1px solid var(--border);

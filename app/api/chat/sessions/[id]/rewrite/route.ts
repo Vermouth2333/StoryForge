@@ -65,7 +65,7 @@ export async function POST(
     const modelConfig = await ModelManager.getModelConfig(modelId, userId);
     const provider = modelConfig ? resolveProvider(modelConfig) : null;
 
-    const mockRewrite = `[重新生成的段落]\n\n基于以下上下文和指令重新生成的内容：\n\n指令：${rewriteInstruction}\n\n这是模拟的重新生成结果（未配置真实模型）。在环境变量中配置 OPENAI_API_KEY 等即可启用真实模型输出。`;
+    const mockRewrite = `[重新生成的段落]\n\n基于以下上下文和指令重新生成的内容：\n\n指令：${rewriteInstruction}\n\n这是模拟的重新生成结果（未配置真实模型）。请在「设置 → 模型管理」页面配置 API Key 和模型，即可启用真实模型输出。`;
 
     let rewrittenContent = mockRewrite;
     let usedModelName = "mock-model";

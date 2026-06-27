@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -85,6 +86,7 @@ function depthOf(nodes: OutlineNode[], id: string): number {
 }
 
 export default function StoryOutlineEditPage() {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
   const storyId = params.id ?? "";
   const [nodes, setNodes] = useState<OutlineNode[]>([]);
@@ -110,6 +112,12 @@ export default function StoryOutlineEditPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [importedChars, setImportedChars] = useState<ImportedItem[]>([]);
+  const [conflictResult, setConflictResult] = useState<{ conflicts: unknown[]; total: number } | null>(null);
+  const [conflictBusy, setConflictBusy] = useState(false);
+  const [consistencyResult, setConsistencyResult] = useState<{ violations: unknown[] } | null>(null);
+  const [consistencyBusy, setConsistencyBusy] = useState(false);
+  const [styleResult, setStyleResult] = useState<{ features: unknown; message: string } | null>(null);
+  const [styleBusy, setStyleBusy] = useState(false);
   const [importedWorlds, setImportedWorlds] = useState<ImportedItem[]>([]);
   const [worldOptions, setWorldOptions] = useState<WorldOption[]>([]);
   const [importCharId, setImportCharId] = useState("");
@@ -149,10 +157,68 @@ export default function StoryOutlineEditPage() {
       a.click();
       URL.revokeObjectURL(url);
       if (fallback) {
-        alert("目标格式生成失败或超时，已改为 Markdown 备份（正文含说明注释）。");
+        message.warning("目标格式生成失败或超时，已改为 Markdown 备份（正文含说明注释）。");
+      } else {
+        message.success(`已导出 ${fmt.toUpperCase()} 文件`);
       }
+    } catch {
+      message.error("导出失败，请重试");
     } finally {
       setExportBusy(false);
+    }
+  }
+
+  async function runConflictCheck() {
+    setConflictBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}/conflict-check`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) {
+        setConflictResult({ conflicts: json.data.conflicts ?? [], total: json.data.total ?? 0 });
+        message.success(json.msg ?? "冲突检测完成");
+      } else {
+        message.error(json.msg ?? "冲突检测失败");
+      }
+    } catch {
+      message.error("冲突检测失败");
+    } finally {
+      setConflictBusy(false);
+    }
+  }
+
+  async function runConsistencyCheck() {
+    setConsistencyBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}/consistency-check`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) {
+        setConsistencyResult({ violations: json.data.violations ?? [] });
+        message.success(json.msg ?? "一致性检查完成");
+      } else {
+        message.error(json.msg ?? "一致性检查失败");
+      }
+    } catch {
+      message.error("一致性检查失败");
+    } finally {
+      setConsistencyBusy(false);
+    }
+  }
+
+  async function runStyleExtract() {
+    setStyleBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}/style`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) {
+        setStyleResult({ features: json.data.features, message: json.data.message ?? "文风锚点提取成功" });
+        message.success(json.data.message ?? "文风锚点提取成功");
+      } else {
+        message.error(json.msg ?? "文风分析失败");
+      }
+    } catch {
+      message.error("文风分析失败");
+    } finally {
+      setStyleBusy(false);
     }
   }
 
@@ -848,6 +914,114 @@ export default function StoryOutlineEditPage() {
           </div>
         </>
       ) : null}
+
+      {/* 创作辅助：冲突检测 / 一致性校验 / 文风保持 */}
+      <div className="sf-card mt-8 space-y-6 p-4">
+        <div>
+          <p className="text-sm font-medium text-[#1F2A44]">创作辅助（MVP）</p>
+          <p className="mt-1 text-xs text-[#5B6B8C]">
+            对当前故事执行冲突检测、一致性校验与文风分析，结果会注入后续 AI 生成的上下文。
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* 冲突检测 */}
+          <div className="rounded-xl border border-[#DCE9FF] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-[#1F2A44]">冲突检测</p>
+              <button
+                type="button"
+                className="sf-btn-secondary text-xs"
+                disabled={conflictBusy}
+                onClick={() => void runConflictCheck()}
+              >
+                {conflictBusy ? "检测中..." : "运行"}
+              </button>
+            </div>
+            {conflictResult && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs text-[#5B6B8C]">
+                  共 {conflictResult.total} 个冲突
+                </p>
+                {conflictResult.conflicts.length === 0 ? (
+                  <p className="text-xs text-emerald-600">未检测到冲突</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {(conflictResult.conflicts as Array<Record<string, unknown>>).map((c, i) => (
+                      <li key={i} className="rounded bg-[#F8FBFF] p-2 text-xs">
+                        <span className="font-semibold text-[#5B9DFF]">
+                          {String(c.level ?? "")}
+                        </span>
+                        <span className="ml-2 text-[#1F2A44]">
+                          {String(c.conflictPoint ?? c.description ?? "")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 一致性校验 */}
+          <div className="rounded-xl border border-[#DCE9FF] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-[#1F2A44]">一致性校验</p>
+              <button
+                type="button"
+                className="sf-btn-secondary text-xs"
+                disabled={consistencyBusy}
+                onClick={() => void runConsistencyCheck()}
+              >
+                {consistencyBusy ? "校验中..." : "运行"}
+              </button>
+            </div>
+            {consistencyResult && (
+              <div className="mt-3 space-y-2">
+                {consistencyResult.violations.length === 0 ? (
+                  <p className="text-xs text-emerald-600">未发现一致性问题</p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {(consistencyResult.violations as Array<Record<string, unknown>>).map((v, i) => (
+                      <li key={i} className="rounded bg-[#F8FBFF] p-2 text-xs">
+                        <span className="font-semibold text-[#5B9DFF]">
+                          {String(v.type ?? "")}
+                        </span>
+                        <span className="ml-2 text-[#1F2A44]">
+                          {String(v.message ?? v.description ?? "")}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 文风保持器 */}
+          <div className="rounded-xl border border-[#DCE9FF] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-[#1F2A44]">文风保持器</p>
+              <button
+                type="button"
+                className="sf-btn-secondary text-xs"
+                disabled={styleBusy}
+                onClick={() => void runStyleExtract()}
+              >
+                {styleBusy ? "分析中..." : "提取文风"}
+              </button>
+            </div>
+            {styleResult && (
+              <div className="mt-3">
+                <p className="text-xs text-emerald-600">{styleResult.message}</p>
+                <pre className="mt-2 max-h-40 overflow-auto rounded bg-[#F8FBFF] p-2 text-[10px] text-[#5B6B8C]">
+                  {JSON.stringify(styleResult.features, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

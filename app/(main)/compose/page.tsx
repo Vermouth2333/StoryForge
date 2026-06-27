@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Tooltip } from "antd";
+import { Tooltip, message } from "antd";
 import { useEffect, useState } from "react";
 import { replayHeaders } from "@/lib/replay-headers";
 
@@ -49,7 +49,13 @@ export default function ComposePage() {
 
   async function publishStory() {
     if (!storyId) return;
-    await fetch(`/api/stories/${storyId}/publish`, { method: "POST", headers: replayHeaders() });
+    const res = await fetch(`/api/stories/${storyId}/publish`, { method: "POST", headers: replayHeaders() });
+    const json = await res.json();
+    if (json.code === 200) {
+      message.success("发布成功");
+    } else {
+      message.error(json.msg || "发布失败");
+    }
     await loadMyStories();
   }
 
@@ -188,7 +194,7 @@ export default function ComposePage() {
       </div>
 
       {/* 三栏布局 */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr_280px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,320px)_1fr_minmax(280px,320px)]">
         {/* 左侧 - 章节大纲 */}
         <div className="rounded-2xl border border-[#dce9ff] bg-white p-5">
           <h3 className="text-base font-semibold text-[#1f2a44] mb-4 flex items-center gap-2">
@@ -232,7 +238,7 @@ export default function ComposePage() {
             <span className="text-xl">✍️</span> 正文编辑区
           </h3>
           <textarea
-            className="sf-input min-h-32 resize-none"
+            className="sf-input min-h-48 resize-none"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="输入你的创作指令..."
@@ -290,7 +296,7 @@ export default function ComposePage() {
               </button>
             </Tooltip>
           </div>
-          <div className="mt-5 rounded-xl bg-[#eef6ff] p-5">
+          <div className="mt-5 rounded-xl bg-[#eef6ff] p-5 min-h-[300px]">
             <p className="font-semibold text-[#1f2a44] mb-2 flex items-center gap-2">
               <span>📤</span> 输出结果
             </p>

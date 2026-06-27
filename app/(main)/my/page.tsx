@@ -1,8 +1,15 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { replayHeaders } from "@/lib/replay-headers";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "草稿",
+  published: "已发布",
+  archived: "已归档",
+};
 
 type NotificationItem = {
   id: string;
@@ -44,6 +51,7 @@ type FavoriteRow = {
 };
 
 export default function MyPage() {
+  const { message } = App.useApp();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
   const [myCharacters, setMyCharacters] = useState<MyCharacterItem[]>([]);
@@ -113,43 +121,57 @@ export default function MyPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ all: true }),
     });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("已全部标记为已读");
+    else message.error(json.msg ?? "操作失败");
     await loadNotifications();
   }
 
   async function unpublishStory(targetStoryId: string) {
     const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("已下架");
+    else message.error(json.msg ?? "下架失败");
     await loadMyStories();
   }
 
   async function publishStory(story: MyStoryItem) {
     const res = await fetch(`/api/stories/${story.id}/publish`, { method: "POST", headers: replayHeaders() });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("发布成功");
+    else message.error(json.msg ?? "发布失败");
     await loadMyStories();
   }
 
   async function publishCharacter(character: MyCharacterItem) {
     const res = await fetch(`/api/characters/${character.id}/publish`, { method: "POST", headers: replayHeaders() });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("发布成功");
+    else message.error(json.msg ?? "发布失败");
     await loadMyCharacters();
   }
 
   async function unpublishCharacter(character: MyCharacterItem) {
     const res = await fetch(`/api/characters/${character.id}/unpublish`, { method: "POST" });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("已下架");
+    else message.error(json.msg ?? "下架失败");
     await loadMyCharacters();
   }
 
   async function publishWorld(world: MyWorldItem) {
     const res = await fetch(`/api/worlds/${world.id}/publish`, { method: "POST", headers: replayHeaders() });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("发布成功");
+    else message.error(json.msg ?? "发布失败");
     await loadMyWorlds();
   }
 
   async function unpublishWorld(world: MyWorldItem) {
     const res = await fetch(`/api/worlds/${world.id}/unpublish`, { method: "POST" });
-    await res.json();
+    const json = await res.json();
+    if (json.code === 200) message.success("已下架");
+    else message.error(json.msg ?? "下架失败");
     await loadMyWorlds();
   }
 
@@ -219,7 +241,7 @@ export default function MyPage() {
               </button>
             </div>
           </div>
-          <ul className="space-y-3">
+          <ul className="space-y-3 max-h-[400px] overflow-y-auto">
             {notifications.map((item) => (
               <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
                 <p className="text-sm text-[#1f2a44]">
@@ -260,7 +282,7 @@ export default function MyPage() {
               刷新
             </button>
           </div>
-          <ul className="space-y-3">
+          <ul className="space-y-3 max-h-[400px] overflow-y-auto">
             {myFavorites.map((row) => {
               const href =
                 row.target_type === "character"
@@ -312,7 +334,7 @@ export default function MyPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.title}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {item.status}</p>
+                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -356,7 +378,7 @@ export default function MyPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {item.status}</p>
+                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -400,7 +422,7 @@ export default function MyPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {item.status}</p>
+                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">

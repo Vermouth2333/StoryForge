@@ -39,7 +39,37 @@ export async function GET(
   if (!story) {
     return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
   }
-  return NextResponse.json({ code: 200, data: story, msg: "ok" });
+  const userId = await getCurrentUserId();
+  let likedByMe = false;
+  let favoritedByMe = false;
+  let isFollowing = false;
+  if (userId) {
+    const likeRow = await db.get<{ id: string }>(
+      "SELECT id FROM likes WHERE user_id = ? AND target_type = 'story' AND target_id = ?",
+      userId,
+      id,
+    );
+    likedByMe = Boolean(likeRow);
+    const favRow = await db.get<{ id: string }>(
+      "SELECT id FROM favorites WHERE user_id = ? AND target_type = 'story' AND target_id = ?",
+      userId,
+      id,
+    );
+    favoritedByMe = Boolean(favRow);
+    if (story.author_id !== userId) {
+      const followRow = await db.get<{ id: string }>(
+        "SELECT id FROM follows WHERE user_id = ? AND author_id = ?",
+        userId,
+        story.author_id,
+      );
+      isFollowing = Boolean(followRow);
+    }
+  }
+  return NextResponse.json({
+    code: 200,
+    data: { ...story, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
+    msg: "ok",
+  });
 }
 
 export async function PATCH(

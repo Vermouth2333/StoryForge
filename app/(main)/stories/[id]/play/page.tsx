@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type StoryDetail = {
   id: string;
@@ -47,6 +47,7 @@ export default function StoryPlayPage() {
   const [inputMessage, setInputMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [streamText, setStreamText] = useState("");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -91,7 +92,9 @@ export default function StoryPlayPage() {
     if (!inputMessage.trim() || !sessionId) return;
     setBusy(true);
     setStreamText("");
-    
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMsg: MessageItem = {
       id: "temp",
       role: "user",
@@ -106,6 +109,7 @@ export default function StoryPlayPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: inputMessage }),
+        signal: controller.signal,
       });
       if (!res.body) {
         setBusy(false);
@@ -114,6 +118,7 @@ export default function StoryPlayPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
+      let acc = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -125,26 +130,47 @@ export default function StoryPlayPage() {
           if (!line.startsWith("data:")) continue;
           const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
           if (payload.type === "content") {
-            setStreamText((t) => t + payload.content);
+            acc += payload.content;
+            setStreamText(acc);
           }
         }
       }
-      if (streamText) {
+      if (acc) {
         const assistantMsg: MessageItem = {
           id: "assistant_" + Date.now(),
           role: "assistant",
-          content: streamText,
+          content: acc,
           created_at: new Date().toISOString(),
         };
-        setMessages((prev) => {
-          const newList = [...prev];
-          return [...newList.slice(0, -1), assistantMsg];
-        });
+        setMessages((prev) => [...prev, assistantMsg]);
       }
       setStreamText("");
+    } catch (err: unknown) {
+      const isAbort =
+        (err as { name?: string })?.name === "AbortError" ||
+        err instanceof DOMException;
+      if (isAbort) {
+        setStreamText((cur) => {
+          if (cur) {
+            const assistantMsg: MessageItem = {
+              id: "assistant_" + Date.now(),
+              role: "assistant",
+              content: cur + "\n\n（已停止生成）",
+              created_at: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+          }
+          return "";
+        });
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  function stopGeneration() {
+    abortRef.current?.abort();
   }
 
   if (loading) {
@@ -324,6 +350,11 @@ export default function StoryPlayPage() {
             <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
               {busy ? "思考中..." : "行动"}
             </button>
+            {busy && (
+              <button className="sf-btn-secondary" onClick={stopGeneration}>
+                停止
+              </button>
+            )}
           </div>
         </div>
       )}

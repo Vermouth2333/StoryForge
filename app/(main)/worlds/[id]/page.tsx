@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { message } from "antd";
+
+const STATUS_LABELS: Record<string, string> = {
+  draft: "草稿",
+  published: "已发布",
+  archived: "已归档",
+};
 
 type WorldDetail = {
   id: string;
@@ -18,6 +25,9 @@ type WorldDetail = {
   favorite_count: number;
   publish_at: string | null;
   updated_at: string;
+  liked_by_me?: boolean;
+  favorited_by_me?: boolean;
+  is_following?: boolean;
 };
 
 type KnowledgeEntry = {
@@ -35,20 +45,6 @@ type MessageItem = {
   role: "system" | "user" | "assistant";
   content: string;
   created_at: string;
-};
-
-type Comment = {
-  id: string;
-  user_id: string;
-  content: string;
-  parent_comment_id: string | null;
-  like_count: number;
-  reply_count: number;
-  username: string;
-  avatar_url: string;
-  created_at: string;
-  liked: boolean;
-  replies: Comment[];
 };
 
 type ReviewData = {
@@ -77,24 +73,21 @@ export default function WorldDetailPage() {
   const [busy, setBusy] = useState(false);
   const [streamText, setStreamText] = useState("");
   
-  // 评论和评分状态
-  const [comments, setComments] = useState<Comment[]>([]);
+  // 评分状态
   const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [newComment, setNewComment] = useState("");
   const [userRating, setUserRating] = useState(0);
   const [userReviewText, setUserReviewText] = useState("");
-  const [submittingComment, setSubmittingComment] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     void (async () => {
       const id = params.id;
       if (!id) return;
       
-      const [worldRes, profileRes, commentsRes, reviewsRes] = await Promise.all([
+      const [worldRes, profileRes, reviewsRes] = await Promise.all([
         fetch(`/api/worlds/${id}`),
         fetch("/api/profile"),
-        fetch(`/api/comments?target_type=world&target_id=${id}`),
         fetch(`/api/reviews?target_type=world&target_id=${id}`),
       ]);
       const worldJson = await worldRes.json();
@@ -113,11 +106,6 @@ export default function WorldDetailPage() {
         }
       } else {
         setError(worldJson.msg ?? "加载失败");
-      }
-      
-      if (commentsRes.ok) {
-        const commentsJson = await commentsRes.json();
-        setComments(commentsJson.comments ?? []);
       }
       
       if (reviewsRes.ok) {
@@ -153,7 +141,9 @@ export default function WorldDetailPage() {
     if (!inputMessage.trim() || !sessionId) return;
     setBusy(true);
     setStreamText("");
-    
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const userMsg: MessageItem = {
       id: "temp",
       role: "user",
@@ -168,6 +158,7 @@ export default function WorldDetailPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: inputMessage }),
+        signal: controller.signal,
       });
       if (!res.body) {
         setBusy(false);
@@ -176,6 +167,7 @@ export default function WorldDetailPage() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
+      let acc = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -187,58 +179,48 @@ export default function WorldDetailPage() {
           if (!line.startsWith("data:")) continue;
           const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
           if (payload.type === "content") {
-            setStreamText((t) => t + payload.content);
+            acc += payload.content;
+            setStreamText(acc);
           }
         }
       }
-      if (streamText) {
+      if (acc) {
         const assistantMsg: MessageItem = {
           id: "assistant_" + Date.now(),
           role: "assistant",
-          content: streamText,
+          content: acc,
           created_at: new Date().toISOString(),
         };
-        setMessages((prev) => {
-          const newList = [...prev];
-          return [...newList.slice(0, -1), assistantMsg];
-        });
+        setMessages((prev) => [...prev, assistantMsg]);
       }
       setStreamText("");
+    } catch (err: unknown) {
+      const isAbort =
+        (err as { name?: string })?.name === "AbortError" || err instanceof DOMException;
+      if (isAbort) {
+        setStreamText((cur) => {
+          if (cur) {
+            const assistantMsg: MessageItem = {
+              id: "assistant_" + Date.now(),
+              role: "assistant",
+              content: cur + "\n\n（已停止生成）",
+              created_at: new Date().toISOString(),
+            };
+            setMessages((prev) => [...prev, assistantMsg]);
+          }
+          return "";
+        });
+      }
     } finally {
+      abortRef.current = null;
       setBusy(false);
     }
   }
-  
-  const handleSubmitComment = async () => {
-    if (!newComment.trim()) return;
-    
-    setSubmittingComment(true);
-    try {
-      const res = await fetch("/api/comments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_type: "world",
-          target_id: params.id,
-          content: newComment,
-        }),
-      });
-      
-      if (res.ok) {
-        setNewComment("");
-        const commentsRes = await fetch(`/api/comments?target_type=world&target_id=${params.id}`);
-        if (commentsRes.ok) {
-          const commentsJson = await commentsRes.json();
-          setComments(commentsJson.comments ?? []);
-        }
-      }
-    } catch (error) {
-      console.error("评论失败", error);
-    } finally {
-      setSubmittingComment(false);
-    }
-  };
 
+  function stopGeneration() {
+    abortRef.current?.abort();
+  }
+  
   const handleSubmitReview = async () => {
     if (userRating === 0) return;
     
@@ -256,6 +238,7 @@ export default function WorldDetailPage() {
       });
       
       if (res.ok) {
+        message.success("评价提交成功");
         const reviewsRes = await fetch(`/api/reviews?target_type=world&target_id=${params.id}`);
         if (reviewsRes.ok) {
           const reviewsJson = await reviewsRes.json();
@@ -265,38 +248,80 @@ export default function WorldDetailPage() {
             setUserReviewText(reviewsJson.user_review.content ?? "");
           }
         }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        message.error(errJson.error || "提交评价失败，请先登录");
       }
     } catch (error) {
       console.error("评分失败", error);
+      message.error("提交评价失败");
     } finally {
       setSubmittingReview(false);
     }
   };
 
-  const handleLikeComment = async (commentId: string) => {
-    try {
-      const res = await fetch(`/api/comments/${commentId}/like`, {
-        method: "POST",
-      });
-      
-      if (res.ok) {
-        const result = await res.json();
-        setComments((prev) => prev.map((comment) => {
-          if (comment.id === commentId) {
-            return {
-              ...comment,
-              liked: result.liked,
-              like_count: comment.like_count + (result.liked ? 1 : -1),
-            };
-          }
-          return comment;
-        }));
-      }
-    } catch (error) {
-      console.error("点赞失败", error);
+  async function toggleLike() {
+    if (!row) return;
+    const prev = row;
+    setRow({
+      ...prev,
+      liked_by_me: !prev.liked_by_me,
+      like_count: prev.like_count + (prev.liked_by_me ? -1 : 1),
+    });
+    const res = await fetch("/api/likes/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target_type: "world", target_id: prev.id }),
+    });
+    const json = await res.json();
+    if (json.code !== 200) {
+      setRow(prev);
+      message.error(json.msg ?? "操作失败");
     }
-  };
-  
+  }
+
+  async function toggleFavorite() {
+    if (!row) return;
+    const prev = row;
+    const nextFav = !prev.favorited_by_me;
+    setRow({
+      ...prev,
+      favorited_by_me: nextFav,
+      favorite_count: prev.favorite_count + (nextFav ? 1 : -1),
+    });
+    const res = await fetch("/api/favorites/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target_type: "world", target_id: prev.id }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+      message.success(nextFav ? "已收藏" : "已取消收藏");
+    } else {
+      setRow(prev);
+      message.error(json.msg ?? "操作失败");
+    }
+  }
+
+  async function toggleFollow() {
+    if (!row) return;
+    const prev = row;
+    const nextFollow = !prev.is_following;
+    setRow({ ...prev, is_following: nextFollow });
+    const res = await fetch("/api/follows/toggle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ author_id: prev.author_id }),
+    });
+    const json = await res.json();
+    if (json.code === 200) {
+      message.success(nextFollow ? "已关注" : "已取消关注");
+    } else {
+      setRow(prev);
+      message.error(json.msg ?? "操作失败");
+    }
+  }
+
   const renderStars = (rating: number, interactive = false) => {
     return Array.from({ length: 5 }, (_, i) => (
       <span
@@ -395,6 +420,29 @@ export default function WorldDetailPage() {
                 🌍 探索世界
               </button>
             ) : null}
+            <button
+              type="button"
+              className={`sf-tag ${row.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              onClick={() => void toggleLike()}
+            >
+              {row.liked_by_me ? "❤️ 已点赞" : "🤍 点赞"} ({row.like_count})
+            </button>
+            <button
+              type="button"
+              className={`sf-tag ${row.favorited_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              onClick={() => void toggleFavorite()}
+            >
+              {row.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({row.favorite_count})
+            </button>
+            {row.author_id && (
+              <button
+                type="button"
+                className={`sf-tag ${row.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
+                onClick={() => void toggleFollow()}
+              >
+                {row.is_following ? "已关注作者" : "＋ 关注作者"}
+              </button>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -412,7 +460,7 @@ export default function WorldDetailPage() {
             <p className="text-xs text-[#5B6B8C]">收藏</p>
           </div>
           <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.status}</p>
+            <p className="text-lg font-bold text-[#5B9DFF]">{STATUS_LABELS[row.status] ?? row.status}</p>
             <p className="text-xs text-[#5B6B8C]">状态</p>
           </div>
           <Link href={`/authors/${row.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">
@@ -664,100 +712,14 @@ export default function WorldDetailPage() {
             <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
               {busy ? "发送中..." : "探索"}
             </button>
+            {busy && (
+              <button className="sf-btn-secondary" onClick={stopGeneration}>
+                停止
+              </button>
+            )}
           </div>
         </div>
       )}
-      
-      {/* 评论区 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-          <span>💬</span> 评论区 ({comments.length})
-        </h3>
-        
-        {/* 发表评论 */}
-        <div className="mb-6">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="发表你的评论..."
-            className="sf-input mb-3 resize-none"
-            rows={3}
-          />
-          <button
-            onClick={handleSubmitComment}
-            disabled={submittingComment || !newComment.trim()}
-            className="sf-btn-primary disabled:opacity-50"
-          >
-            {submittingComment ? "发表中..." : "发表评论"}
-          </button>
-        </div>
-        
-        {/* 评论列表 */}
-        {comments.length > 0 ? (
-          <div className="space-y-4">
-            {comments.map((comment) => (
-              <div key={comment.id} className="border-b border-[#DCE9FF] pb-4 last:border-0">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                    {comment.username?.charAt(0)?.toUpperCase() || "U"}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-[#1F2A44]">{comment.username}</span>
-                      <span className="text-xs text-[#5B6B8C]">
-                        {new Date(comment.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[#1F2A44] mb-2">{comment.content}</p>
-                    <div className="flex items-center gap-4">
-                      <button
-                        onClick={() => handleLikeComment(comment.id)}
-                        className={`flex items-center gap-1 text-xs ${
-                          comment.liked ? "text-red-500" : "text-[#5B6B8C]"
-                        } hover:text-red-500`}
-                      >
-                        <span>{comment.liked ? "❤️" : "🤍"}</span>
-                        <span>{comment.like_count}</span>
-                      </button>
-                      {comment.reply_count > 0 && (
-                        <span className="text-xs text-[#5B6B8C]">
-                          {comment.reply_count} 条回复
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* 回复列表 */}
-                    {comment.replies.length > 0 && (
-                      <div className="mt-3 pl-4 space-y-3 border-l-2 border-[#DCE9FF]">
-                        {comment.replies.map((reply) => (
-                          <div key={reply.id} className="flex items-start gap-2">
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-red-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {reply.username?.charAt(0)?.toUpperCase() || "U"}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-sm text-[#1F2A44]">{reply.username}</span>
-                                <span className="text-xs text-[#5B6B8C]">
-                                  {new Date(reply.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-[#1F2A44]">{reply.content}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-[#5B6B8C]">
-            暂无评论，来发表第一条吧！
-          </div>
-        )}
-      </div>
     </main>
   );
 }

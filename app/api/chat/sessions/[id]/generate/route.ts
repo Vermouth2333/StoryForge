@@ -23,7 +23,7 @@ const MAX_STREAM_MS = 180_000;
 const MOCK_CHUNKS = [
   "已收到你的创作指令，",
   "这是一个 MVP 版本的流式回复（未配置真实模型）。",
-  "在环境变量中配置 OPENAI_API_KEY 等即可启用真实模型输出。",
+  "请在「设置 → 模型管理」页面配置 API Key 和模型，即可启用真实模型输出。",
 ];
 
 function sseData(payload: object) {
