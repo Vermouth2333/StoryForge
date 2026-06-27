@@ -687,7 +687,7 @@ export default function SettingsPage() {
                 const json = await res.json();
                 if (json.code === 200) {
                   message.success("账号已注销");
-                  router.replace("/");
+                  window.location.href = "/";
                 } else {
                   message.error(json.msg ?? "注销失败");
                 }
