@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Tooltip, message } from "antd";
 import { useEffect, useState } from "react";
 import { replayHeaders } from "@/lib/replay-headers";
@@ -19,6 +20,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default function ComposePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab: "story" | "character" | "world" =
+    tabParam === "character" || tabParam === "world" ? tabParam : "story";
+  const [createTab, setCreateTab] = useState<"story" | "character" | "world">(initialTab);
   const [storyTitle] = useState("赛博朋克2077-初次相遇");
   const [storyId, setStoryId] = useState("");
   const [prompt, setPrompt] = useState("让强尼银手台词更暴躁，保持悬疑氛围。");
@@ -29,6 +36,18 @@ export default function ComposePage() {
   const [myWorlds, setMyWorlds] = useState<{ id: string; name: string }[]>([]);
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; modelName: string; provider: string }>>([]);
   const [selectedModelId, setSelectedModelId] = useState("");
+  // 角色卡表单
+  const [charName, setCharName] = useState("");
+  const [charSummary, setCharSummary] = useState("");
+  const [charPersonality, setCharPersonality] = useState("");
+  const [charTags, setCharTags] = useState("");
+  const [charBusy, setCharBusy] = useState(false);
+  // 世界卡表单
+  const [worldName, setWorldName] = useState("");
+  const [worldSummary, setWorldSummary] = useState("");
+  const [worldSetting, setWorldSetting] = useState("");
+  const [worldTags, setWorldTags] = useState("");
+  const [worldBusy, setWorldBusy] = useState(false);
 
   async function createStory() {
     const res = await fetch("/api/stories", {
@@ -43,7 +62,56 @@ export default function ComposePage() {
     const json = await res.json();
     if (json.code === 200) {
       setStoryId(json.data.id);
+      message.success("故事已创建");
       await loadMyStories();
+    } else {
+      message.error(json.msg ?? "创建故事失败");
+    }
+  }
+
+  async function createCharacter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!charName.trim()) {
+      message.error("角色名称不能为空");
+      return;
+    }
+    setCharBusy(true);
+    const tags = charTags.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 10);
+    const res = await fetch("/api/characters", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: charName.trim(), summary: charSummary, personality: charPersonality, tags }),
+    });
+    const json = await res.json();
+    setCharBusy(false);
+    if (json.code === 200) {
+      message.success("角色卡创建成功");
+      router.push(`/characters/${json.data.id}`);
+    } else {
+      message.error(json.msg ?? "创建失败");
+    }
+  }
+
+  async function createWorld(e: React.FormEvent) {
+    e.preventDefault();
+    if (!worldName.trim()) {
+      message.error("世界名称不能为空");
+      return;
+    }
+    setWorldBusy(true);
+    const tags = worldTags.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 10);
+    const res = await fetch("/api/worlds", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: worldName.trim(), summary: worldSummary, setting_notes: worldSetting, tags }),
+    });
+    const json = await res.json();
+    setWorldBusy(false);
+    if (json.code === 200) {
+      message.success("世界卡创建成功");
+      router.push(`/worlds/${json.data.id}`);
+    } else {
+      message.error(json.msg ?? "创建失败");
     }
   }
 
@@ -175,25 +243,119 @@ export default function ComposePage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="section-title">创作工作台</h2>
-          <p className="section-subtitle">创建故事、与 AI 对话，开启你的创作之旅</p>
+          <p className="section-subtitle">创建故事、角色卡、世界卡，与 AI 对话，开启你的创作之旅</p>
         </div>
-        <div className="flex gap-3">
-          <button className="sf-btn-primary" onClick={createStory}>
-            新建故事
-          </button>
-          <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
-            <button
-              className="sf-btn-secondary"
-              onClick={publishStory}
-              disabled={!storyId}
-            >
-              发布故事
+        {createTab === "story" && (
+          <div className="flex gap-3">
+            <button className="sf-btn-primary" onClick={createStory}>
+              新建故事
             </button>
-          </Tooltip>
-        </div>
+            <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
+              <button
+                className="sf-btn-secondary"
+                onClick={publishStory}
+                disabled={!storyId}
+              >
+                发布故事
+              </button>
+            </Tooltip>
+          </div>
+        )}
       </div>
 
-      {/* 三栏布局 */}
+      {/* 创建类型切换 Tab */}
+      <div className="sf-card flex flex-wrap items-center gap-2 p-3">
+        {([
+          { key: "story", label: "📚 故事" },
+          { key: "character", label: "🎭 角色卡" },
+          { key: "world", label: "🌍 世界卡" },
+        ] as const).map((t) => {
+          const active = createTab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setCreateTab(t.key)}
+              aria-pressed={active}
+              className={
+                "sf-tag transition-all duration-150 " +
+                (active
+                  ? "bg-[#3f86f5] text-white border-[#3f86f5] shadow-[0_4px_12px_rgba(63,134,245,0.35)] font-medium scale-[1.03]"
+                  : "hover:border-[#3f86f5] hover:text-[#3f86f5]")
+              }
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 角色卡创建表单 */}
+      {createTab === "character" && (
+        <form onSubmit={createCharacter} className="sf-card space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
+            <h3 className="text-lg font-semibold text-[#1F2A44]">创建角色卡</h3>
+            <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的角色卡，可直接对话测试，也可引入到故事项目中。</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">角色名称 <span className="text-red-500">*</span></label>
+            <input className="sf-input w-full" placeholder="如：林晓月" value={charName} onChange={(e) => setCharName(e.target.value)} maxLength={120} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述角色的身份、特征..." value={charSummary} onChange={(e) => setCharSummary(e.target.value)} maxLength={1000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">性格与动机</label>
+            <textarea className="sf-input w-full min-h-28 resize-y" placeholder="描述角色的性格特质、说话风格、核心动机、内心冲突等..." value={charPersonality} onChange={(e) => setCharPersonality(e.target.value)} maxLength={8000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：剑客, 傲娇, 古风" value={charTags} onChange={(e) => setCharTags(e.target.value)} />
+            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" className="sf-btn-primary" disabled={charBusy}>{charBusy ? "创建中..." : "创建角色卡"}</button>
+            <button type="button" className="sf-btn-secondary" onClick={() => { setCharName(""); setCharSummary(""); setCharPersonality(""); setCharTags(""); }}>清空</button>
+          </div>
+        </form>
+      )}
+
+      {/* 世界卡创建表单 */}
+      {createTab === "world" && (
+        <form onSubmit={createWorld} className="sf-card space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
+            <h3 className="text-lg font-semibold text-[#1F2A44]">创建世界卡</h3>
+            <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的世界卡，定义世界观设定，可直接对话探索，也可引入到故事项目中。</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界名称 <span className="text-red-500">*</span></label>
+            <input className="sf-input w-full" placeholder="如：赛博朋克夜之城" value={worldName} onChange={(e) => setWorldName(e.target.value)} maxLength={120} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述世界的核心概念、时代背景..." value={worldSummary} onChange={(e) => setWorldSummary(e.target.value)} maxLength={1000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界设定</label>
+            <textarea className="sf-input w-full min-h-36 resize-y" placeholder="描述世界的核心规则、社会体系、科技水平、地理环境、历史大事件等..." value={worldSetting} onChange={(e) => setWorldSetting(e.target.value)} maxLength={8000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 反乌托邦, 未来" value={worldTags} onChange={(e) => setWorldTags(e.target.value)} />
+            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="submit" className="sf-btn-primary" disabled={worldBusy}>{worldBusy ? "创建中..." : "创建世界卡"}</button>
+            <button type="button" className="sf-btn-secondary" onClick={() => { setWorldName(""); setWorldSummary(""); setWorldSetting(""); setWorldTags(""); }}>清空</button>
+          </div>
+        </form>
+      )}
+
+      {/* 三栏布局 - 仅故事 Tab 显示 */}
+      {createTab === "story" && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(280px,320px)_1fr_minmax(280px,320px)]">
         {/* 左侧 - 章节大纲 */}
         <div className="rounded-2xl border border-[#dce9ff] bg-white p-5">
@@ -311,29 +473,56 @@ export default function ComposePage() {
           <h3 className="text-base font-semibold text-[#1f2a44] mb-4 flex items-center gap-2">
             <span className="text-xl">🎭</span> 角色与世界
           </h3>
-          <div className="flex flex-wrap gap-2">
+
+          {/* 角色卡列表：根据页面高度自适应展示数量 */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-[#1f2a44] mb-2">我的角色卡（{myCharacters.length}）</p>
             {myCharacters.length > 0 ? (
-              myCharacters.slice(0, 5).map((c) => (
-                <Link key={c.id} className="sf-tag" href={`/characters/${c.id}`}>
-                  {c.name}
-                </Link>
-              ))
+              <>
+                <ul className="flex flex-wrap gap-2 max-h-[8.5rem] overflow-hidden">
+                  {myCharacters.slice(0, 8).map((c) => (
+                    <li key={c.id}>
+                      <Link className="sf-tag" href={`/characters/${c.id}`}>{c.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+                {myCharacters.length > 8 && (
+                  <Link href="/my" className="mt-2 inline-block text-xs text-[#5B9DFF] hover:underline">
+                    查看更多（{myCharacters.length - 8}）→
+                  </Link>
+                )}
+              </>
             ) : (
               <span className="text-xs text-[#5b6b8c]">暂无角色</span>
             )}
+          </div>
+
+          {/* 世界卡列表 */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-[#1f2a44] mb-2">我的世界卡（{myWorlds.length}）</p>
             {myWorlds.length > 0 ? (
-              myWorlds.slice(0, 5).map((w) => (
-                <Link key={w.id} className="sf-tag" href={`/worlds/${w.id}`}>
-                  {w.name}
-                </Link>
-              ))
+              <>
+                <ul className="flex flex-wrap gap-2 max-h-[8.5rem] overflow-hidden">
+                  {myWorlds.slice(0, 8).map((w) => (
+                    <li key={w.id}>
+                      <Link className="sf-tag" href={`/worlds/${w.id}`}>{w.name}</Link>
+                    </li>
+                  ))}
+                </ul>
+                {myWorlds.length > 8 && (
+                  <Link href="/my" className="mt-2 inline-block text-xs text-[#5B9DFF] hover:underline">
+                    查看更多（{myWorlds.length - 8}）→
+                  </Link>
+                )}
+              </>
             ) : (
               <span className="text-xs text-[#5b6b8c]">暂无世界</span>
             )}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link className="sf-tag text-xs" href="/characters/new">+ 新建角色</Link>
-            <Link className="sf-tag text-xs" href="/worlds/new">+ 新建世界</Link>
+
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="sf-tag text-xs" onClick={() => setCreateTab("character")}>+ 新建角色</button>
+            <button type="button" className="sf-tag text-xs" onClick={() => setCreateTab("world")}>+ 新建世界</button>
           </div>
           <div className="mt-4 border-t border-dashed border-[#dce9ff] pt-4">
             <p className="text-xs font-medium text-[#1f2a44] mb-3">快捷操作</p>
@@ -356,6 +545,7 @@ export default function ComposePage() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

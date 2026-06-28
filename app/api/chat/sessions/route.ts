@@ -19,6 +19,9 @@ export async function GET(req: Request) {
   }
   const url = new URL(req.url);
   const storyId = url.searchParams.get("story_id");
+  const sessionType = url.searchParams.get("session_type");
+  const characterId = url.searchParams.get("character_id");
+  const worldId = url.searchParams.get("world_id");
   const keyword = (url.searchParams.get("q") ?? "").trim();
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
@@ -32,6 +35,18 @@ export async function GET(req: Request) {
   if (storyId) {
     where.push("story_id = ?");
     params.push(storyId);
+  }
+  if (sessionType) {
+    where.push("session_type = ?");
+    params.push(sessionType);
+  }
+  if (characterId) {
+    where.push("character_id = ?");
+    params.push(characterId);
+  }
+  if (worldId) {
+    where.push("world_id = ?");
+    params.push(worldId);
   }
   if (keyword) {
     where.push("title LIKE ?");

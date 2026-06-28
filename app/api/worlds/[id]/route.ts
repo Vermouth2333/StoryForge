@@ -29,6 +29,10 @@ export async function GET(
   if (!row) {
     return NextResponse.json({ code: 404, msg: "世界不存在" }, { status: 404 });
   }
+  // 拼接封面 URL
+  const coverAssetId = row.cover_asset_id ? String(row.cover_asset_id) : null;
+  const coverUrl = coverAssetId ? `/api/assets/${coverAssetId}/file` : null;
+  const coverThumbUrl = coverAssetId ? `/api/assets/${coverAssetId}/thumbnail` : null;
   const userId = await getCurrentUserId();
   let likedByMe = false;
   let favoritedByMe = false;
@@ -58,7 +62,7 @@ export async function GET(
   }
   return NextResponse.json({
     code: 200,
-    data: { ...row, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
+    data: { ...row, cover_url: coverUrl, cover_thumbnail_url: coverThumbUrl, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
     msg: "ok",
   });
 }

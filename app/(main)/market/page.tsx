@@ -194,7 +194,11 @@ export default function MarketPage() {
                   ? `/worlds/${item.id}`
                   : `/stories/${item.id}`;
             return (
-              <article key={`${kind}-${item.id}`} className="market-card">
+              <Link
+                key={`${kind}-${item.id}`}
+                href={detailHref}
+                className="market-card block cursor-pointer transition-shadow hover:shadow-lg"
+              >
                 <div
                   className="market-card-cover"
                   style={{ background: getCoverGradient(kind, index) }}
@@ -221,16 +225,13 @@ export default function MarketPage() {
                       <span>⭐ {Number(item.favorite_count ?? 0)}</span>
                     </div>
                   </div>
-                  <div className="market-card-actions">
+                  <div className="market-card-actions" onClick={(e) => e.preventDefault()}>
                     <button className="sf-tag" onClick={() => likeFeedItem(item.id, kind)}>
                       点赞
                     </button>
                     <button className="sf-tag" onClick={() => favoriteFeedItem(item.id, kind)}>
                       收藏
                     </button>
-                    <Link className="sf-tag" href={detailHref}>
-                      查看
-                    </Link>
                     <button
                       className="sf-tag disabled:opacity-40"
                       disabled={(item.author_display || "") === "已注销用户"}
@@ -240,7 +241,7 @@ export default function MarketPage() {
                     </button>
                   </div>
                 </div>
-              </article>
+              </Link>
             );
           })}
         </div>
@@ -248,9 +249,15 @@ export default function MarketPage() {
         <div className="sf-card p-12 text-center">
           <div className="text-6xl mb-4">📭</div>
           <p className="text-[#5b6b8c] text-lg">
-            {marketTab === "story" && "暂无已发布故事。先新建故事并发布，再刷新列表。"}
-            {marketTab === "character" && "暂无已发布角色。创建角色卡并发布后在此展示。"}
-            {marketTab === "world" && "暂无已发布世界。创建世界卡并发布后在此展示。"}
+            {searchQuery
+              ? `没有找到与「${searchQuery}」相关的${marketTab === "story" ? "故事" : marketTab === "character" ? "角色" : "世界"}，换个关键词试试吧。`
+              : (
+                <>
+                  {marketTab === "story" && "暂无已发布故事。先新建故事并发布，再刷新列表。"}
+                  {marketTab === "character" && "暂无已发布角色。创建角色卡并发布后在此展示。"}
+                  {marketTab === "world" && "暂无已发布世界。创建世界卡并发布后在此展示。"}
+                </>
+              )}
           </p>
         </div>
       )}

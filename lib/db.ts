@@ -5,21 +5,22 @@ import { open, type Database } from "sqlite";
 import sqlite3 from "sqlite3";
 
 async function addColumnIfMissing(db: Database, table: string, column: string, ddlFragment: string) {
-  const cols = await db.all<{ name: string }[]>(`PRAGMA table_info(${table})`);
-  const names = new Set(cols.map((r) => r.name));
-  if (!names.has(column)) {
+  const cols = await db.all<{ name: string }>(`PRAGMA table_info(${table})`);
+  const names = new Set(Array.isArray(cols) ? cols.map((r) => r?.name).filter((n): n is string => Boolean(n)) : []);
+  if (names.has(column)) return;
+  try {
     await db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddlFragment}`);
+  } catch (err) {
+    // 列已存在时 SQLite 抛出 "duplicate column name"，安全忽略
+    const msg = (err as Error)?.message ?? "";
+    if (!/duplicate column/i.test(msg)) throw err;
   }
 }
 
 async function migrateSchema(db: Database) {
   await db.exec("PRAGMA foreign_keys = ON;");
 
-  const storiesCols = await db.all<{ name: string }[]>("PRAGMA table_info(stories)");
-  const storyNames = new Set(storiesCols.map((r) => r.name));
-  if (!storyNames.has("cover_asset_id")) {
-    await db.exec("ALTER TABLE stories ADD COLUMN cover_asset_id TEXT");
-  }
+  await addColumnIfMissing(db, "stories", "cover_asset_id", "cover_asset_id TEXT");
 
   await addColumnIfMissing(db, "users", "gender", "gender TEXT");
   await addColumnIfMissing(db, "users", "age", "age INTEGER");
@@ -314,6 +315,8 @@ async function migrateSchema(db: Database) {
 
   await addColumnIfMissing(db, "characters", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");
   await addColumnIfMissing(db, "worlds", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");
+  await addColumnIfMissing(db, "characters", "cover_asset_id", "cover_asset_id TEXT");
+  await addColumnIfMissing(db, "worlds", "cover_asset_id", "cover_asset_id TEXT");
 
   // 会话级模型选择持久化
   await addColumnIfMissing(db, "chat_sessions", "model_id", "model_id TEXT");

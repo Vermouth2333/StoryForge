@@ -4,6 +4,7 @@ import { App } from "antd";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import CoverUploader from "@/components/CoverUploader";
 
 type StoryDetail = {
   id: string;
@@ -13,6 +14,9 @@ type StoryDetail = {
   summary: string;
   status: string;
   tags_json: string;
+  cover_asset_id?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
   like_count: number;
   favorite_count: number;
   publish_at: string | null;
@@ -50,9 +54,10 @@ export default function StoryDetailPage() {
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [relations, setRelations] = useState<CharacterRelation[]>([]);
   const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [userRating, setUserRating] = useState(0);
+  const [userRating, setUserRating] = useState(5);
   const [userReviewText, setUserReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
@@ -60,11 +65,12 @@ export default function StoryDetailPage() {
     void (async () => {
       const storyId = params.id;
       if (!storyId) return;
-      
-      const [storyRes, relationsRes, reviewsRes] = await Promise.all([
+
+      const [storyRes, relationsRes, reviewsRes, profileRes] = await Promise.all([
         fetch(`/api/stories/${storyId}`),
         fetch(`/api/stories/${storyId}/relations`),
         fetch(`/api/reviews?target_type=story&target_id=${storyId}`),
+        fetch(`/api/profile`),
       ]);
       
       const storyJson = await storyRes.json();
@@ -87,7 +93,14 @@ export default function StoryDetailPage() {
           setUserReviewText(reviewsJson.user_review.content ?? "");
         }
       }
-      
+
+      if (profileRes.ok) {
+        const profileJson = await profileRes.json();
+        if (profileJson.code === 200 && profileJson.data?.id) {
+          setCurrentUserId(profileJson.data.id);
+        }
+      }
+
       setLoading(false);
     })();
   }, [params.id]);
@@ -290,6 +303,30 @@ export default function StoryDetailPage() {
             <p className="text-xs text-[#5B6B8C]">创建者</p>
           </Link>
         </div>
+      </div>
+
+      {/* 封面区域 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+          <span>🖼️</span> 封面图
+        </h3>
+        {story.cover_url && (
+          <div className="mb-4 overflow-hidden rounded-xl border border-[#DCE9FF]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={story.cover_url} alt="封面" className="max-h-72 w-full object-cover" />
+          </div>
+        )}
+        {currentUserId && story.author_id === currentUserId && (
+          <CoverUploader
+            endpoint={`/api/stories/${story.id}/cover`}
+            coverUrl={story.cover_url}
+            thumbnailUrl={story.cover_thumbnail_url}
+            onUploaded={(url) => setStory((prev) => prev ? { ...prev, cover_url: url } : prev)}
+          />
+        )}
+        {!story.cover_url && !(currentUserId && story.author_id === currentUserId) && (
+          <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+        )}
       </div>
 
       {/* 角色关系图谱 */}

@@ -51,7 +51,7 @@ type FavoriteRow = {
 };
 
 export default function MyPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
   const [myCharacters, setMyCharacters] = useState<MyCharacterItem[]>([]);
@@ -128,11 +128,20 @@ export default function MyPage() {
   }
 
   async function unpublishStory(targetStoryId: string) {
-    const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
-    const json = await res.json();
-    if (json.code === 200) message.success("已下架");
-    else message.error(json.msg ?? "下架失败");
-    await loadMyStories();
+    modal.confirm({
+      title: "下架故事",
+      content: "下架后该故事将不再在市场展示，确定要下架吗？",
+      okText: "下架",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
+        const json = await res.json();
+        if (json.code === 200) message.success("已下架");
+        else message.error(json.msg ?? "下架失败");
+        await loadMyStories();
+      },
+    });
   }
 
   async function publishStory(story: MyStoryItem) {
@@ -152,11 +161,20 @@ export default function MyPage() {
   }
 
   async function unpublishCharacter(character: MyCharacterItem) {
-    const res = await fetch(`/api/characters/${character.id}/unpublish`, { method: "POST" });
-    const json = await res.json();
-    if (json.code === 200) message.success("已下架");
-    else message.error(json.msg ?? "下架失败");
-    await loadMyCharacters();
+    modal.confirm({
+      title: "下架角色卡",
+      content: `下架后「${character.name}」将不再在市场展示，确定要下架吗？`,
+      okText: "下架",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/characters/${character.id}/unpublish`, { method: "POST" });
+        const json = await res.json();
+        if (json.code === 200) message.success("已下架");
+        else message.error(json.msg ?? "下架失败");
+        await loadMyCharacters();
+      },
+    });
   }
 
   async function publishWorld(world: MyWorldItem) {
@@ -168,11 +186,20 @@ export default function MyPage() {
   }
 
   async function unpublishWorld(world: MyWorldItem) {
-    const res = await fetch(`/api/worlds/${world.id}/unpublish`, { method: "POST" });
-    const json = await res.json();
-    if (json.code === 200) message.success("已下架");
-    else message.error(json.msg ?? "下架失败");
-    await loadMyWorlds();
+    modal.confirm({
+      title: "下架世界卡",
+      content: `下架后「${world.name}」将不再在市场展示，确定要下架吗？`,
+      okText: "下架",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/worlds/${world.id}/unpublish`, { method: "POST" });
+        const json = await res.json();
+        if (json.code === 200) message.success("已下架");
+        else message.error(json.msg ?? "下架失败");
+        await loadMyWorlds();
+      },
+    });
   }
 
   async function createSampleCharacter() {
@@ -369,7 +396,7 @@ export default function MyPage() {
               <button className="sf-tag" onClick={loadMyCharacters}>
                 刷新
               </button>
-              <Link className="sf-tag" href="/characters/new">创建</Link>
+              <Link className="sf-tag" href="/compose?tab=character">创建</Link>
             </div>
           </div>
           <ul className="space-y-3">
@@ -413,7 +440,7 @@ export default function MyPage() {
               <button className="sf-tag" onClick={loadMyWorlds}>
                 刷新
               </button>
-              <Link className="sf-tag" href="/worlds/new">创建</Link>
+              <Link className="sf-tag" href="/compose?tab=world">创建</Link>
             </div>
           </div>
           <ul className="space-y-3">

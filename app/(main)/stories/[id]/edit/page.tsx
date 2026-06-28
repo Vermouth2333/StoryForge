@@ -496,7 +496,7 @@ export default function StoryOutlineEditPage() {
           <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">章节大纲（文档节点结构）</p>
           <h1 className="text-xl font-semibold text-[#1F2A44]">{storyTitle || storyId}</h1>
           <p className="mt-1 text-sm text-[#5B6B8C]">
-            拖拽节点可调整同级排序 · type：chapter / branch / note
+            拖拽节点可调整同级排序 · 类型：章节 / 分支 / 备注
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -584,9 +584,9 @@ export default function StoryOutlineEditPage() {
                 value={newType}
                 onChange={(e) => setNewType(e.target.value as typeof newType)}
               >
-                <option value="chapter">chapter</option>
-                <option value="branch">branch</option>
-                <option value="note">note</option>
+                <option value="chapter">章节</option>
+                <option value="branch">分支</option>
+                <option value="note">备注</option>
               </select>
               <select
                 className="sf-input flex-1 min-w-[140px]"
@@ -693,7 +693,7 @@ export default function StoryOutlineEditPage() {
 
           <div className="sf-card mt-8 space-y-4 p-4">
             <div>
-              <p className="text-sm font-medium text-[#1F2A44]">剧情分支（story_branches）</p>
+              <p className="text-sm font-medium text-[#1F2A44]">剧情分支</p>
               <p className="mt-1 text-xs text-[#5B6B8C]">
                 从大纲节点锚定一条分支线，用于记录走向说明；可归档次要分支。合并回主线与导出分支策略见文档后续迭代。
               </p>

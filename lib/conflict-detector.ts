@@ -18,29 +18,30 @@ export class ConflictDetector {
   async detect(
     content: string,
     worldId: string | null,
-    characterIds: string[]
+    characterIds: string[],
+    storyId?: string,
   ): Promise<ConflictResult[]> {
     const conflicts: ConflictResult[] = [];
-    
+
     // 1. 检测角色冲突
     if (characterIds.length > 0) {
       const characterConflicts = await this.detectCharacterConflicts(content, characterIds);
       conflicts.push(...characterConflicts);
     }
-    
+
     // 2. 检测世界观冲突
     if (worldId) {
       const worldConflicts = await this.detectWorldConflicts(content, worldId);
       conflicts.push(...worldConflicts);
     }
-    
+
     // 3. 检测基本逻辑冲突
     const basicConflicts = this.detectBasicConflicts(content);
     conflicts.push(...basicConflicts);
-    
-    // 保存冲突日志
-    await this.saveConflictLogs(content, conflicts, worldId, characterIds);
-    
+
+    // 保存冲突日志（统一由 saveConflictLogs 写入，调用方无需再写）
+    await this.saveConflictLogs(content, conflicts, worldId, characterIds, storyId);
+
     return conflicts;
   }
 
@@ -295,25 +296,27 @@ export class ConflictDetector {
     content: string,
     conflicts: ConflictResult[],
     worldId: string | null,
-    characterIds: string[]
+    characterIds: string[],
+    storyId?: string,
   ): Promise<void> {
     if (conflicts.length === 0) return;
-    
+
     const db = await getDb();
-    
+
     for (const conflict of conflicts) {
       const logId = id("conflict");
-      
+
       await db.run(
-        `INSERT INTO conflict_detection_logs 
-         (id, world_id, content, conflict_level, conflict_details_json, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO conflict_detection_logs
+         (id, story_id, world_id, content, conflict_level, conflict_details_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           logId,
+          storyId ?? null,
           worldId,
           content.slice(0, 500), // 只保存前500字
           conflict.level,
-          JSON.stringify({ ...conflict, characterIds }),
+          JSON.stringify({ ...conflict, characterIds, storyId }),
           nowIso(),
         ]
       );

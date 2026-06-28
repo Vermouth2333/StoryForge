@@ -23,6 +23,7 @@ export async function GET(
     summary: string;
     status: string;
     tags_json: string;
+    cover_asset_id: string | null;
     like_count: number;
     favorite_count: number;
     publish_at: string | null;
@@ -30,7 +31,7 @@ export async function GET(
   }>(
     `SELECT s.id, s.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      s.title, s.summary, s.status, s.tags_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at
+      s.title, s.summary, s.status, s.tags_json, s.cover_asset_id, s.like_count, s.favorite_count, s.publish_at, s.updated_at
      FROM stories s
      LEFT JOIN users u ON u.id = s.author_id
      WHERE s.id = ?`,
@@ -39,6 +40,10 @@ export async function GET(
   if (!story) {
     return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
   }
+  // 拼接封面 URL
+  const coverAssetId = story.cover_asset_id ? String(story.cover_asset_id) : null;
+  const coverUrl = coverAssetId ? `/api/assets/${coverAssetId}/file` : null;
+  const coverThumbUrl = coverAssetId ? `/api/assets/${coverAssetId}/thumbnail` : null;
   const userId = await getCurrentUserId();
   let likedByMe = false;
   let favoritedByMe = false;
@@ -67,7 +72,7 @@ export async function GET(
   }
   return NextResponse.json({
     code: 200,
-    data: { ...story, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
+    data: { ...story, cover_url: coverUrl, cover_thumbnail_url: coverThumbUrl, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
     msg: "ok",
   });
 }

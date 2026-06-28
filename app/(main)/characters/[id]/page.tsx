@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { message } from "antd";
+import CoverUploader from "@/components/CoverUploader";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
@@ -17,6 +18,9 @@ type CharacterDetail = {
   author_display?: string;
   name: string;
   avatar_url: string | null;
+  cover_asset_id?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
   summary: string;
   personality: string;
   tags_json: string;
@@ -30,13 +34,6 @@ type CharacterDetail = {
   is_following?: boolean;
 };
 
-type MessageItem = {
-  id: string;
-  role: "system" | "user" | "assistant";
-  content: string;
-  created_at: string;
-};
-
 type ReviewData = {
   stats: { avg_rating: number; total_count: number };
   reviews: { id: string; username?: string; rating: number; content?: string }[];
@@ -48,29 +45,23 @@ export default function CharacterDetailPage() {
   const [row, setRow] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  // 对话状态
-  const [sessionId, setSessionId] = useState("");
-  const [messages, setMessages] = useState<MessageItem[]>([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [streamText, setStreamText] = useState("");
-  
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+
   // 评分状态
   const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [userRating, setUserRating] = useState(0);
+  const [userRating, setUserRating] = useState(5);
   const [userReviewText, setUserReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     void (async () => {
       const id = params.id;
       if (!id) return;
-      
-      const [characterRes, reviewsRes] = await Promise.all([
+
+      const [characterRes, reviewsRes, profileRes] = await Promise.all([
         fetch(`/api/characters/${id}`),
         fetch(`/api/reviews?target_type=character&target_id=${id}`),
+        fetch(`/api/profile`),
       ]);
       
       const characterJson = await characterRes.json();
@@ -88,114 +79,21 @@ export default function CharacterDetailPage() {
           setUserReviewText(reviewsJson.user_review.content ?? "");
         }
       }
-      
+
+      if (profileRes.ok) {
+        const profileJson = await profileRes.json();
+        if (profileJson.code === 200 && profileJson.data?.id) {
+          setCurrentUserId(profileJson.data.id);
+        }
+      }
+
       setLoading(false);
     })();
   }, [params.id]);
 
-  async function createSession() {
-    const res = await fetch("/api/chat/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        session_type: "character",
-        character_id: params.id,
-        title: `与${row?.name}对话`,
-      }),
-    });
-    const json = await res.json();
-    if (json.code === 200) {
-      setSessionId(json.data.session_id);
-    }
-  }
-
-  async function sendMessage() {
-    if (!inputMessage.trim() || !sessionId) return;
-    setBusy(true);
-    setStreamText("");
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    const userMsg: MessageItem = {
-      id: "temp",
-      role: "user",
-      content: inputMessage,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInputMessage("");
-
-    try {
-      const res = await fetch(`/api/chat/sessions/${sessionId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: inputMessage }),
-        signal: controller.signal,
-      });
-      if (!res.body) {
-        setBusy(false);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let acc = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() || "";
-        for (const ev of events) {
-          const line = ev.trim();
-          if (!line.startsWith("data:")) continue;
-          const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
-          if (payload.type === "content") {
-            acc += payload.content;
-            setStreamText(acc);
-          }
-        }
-      }
-      if (acc) {
-        const assistantMsg: MessageItem = {
-          id: "assistant_" + Date.now(),
-          role: "assistant",
-          content: acc,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      }
-      setStreamText("");
-    } catch (err: unknown) {
-      const isAbort =
-        (err as { name?: string })?.name === "AbortError" || err instanceof DOMException;
-      if (isAbort) {
-        setStreamText((cur) => {
-          if (cur) {
-            const assistantMsg: MessageItem = {
-              id: "assistant_" + Date.now(),
-              role: "assistant",
-              content: cur + "\n\n（已停止生成）",
-              created_at: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
-          }
-          return "";
-        });
-      }
-    } finally {
-      abortRef.current = null;
-      setBusy(false);
-    }
-  }
-
-  function stopGeneration() {
-    abortRef.current?.abort();
-  }
-  
   const handleSubmitReview = async () => {
     if (userRating === 0) return;
-    
+
     setSubmittingReview(true);
     try {
       const res = await fetch("/api/reviews", {
@@ -353,11 +251,9 @@ export default function CharacterDetailPage() {
             <Link href="/market" className="sf-tag">
               返回市场
             </Link>
-            {!sessionId ? (
-              <button className="sf-btn-primary" onClick={createSession}>
-                💬 开始对话
-              </button>
-            ) : null}
+            <Link href={`/characters/${row.id}/chat`} className="sf-btn-primary">
+              💬 开始对话
+            </Link>
             <button
               type="button"
               className={`sf-tag ${row.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -406,6 +302,30 @@ export default function CharacterDetailPage() {
             <p className="text-xs text-[#5B6B8C]">创建者</p>
           </Link>
         </div>
+      </div>
+
+      {/* 封面区域 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+          <span>🖼️</span> 封面图
+        </h3>
+        {row.cover_url && (
+          <div className="mb-4 overflow-hidden rounded-xl border border-[#DCE9FF]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={row.cover_url} alt="封面" className="max-h-72 w-full object-cover" />
+          </div>
+        )}
+        {currentUserId && row.author_id === currentUserId && (
+          <CoverUploader
+            endpoint={`/api/characters/${row.id}/cover`}
+            coverUrl={row.cover_url}
+            thumbnailUrl={row.cover_thumbnail_url}
+            onUploaded={(url) => setRow((prev) => prev ? { ...prev, cover_url: url } : prev)}
+          />
+        )}
+        {!row.cover_url && !(currentUserId && row.author_id === currentUserId) && (
+          <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+        )}
       </div>
 
       {/* 评分区域 */}
@@ -486,65 +406,20 @@ export default function CharacterDetailPage() {
         </div>
       )}
 
-      {/* 对话区域 */}
-      {sessionId && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>💬</span> 与 {row.name} 对话
-          </h3>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto mb-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`rounded-xl p-4 ${
-                  msg.role === "user"
-                    ? "bg-[#EEF6FF] border-l-4 border-[#5B9DFF]"
-                    : "bg-[#F0F9FF] border-l-4 border-[#4FACFE]"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    msg.role === "user"
-                      ? "bg-[#5B9DFF] text-white"
-                      : "bg-[#4FACFE] text-white"
-                  }`}>
-                    {msg.role === "user" ? "我" : row.name}
-                  </span>
-                </div>
-                <p className="text-sm text-[#1F2A44] leading-relaxed">{msg.content}</p>
-              </div>
-            ))}
-            {streamText && (
-              <div className="rounded-xl p-4 bg-[#F0F9FF] border-l-4 border-[#4FACFE]">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#4FACFE] text-white">
-                    {row.name}
-                  </span>
-                </div>
-                <p className="text-sm text-[#1F2A44] leading-relaxed">{streamText}▌</p>
-              </div>
-            )}
+      {/* 对话入口 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
+              <span>💬</span> 与 {row.name} 对话
+            </h3>
+            <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
           </div>
-          <div className="flex gap-3">
-            <input
-              className="sf-input flex-1"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder={`与 ${row.name} 对话...`}
-              disabled={busy}
-            />
-            <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
-              {busy ? "发送中..." : "发送"}
-            </button>
-            {busy && (
-              <button className="sf-btn-secondary" onClick={stopGeneration}>
-                停止
-              </button>
-            )}
-          </div>
+          <Link href={`/characters/${row.id}/chat`} className="sf-btn-primary">
+            进入对话 →
+          </Link>
         </div>
-      )}
+      </div>
     </main>
   );
 }
