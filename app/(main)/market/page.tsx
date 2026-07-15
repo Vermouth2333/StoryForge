@@ -11,6 +11,8 @@ type FeedItem = {
   favorite_count?: number;
   author_id: string;
   author_display?: string;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
   feed_kind?: "story" | "character" | "world";
 };
 
@@ -187,12 +189,13 @@ export default function MarketPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {feed.map((item, index) => {
             const kind = item.feed_kind ?? "story";
+            const coverSrc = item.cover_url || item.cover_thumbnail_url;
             const detailHref =
               kind === "character"
-                ? `/characters/${item.id}`
+                ? `/characters/${item.id}?from=market`
                 : kind === "world"
-                  ? `/worlds/${item.id}`
-                  : `/stories/${item.id}`;
+                  ? `/worlds/${item.id}?from=market`
+                  : `/stories/${item.id}?from=market`;
             return (
               <Link
                 key={`${kind}-${item.id}`}
@@ -200,12 +203,17 @@ export default function MarketPage() {
                 className="market-card block cursor-pointer transition-shadow hover:shadow-lg"
               >
                 <div
-                  className="market-card-cover"
-                  style={{ background: getCoverGradient(kind, index) }}
+                  className={`market-card-cover${coverSrc ? " market-card-cover--with-image" : ""}`}
+                  style={coverSrc ? undefined : { background: getCoverGradient(kind, index) }}
                 >
-                  <div className="market-card-placeholder">
-                    {getPlaceholderIcon(kind)}
-                  </div>
+                  {coverSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={coverSrc} alt={`${item.title} 封面`} loading="lazy" />
+                  ) : (
+                    <div className="market-card-placeholder">
+                      {getPlaceholderIcon(kind)}
+                    </div>
+                  )}
                 </div>
                 <div className="market-card-content">
                   <span className={`market-card-kind ${kind}`}>

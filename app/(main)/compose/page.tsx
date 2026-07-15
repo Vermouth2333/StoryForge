@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Tooltip, message } from "antd";
 import { useEffect, useState } from "react";
+import CoverFileField from "@/components/CoverFileField";
 import { replayHeaders } from "@/lib/replay-headers";
+import { uploadWorkCover } from "@/lib/upload-cover";
 
 type MyStoryItem = {
   id: string;
@@ -26,7 +28,11 @@ export default function ComposePage() {
   const initialTab: "story" | "character" | "world" =
     tabParam === "character" || tabParam === "world" ? tabParam : "story";
   const [createTab, setCreateTab] = useState<"story" | "character" | "world">(initialTab);
-  const [storyTitle] = useState("赛博朋克2077-初次相遇");
+  const [storyTitle, setStoryTitle] = useState("");
+  const [storySummary, setStorySummary] = useState("");
+  const [storyTags, setStoryTags] = useState("");
+  const [storyCoverFile, setStoryCoverFile] = useState<File | null>(null);
+  const [storyBusy, setStoryBusy] = useState(false);
   const [storyId, setStoryId] = useState("");
   const [prompt, setPrompt] = useState("让强尼银手台词更暴躁，保持悬疑氛围。");
   const [streamText, setStreamText] = useState("");
@@ -41,32 +47,53 @@ export default function ComposePage() {
   const [charSummary, setCharSummary] = useState("");
   const [charPersonality, setCharPersonality] = useState("");
   const [charTags, setCharTags] = useState("");
+  const [charCoverFile, setCharCoverFile] = useState<File | null>(null);
   const [charBusy, setCharBusy] = useState(false);
   // 世界卡表单
   const [worldName, setWorldName] = useState("");
   const [worldSummary, setWorldSummary] = useState("");
   const [worldSetting, setWorldSetting] = useState("");
   const [worldTags, setWorldTags] = useState("");
+  const [worldCoverFile, setWorldCoverFile] = useState<File | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
 
-  async function createStory() {
+  async function createStory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!storyTitle.trim()) {
+      message.error("故事标题不能为空");
+      return;
+    }
+    setStoryBusy(true);
+    const tags = storyTags
+      .split(/[,，\s]+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 10);
     const res = await fetch("/api/stories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: storyTitle,
-        summary: "MVP 自动创建示例故事",
-        tags: ["赛博朋克", "悬疑", "长篇"],
+        title: storyTitle.trim(),
+        summary: storySummary,
+        tags,
       }),
     });
     const json = await res.json();
     if (json.code === 200) {
-      setStoryId(json.data.id);
+      const id = json.data.id as string;
+      if (storyCoverFile) {
+        const upload = await uploadWorkCover(`/api/stories/${id}/cover`, storyCoverFile);
+        if (!upload.ok) {
+          message.warning(upload.msg ?? "故事已创建，但封面上传失败");
+        }
+      }
+      setStoryId(id);
       message.success("故事已创建");
       await loadMyStories();
     } else {
       message.error(json.msg ?? "创建故事失败");
     }
+    setStoryBusy(false);
   }
 
   async function createCharacter(e: React.FormEvent) {
@@ -83,13 +110,20 @@ export default function ComposePage() {
       body: JSON.stringify({ name: charName.trim(), summary: charSummary, personality: charPersonality, tags }),
     });
     const json = await res.json();
-    setCharBusy(false);
     if (json.code === 200) {
+      const id = json.data.id as string;
+      if (charCoverFile) {
+        const upload = await uploadWorkCover(`/api/characters/${id}/cover`, charCoverFile);
+        if (!upload.ok) {
+          message.warning(upload.msg ?? "角色已创建，但封面上传失败");
+        }
+      }
       message.success("角色卡创建成功");
-      router.push(`/characters/${json.data.id}`);
+      router.push(`/characters/${id}`);
     } else {
       message.error(json.msg ?? "创建失败");
     }
+    setCharBusy(false);
   }
 
   async function createWorld(e: React.FormEvent) {
@@ -106,13 +140,20 @@ export default function ComposePage() {
       body: JSON.stringify({ name: worldName.trim(), summary: worldSummary, setting_notes: worldSetting, tags }),
     });
     const json = await res.json();
-    setWorldBusy(false);
     if (json.code === 200) {
+      const id = json.data.id as string;
+      if (worldCoverFile) {
+        const upload = await uploadWorkCover(`/api/worlds/${id}/cover`, worldCoverFile);
+        if (!upload.ok) {
+          message.warning(upload.msg ?? "世界已创建，但封面上传失败");
+        }
+      }
       message.success("世界卡创建成功");
-      router.push(`/worlds/${json.data.id}`);
+      router.push(`/worlds/${id}`);
     } else {
       message.error(json.msg ?? "创建失败");
     }
+    setWorldBusy(false);
   }
 
   async function publishStory() {
@@ -247,9 +288,6 @@ export default function ComposePage() {
         </div>
         {createTab === "story" && (
           <div className="flex gap-3">
-            <button className="sf-btn-primary" onClick={createStory}>
-              新建故事
-            </button>
             <Tooltip title={!storyId ? "请先创建或选择一个故事" : undefined}>
               <button
                 className="sf-btn-secondary"
@@ -315,9 +353,10 @@ export default function ComposePage() {
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：剑客, 傲娇, 古风" value={charTags} onChange={(e) => setCharTags(e.target.value)} />
             <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
           </div>
+          <CoverFileField file={charCoverFile} onChange={setCharCoverFile} />
           <div className="flex gap-3 pt-2">
             <button type="submit" className="sf-btn-primary" disabled={charBusy}>{charBusy ? "创建中..." : "创建角色卡"}</button>
-            <button type="button" className="sf-btn-secondary" onClick={() => { setCharName(""); setCharSummary(""); setCharPersonality(""); setCharTags(""); }}>清空</button>
+            <button type="button" className="sf-btn-secondary" onClick={() => { setCharName(""); setCharSummary(""); setCharPersonality(""); setCharTags(""); setCharCoverFile(null); }}>清空</button>
           </div>
         </form>
       )}
@@ -347,9 +386,39 @@ export default function ComposePage() {
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 反乌托邦, 未来" value={worldTags} onChange={(e) => setWorldTags(e.target.value)} />
             <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
           </div>
+          <CoverFileField file={worldCoverFile} onChange={setWorldCoverFile} />
           <div className="flex gap-3 pt-2">
             <button type="submit" className="sf-btn-primary" disabled={worldBusy}>{worldBusy ? "创建中..." : "创建世界卡"}</button>
-            <button type="button" className="sf-btn-secondary" onClick={() => { setWorldName(""); setWorldSummary(""); setWorldSetting(""); setWorldTags(""); }}>清空</button>
+            <button type="button" className="sf-btn-secondary" onClick={() => { setWorldName(""); setWorldSummary(""); setWorldSetting(""); setWorldTags(""); setWorldCoverFile(null); }}>清空</button>
+          </div>
+        </form>
+      )}
+
+      {/* 故事创建表单 */}
+      {createTab === "story" && (
+        <form onSubmit={createStory} className="sf-card space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
+            <h3 className="text-lg font-semibold text-[#1F2A44]">创建故事</h3>
+            <p className="mt-1 text-sm text-[#5B6B8C]">填写基本信息与封面，创建后可继续编辑大纲与正文。</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">故事标题 <span className="text-red-500">*</span></label>
+            <input className="sf-input w-full" placeholder="如：赛博朋克2077-初次相遇" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} maxLength={120} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述故事背景、核心冲突..." value={storySummary} onChange={(e) => setStorySummary(e.target.value)} maxLength={1000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 悬疑, 长篇" value={storyTags} onChange={(e) => setStoryTags(e.target.value)} />
+            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+          </div>
+          <CoverFileField file={storyCoverFile} onChange={setStoryCoverFile} />
+          <div className="flex gap-3 pt-2">
+            <button type="submit" className="sf-btn-primary" disabled={storyBusy}>{storyBusy ? "创建中..." : "创建故事"}</button>
+            <button type="button" className="sf-btn-secondary" onClick={() => { setStoryTitle(""); setStorySummary(""); setStoryTags(""); setStoryCoverFile(null); }}>清空</button>
           </div>
         </form>
       )}

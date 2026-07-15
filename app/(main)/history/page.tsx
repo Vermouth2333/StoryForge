@@ -99,6 +99,31 @@ export default function HistoryPage() {
     }
   }
 
+  async function deleteSession(sessionId: string) {
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!window.confirm(`确定删除会话「${target?.title ?? "未命名"}」？此操作不可恢复。`)) {
+      return;
+    }
+    const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
+    const json = await res.json();
+    if (json.code !== 200) {
+      window.alert(json.msg ?? "删除失败");
+      return;
+    }
+    const remaining = sessions.filter((s) => s.id !== sessionId);
+    setSessions(remaining);
+    if (selectedSessionForHistory === sessionId) {
+      const nextId = remaining[0]?.id ?? "";
+      setSelectedSessionForHistory(nextId);
+      setMessages([]);
+      setSessionSnapshots([]);
+      if (nextId) {
+        await loadMessages(nextId, 1);
+        await loadSessionSnapshots(nextId);
+      }
+    }
+  }
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSessions();
@@ -156,15 +181,29 @@ export default function HistoryPage() {
                 }`}
                 onClick={() => setSelectedSessionForHistory(s.id)}
               >
-                <p className="font-medium text-[#1f2a44] truncate text-sm">{s.title}</p>
-                <p className="text-xs text-[#5b6b8c] mt-1">
-                  {new Date(s.updated_at).toLocaleDateString()}
-                </p>
-                {s.story_id && (
-                  <span className="inline-block mt-1 text-xs bg-[#eef6ff] text-[#5b9dff] px-2 py-0.5 rounded-full">
-                    关联故事
-                  </span>
-                )}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-[#1f2a44] truncate text-sm">{s.title}</p>
+                    <p className="text-xs text-[#5b6b8c] mt-1">
+                      {new Date(s.updated_at).toLocaleDateString()}
+                    </p>
+                    {s.story_id && (
+                      <span className="inline-block mt-1 text-xs bg-[#eef6ff] text-[#5b9dff] px-2 py-0.5 rounded-full">
+                        关联故事
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="sf-tag shrink-0 text-xs !text-[#8B2E2E]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void deleteSession(s.id);
+                    }}
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
             ))}
             {sessions.length === 0 && (
@@ -180,6 +219,22 @@ export default function HistoryPage() {
         <div className="sf-card p-5">
           {selectedSessionForHistory ? (
             <>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#dce9ff] pb-4">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-semibold text-[#1f2a44]">
+                    {sessions.find((s) => s.id === selectedSessionForHistory)?.title ?? "会话详情"}
+                  </h3>
+                  <p className="mt-1 text-xs text-[#5b6b8c]">查看消息记录与管理检查点</p>
+                </div>
+                <button
+                  type="button"
+                  className="sf-tag !text-[#8B2E2E]"
+                  onClick={() => void deleteSession(selectedSessionForHistory)}
+                >
+                  删除此会话
+                </button>
+              </div>
+
               {/* 消息列表 */}
               <div className="space-y-3 max-h-[600px] overflow-y-auto mb-4">
                 {messages.map((m) => (

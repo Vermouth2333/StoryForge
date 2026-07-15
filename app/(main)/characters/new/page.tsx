@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import CoverFileField from "@/components/CoverFileField";
+import { uploadWorkCover } from "@/lib/upload-cover";
 
 export default function NewCharacterPage() {
   const router = useRouter();
@@ -9,6 +11,7 @@ export default function NewCharacterPage() {
   const [summary, setSummary] = useState("");
   const [personality, setPersonality] = useState("");
   const [tagsInput, setTagsInput] = useState("");
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -31,12 +34,21 @@ export default function NewCharacterPage() {
       body: JSON.stringify({ name: name.trim(), summary, personality, tags }),
     });
     const json = await res.json();
-    setBusy(false);
     if (json.code === 200) {
-      router.push(`/characters/${json.data.id}`);
+      const id = json.data.id as string;
+      if (coverFile) {
+        const upload = await uploadWorkCover(`/api/characters/${id}/cover`, coverFile);
+        if (!upload.ok) {
+          setErr(upload.msg ?? "角色已创建，但封面上传失败");
+          setBusy(false);
+          return;
+        }
+      }
+      router.push(`/characters/${id}`);
     } else {
       setErr(json.msg ?? "创建失败");
     }
+    setBusy(false);
   }
 
   return (
@@ -105,6 +117,8 @@ export default function NewCharacterPage() {
           />
           <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
         </div>
+
+        <CoverFileField file={coverFile} onChange={setCoverFile} />
 
         {/* 提交 */}
         <div className="flex gap-3 pt-2">

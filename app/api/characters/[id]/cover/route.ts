@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
@@ -19,8 +20,8 @@ export async function POST(
   }
 
   const db = await getDb();
-  const character = await db.get<{ id: string; author_id: string }>(
-    "SELECT id, author_id FROM characters WHERE id = ?",
+  const character = await db.get<{ id: string; author_id: string; status: string }>(
+    "SELECT id, author_id, status FROM characters WHERE id = ?",
     characterId,
   );
   if (!character) {
@@ -81,6 +82,10 @@ export async function POST(
     "UPDATE characters SET cover_asset_id = ?, updated_at = ? WHERE id = ?",
     assetId, now, characterId,
   );
+
+  if (character.status === "published") {
+    await invalidateMarketCache();
+  }
 
   return NextResponse.json({
     code: 200,

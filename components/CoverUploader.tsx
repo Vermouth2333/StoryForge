@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
+import CoverDisplay from "@/components/CoverDisplay";
 
 interface CoverUploaderProps {
   /** 上传接口地址，例如 /api/characters/char_xxx/cover */
@@ -29,6 +30,10 @@ export default function CoverUploader({
     coverUrl || thumbnailUrl || null,
   );
 
+  useEffect(() => {
+    setPreview(coverUrl || thumbnailUrl || null);
+  }, [coverUrl, thumbnailUrl]);
+
   async function handleFile(file: File) {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
@@ -39,7 +44,6 @@ export default function CoverUploader({
       message.error("仅支持 JPG/PNG/WebP 格式");
       return;
     }
-    // 本地预览
     const localUrl = URL.createObjectURL(file);
     setPreview(localUrl);
     setBusy(true);
@@ -55,7 +59,6 @@ export default function CoverUploader({
         onUploaded?.(newUrl);
       } else {
         message.error(json.msg ?? "封面上传失败");
-        // 失败回退
         setPreview(coverUrl || thumbnailUrl || null);
       }
     } catch {
@@ -70,18 +73,19 @@ export default function CoverUploader({
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label}</label>
-      <div className="flex items-center gap-4">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border border-dashed border-[#DCE9FF] bg-[#F8FBFF]">
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={preview} alt="封面预览" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-[#5B6B8C]">
-              暂无封面
-            </div>
-          )}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+        <div className="relative">
+          <CoverDisplay
+            src={preview}
+            alt="封面预览"
+            placeholder={
+              <div className="market-card-placeholder">
+                <span className="text-sm text-[#5B6B8C]">暂无封面</span>
+              </div>
+            }
+          />
           {busy && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-xs text-[#5B9DFF]">
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-sm text-white">
               上传中...
             </div>
           )}
@@ -105,7 +109,7 @@ export default function CoverUploader({
           >
             {busy ? "上传中..." : preview ? "更换封面" : "上传封面"}
           </button>
-          <p className="text-xs text-[#5B6B8C]">JPG/PNG/WebP，≤10MB</p>
+          <p className="text-xs text-[#5B6B8C]">JPG/PNG/WebP，≤10MB。预览效果与市场展示一致。</p>
         </div>
       </div>
     </div>

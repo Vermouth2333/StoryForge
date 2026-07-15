@@ -4,6 +4,7 @@ import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { replayHeaders } from "@/lib/replay-headers";
+import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
@@ -51,7 +52,8 @@ type FavoriteRow = {
 };
 
 export default function MyPage() {
-  const { message, modal } = App.useApp();
+  const { message } = App.useApp();
+  const { confirmUnpublish, confirmDelete } = useWorkConfirm();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
   const [myCharacters, setMyCharacters] = useState<MyCharacterItem[]>([]);
@@ -128,19 +130,13 @@ export default function MyPage() {
   }
 
   async function unpublishStory(targetStoryId: string) {
-    modal.confirm({
-      title: "下架故事",
-      content: "下架后该故事将不再在市场展示，确定要下架吗？",
-      okText: "下架",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: async () => {
-        const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
-        const json = await res.json();
-        if (json.code === 200) message.success("已下架");
-        else message.error(json.msg ?? "下架失败");
-        await loadMyStories();
-      },
+    const story = myStories.find((s) => s.id === targetStoryId);
+    confirmUnpublish("story", story?.title ?? "该故事", async () => {
+      const res = await fetch(`/api/stories/${targetStoryId}/unpublish`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已下架");
+      else message.error(json.msg ?? "下架失败");
+      await loadMyStories();
     });
   }
 
@@ -161,19 +157,12 @@ export default function MyPage() {
   }
 
   async function unpublishCharacter(character: MyCharacterItem) {
-    modal.confirm({
-      title: "下架角色卡",
-      content: `下架后「${character.name}」将不再在市场展示，确定要下架吗？`,
-      okText: "下架",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: async () => {
-        const res = await fetch(`/api/characters/${character.id}/unpublish`, { method: "POST" });
-        const json = await res.json();
-        if (json.code === 200) message.success("已下架");
-        else message.error(json.msg ?? "下架失败");
-        await loadMyCharacters();
-      },
+    confirmUnpublish("character", character.name, async () => {
+      const res = await fetch(`/api/characters/${character.id}/unpublish`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已下架");
+      else message.error(json.msg ?? "下架失败");
+      await loadMyCharacters();
     });
   }
 
@@ -186,19 +175,54 @@ export default function MyPage() {
   }
 
   async function unpublishWorld(world: MyWorldItem) {
-    modal.confirm({
-      title: "下架世界卡",
-      content: `下架后「${world.name}」将不再在市场展示，确定要下架吗？`,
-      okText: "下架",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: async () => {
-        const res = await fetch(`/api/worlds/${world.id}/unpublish`, { method: "POST" });
-        const json = await res.json();
-        if (json.code === 200) message.success("已下架");
-        else message.error(json.msg ?? "下架失败");
-        await loadMyWorlds();
-      },
+    confirmUnpublish("world", world.name, async () => {
+      const res = await fetch(`/api/worlds/${world.id}/unpublish`, { method: "POST" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已下架");
+      else message.error(json.msg ?? "下架失败");
+      await loadMyWorlds();
+    });
+  }
+
+  async function deleteStoryItem(story: MyStoryItem) {
+    if (story.status === "published") {
+      message.warning("请先下架再删除");
+      return;
+    }
+    confirmDelete("story", story.title, async () => {
+      const res = await fetch(`/api/stories/${story.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已删除");
+      else message.error(json.msg ?? "删除失败");
+      await loadMyStories();
+    });
+  }
+
+  async function deleteCharacterItem(character: MyCharacterItem) {
+    if (character.status === "published") {
+      message.warning("请先下架再删除");
+      return;
+    }
+    confirmDelete("character", character.name, async () => {
+      const res = await fetch(`/api/characters/${character.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已删除");
+      else message.error(json.msg ?? "删除失败");
+      await loadMyCharacters();
+    });
+  }
+
+  async function deleteWorldItem(world: MyWorldItem) {
+    if (world.status === "published") {
+      message.warning("请先下架再删除");
+      return;
+    }
+    confirmDelete("world", world.name, async () => {
+      const res = await fetch(`/api/worlds/${world.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) message.success("已删除");
+      else message.error(json.msg ?? "删除失败");
+      await loadMyWorlds();
     });
   }
 
@@ -373,9 +397,17 @@ export default function MyPage() {
                       下架
                     </button>
                   ) : (
-                    <button className="sf-tag text-xs" onClick={() => publishStory(item)}>
-                      发布
-                    </button>
+                    <>
+                      <button className="sf-tag text-xs" onClick={() => publishStory(item)}>
+                        发布
+                      </button>
+                      <button
+                        className="sf-tag text-xs !text-[#8B2E2E]"
+                        onClick={() => deleteStoryItem(item)}
+                      >
+                        删除
+                      </button>
+                    </>
                   )}
                 </div>
               </li>
@@ -417,9 +449,17 @@ export default function MyPage() {
                       下架
                     </button>
                   ) : (
-                    <button className="sf-tag text-xs" onClick={() => publishCharacter(item)}>
-                      发布
-                    </button>
+                    <>
+                      <button className="sf-tag text-xs" onClick={() => publishCharacter(item)}>
+                        发布
+                      </button>
+                      <button
+                        className="sf-tag text-xs !text-[#8B2E2E]"
+                        onClick={() => deleteCharacterItem(item)}
+                      >
+                        删除
+                      </button>
+                    </>
                   )}
                 </div>
               </li>
@@ -461,9 +501,17 @@ export default function MyPage() {
                       下架
                     </button>
                   ) : (
-                    <button className="sf-tag text-xs" onClick={() => publishWorld(item)}>
-                      发布
-                    </button>
+                    <>
+                      <button className="sf-tag text-xs" onClick={() => publishWorld(item)}>
+                        发布
+                      </button>
+                      <button
+                        className="sf-tag text-xs !text-[#8B2E2E]"
+                        onClick={() => deleteWorldItem(item)}
+                      >
+                        删除
+                      </button>
+                    </>
                   )}
                 </div>
               </li>

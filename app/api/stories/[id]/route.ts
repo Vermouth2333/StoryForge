@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
+import { deleteStory } from "@/lib/delete-content";
 import { getDb, nowIso } from "@/lib/db";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 
 const schema = z.object({
   title: z.string().min(1).max(120).optional(),
@@ -90,8 +92,8 @@ export async function PATCH(
 
   const userId = await getCurrentUserId();
   const db = await getDb();
-  const story = await db.get<{ id: string }>(
-    "SELECT id FROM stories WHERE id = ? AND author_id = ?",
+  const story = await db.get<{ id: string; status: string }>(
+    "SELECT id, status FROM stories WHERE id = ? AND author_id = ?",
     id,
     userId,
   );
@@ -118,5 +120,26 @@ export async function PATCH(
   values.push(id);
 
   await db.run(`UPDATE stories SET ${fields.join(", ")} WHERE id = ?`, ...values);
+  if (story.status === "published") {
+    await invalidateMarketCache();
+  }
   return NextResponse.json({ code: 200, msg: "更新成功" });
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
+  }
+  const db = await getDb();
+  const result = await deleteStory(db, id, userId);
+  if (!result.ok) {
+    const status = result.msg.includes("不存在") ? 404 : 400;
+    return NextResponse.json({ code: status, msg: result.msg }, { status });
+  }
+  return NextResponse.json({ code: 200, msg: "故事已删除" });
 }

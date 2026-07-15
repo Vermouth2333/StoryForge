@@ -207,16 +207,38 @@ a.sf-tag {
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 50%);
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  pointer-events: none;
 }
 
-.market-card-cover img {
+.market-card-cover--with-image {
+  background: #000;
+}
+
+.market-card-cover--with-image::before {
+  display: none;
+}
+
+.market-card-cover--with-image img {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+}
+
+/* 详情页 / 创建预览：与市场卡片相同的 3:4 比例与展示宽度 */
+.work-cover-frame {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .work-cover-frame {
+    max-width: 320px;
+  }
 }
 
 .market-card-placeholder {

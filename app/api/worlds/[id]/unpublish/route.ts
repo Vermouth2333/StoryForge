@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, nowIso } from "@/lib/db";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 
 export async function POST(
   _req: Request,
@@ -25,6 +26,8 @@ export async function POST(
     now,
     id,
   );
+
+  await invalidateMarketCache();
 
   return NextResponse.json({ code: 200, msg: "已下架", data: { updated_at: now } });
 }

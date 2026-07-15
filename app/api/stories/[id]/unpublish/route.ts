@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, nowIso } from "@/lib/db";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 
 export async function POST(
   _req: Request,
@@ -20,9 +21,10 @@ export async function POST(
   }
 
   await db.run(
-    "UPDATE stories SET status = 'draft', updated_at = ? WHERE id = ?",
+    "UPDATE stories SET status = 'draft', publish_at = NULL, updated_at = ? WHERE id = ?",
     nowIso(),
     id,
   );
+  await invalidateMarketCache();
   return NextResponse.json({ code: 200, msg: "已下架，状态改为草稿" });
 }

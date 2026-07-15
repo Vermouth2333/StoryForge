@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
@@ -19,8 +20,8 @@ export async function POST(
   }
 
   const db = await getDb();
-  const story = await db.get<{ id: string; author_id: string }>(
-    "SELECT id, author_id FROM stories WHERE id = ?",
+  const story = await db.get<{ id: string; author_id: string; status: string }>(
+    "SELECT id, author_id, status FROM stories WHERE id = ?",
     storyId,
   );
   if (!story) {
@@ -85,6 +86,10 @@ export async function POST(
     "UPDATE stories SET cover_asset_id = ?, updated_at = ? WHERE id = ?",
     assetId, now, storyId,
   );
+
+  if (story.status === "published") {
+    await invalidateMarketCache();
+  }
 
   return NextResponse.json({
     code: 200,

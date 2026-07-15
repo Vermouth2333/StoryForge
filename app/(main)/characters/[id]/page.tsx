@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { message } from "antd";
+import { App } from "antd";
+import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverUploader from "@/components/CoverUploader";
+import CoverDisplay from "@/components/CoverDisplay";
+import { useWorkPageMode } from "@/hooks/use-work-page-mode";
+import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
@@ -41,7 +45,9 @@ type ReviewData = {
 };
 
 export default function CharacterDetailPage() {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [row, setRow] = useState<CharacterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -52,6 +58,8 @@ export default function CharacterDetailPage() {
   const [userRating, setUserRating] = useState(5);
   const [userReviewText, setUserReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const { canEdit } = useWorkPageMode(row?.author_id, currentUserId || null);
+  const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
     void (async () => {
@@ -191,6 +199,20 @@ export default function CharacterDetailPage() {
       message.error(json.msg ?? "操作失败");
     }
   }
+
+  function handleDelete() {
+    if (!row || row.status === "published") return;
+    confirmDelete("character", row.name, async () => {
+      const res = await fetch(`/api/characters/${row.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) {
+        message.success("已删除");
+        router.push("/my");
+      } else {
+        message.error(json.msg ?? "删除失败");
+      }
+    });
+  }
   
   const renderStars = (rating: number, interactive = false) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -277,6 +299,11 @@ export default function CharacterDetailPage() {
                 {row.is_following ? "已关注作者" : "＋ 关注作者"}
               </button>
             )}
+            {canEdit && row.status !== "published" && (
+              <button type="button" className="sf-tag !text-[#8B2E2E]" onClick={() => void handleDelete()}>
+                删除
+              </button>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -304,26 +331,45 @@ export default function CharacterDetailPage() {
         </div>
       </div>
 
+      {canEdit && (
+        <AuthorWorkEditor
+          kind="character"
+          id={row.id}
+          status={row.status}
+          name={row.name}
+          summary={row.summary}
+          tagsJson={row.tags_json}
+          personality={row.personality}
+          onUpdated={(patch) => setRow((prev) => (prev ? { ...prev, ...patch } : prev))}
+          onStatusChange={(st, publishAt) =>
+            setRow((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: st,
+                    publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
+                  }
+                : prev,
+            )
+          }
+        />
+      )}
+
       {/* 封面区域 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
           <span>🖼️</span> 封面图
         </h3>
-        {row.cover_url && (
-          <div className="mb-4 overflow-hidden rounded-xl border border-[#DCE9FF]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={row.cover_url} alt="封面" className="max-h-72 w-full object-cover" />
-          </div>
-        )}
-        {currentUserId && row.author_id === currentUserId && (
+        {canEdit ? (
           <CoverUploader
             endpoint={`/api/characters/${row.id}/cover`}
             coverUrl={row.cover_url}
             thumbnailUrl={row.cover_thumbnail_url}
             onUploaded={(url) => setRow((prev) => prev ? { ...prev, cover_url: url } : prev)}
           />
-        )}
-        {!row.cover_url && !(currentUserId && row.author_id === currentUserId) && (
+        ) : row.cover_url ? (
+          <CoverDisplay src={row.cover_url} alt={`${row.name} 封面`} />
+        ) : (
           <p className="text-sm text-[#5B6B8C]">暂无封面</p>
         )}
       </div>

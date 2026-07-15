@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { message } from "antd";
+import { App } from "antd";
 import CoverUploader from "@/components/CoverUploader";
+import AuthorWorkEditor from "@/components/AuthorWorkEditor";
+import CoverDisplay from "@/components/CoverDisplay";
+import { useWorkPageMode } from "@/hooks/use-work-page-mode";
+import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
@@ -50,7 +54,9 @@ type ReviewData = {
 };
 
 export default function WorldDetailPage() {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [row, setRow] = useState<WorldDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -67,6 +73,8 @@ export default function WorldDetailPage() {
   const [userRating, setUserRating] = useState(5);
   const [userReviewText, setUserReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const { canEdit } = useWorkPageMode(row?.author_id, meId);
+  const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
     void (async () => {
@@ -210,6 +218,20 @@ export default function WorldDetailPage() {
     }
   }
 
+  function handleDelete() {
+    if (!row || row.status === "published") return;
+    confirmDelete("world", row.name, async () => {
+      const res = await fetch(`/api/worlds/${row.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) {
+        message.success("已删除");
+        router.push("/my");
+      } else {
+        message.error(json.msg ?? "删除失败");
+      }
+    });
+  }
+
   const renderStars = (rating: number, interactive = false) => {
     return Array.from({ length: 5 }, (_, i) => (
       <span
@@ -242,7 +264,6 @@ export default function WorldDetailPage() {
     tags = [];
   }
 
-  const isAuthor = meId !== null && meId === row.author_id;
   const world = row;
 
   async function reloadKnowledge() {
@@ -329,6 +350,11 @@ export default function WorldDetailPage() {
                 {row.is_following ? "已关注作者" : "＋ 关注作者"}
               </button>
             )}
+            {canEdit && row.status !== "published" && (
+              <button type="button" className="sf-tag !text-[#8B2E2E]" onClick={() => void handleDelete()}>
+                删除
+              </button>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -356,26 +382,45 @@ export default function WorldDetailPage() {
         </div>
       </div>
 
+      {canEdit && (
+        <AuthorWorkEditor
+          kind="world"
+          id={row.id}
+          status={row.status}
+          name={row.name}
+          summary={row.summary}
+          tagsJson={row.tags_json}
+          settingNotes={row.setting_notes}
+          onUpdated={(patch) => setRow((prev) => (prev ? { ...prev, ...patch } : prev))}
+          onStatusChange={(st, publishAt) =>
+            setRow((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: st,
+                    publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
+                  }
+                : prev,
+            )
+          }
+        />
+      )}
+
       {/* 封面区域 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
           <span>🖼️</span> 封面图
         </h3>
-        {row.cover_url && (
-          <div className="mb-4 overflow-hidden rounded-xl border border-[#DCE9FF]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={row.cover_url} alt="封面" className="max-h-72 w-full object-cover" />
-          </div>
-        )}
-        {meId && row.author_id === meId && (
+        {canEdit ? (
           <CoverUploader
             endpoint={`/api/worlds/${row.id}/cover`}
             coverUrl={row.cover_url}
             thumbnailUrl={row.cover_thumbnail_url}
             onUploaded={(url) => setRow((prev) => prev ? { ...prev, cover_url: url } : prev)}
           />
-        )}
-        {!row.cover_url && !(meId && row.author_id === meId) && (
+        ) : row.cover_url ? (
+          <CoverDisplay src={row.cover_url} alt={`${row.name} 封面`} />
+        ) : (
           <p className="text-sm text-[#5B6B8C]">暂无封面</p>
         )}
       </div>
@@ -506,7 +551,7 @@ export default function WorldDetailPage() {
                   <>
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <h4 className="font-medium text-[#1F2A44]">{e.title}</h4>
-                      {isAuthor ? (
+                      {canEdit ? (
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -545,7 +590,7 @@ export default function WorldDetailPage() {
             <p className="text-sm text-[#5B6B8C]">暂无词条</p>
           </div>
         )}
-        {isAuthor && (
+        {canEdit && (
           <div className="mt-6 border-t border-[#DCE9FF] pt-4">
             <p className="text-xs font-medium text-[#1F2A44]">新增词条</p>
             <input

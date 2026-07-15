@@ -4,6 +4,7 @@ import { scanTextBundle, storyPublishTextParts } from "@/lib/content-filter";
 import { getDb, nowIso } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
 import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
+import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { verifyReplayGuard } from "@/lib/anti-replay";
 
@@ -87,6 +88,8 @@ export async function POST(
       story_title: story.title,
     });
   }
+
+  await invalidateMarketCache();
 
   return NextResponse.json({ code: 200, msg: "发布成功", data: { publish_at: now } });
 }

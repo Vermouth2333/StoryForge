@@ -2,9 +2,13 @@
 
 import { App } from "antd";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import CoverUploader from "@/components/CoverUploader";
+import AuthorWorkEditor from "@/components/AuthorWorkEditor";
+import CoverDisplay from "@/components/CoverDisplay";
+import { useWorkPageMode } from "@/hooks/use-work-page-mode";
+import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 type StoryDetail = {
   id: string;
@@ -51,6 +55,7 @@ type ReviewData = {
 export default function StoryDetailPage() {
   const { message } = App.useApp();
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,6 +65,8 @@ export default function StoryDetailPage() {
   const [userRating, setUserRating] = useState(5);
   const [userReviewText, setUserReviewText] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const { canEdit } = useWorkPageMode(story?.author_id, currentUserId || null);
+  const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
     void (async () => {
@@ -208,6 +215,20 @@ export default function StoryDetailPage() {
     }
   }
 
+  function handleDelete() {
+    if (!story || story.status === "published") return;
+    confirmDelete("story", story.title, async () => {
+      const res = await fetch(`/api/stories/${story.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.code === 200) {
+        message.success("已删除");
+        router.push("/my");
+      } else {
+        message.error(json.msg ?? "删除失败");
+      }
+    });
+  }
+
   if (loading) {
     return <main className="sf-loading" />;
   }
@@ -278,6 +299,11 @@ export default function StoryDetailPage() {
                 {story.is_following ? "已关注作者" : "＋ 关注作者"}
               </button>
             )}
+            {canEdit && story.status !== "published" && (
+              <button type="button" className="sf-tag !text-[#8B2E2E]" onClick={() => void handleDelete()}>
+                删除
+              </button>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -305,26 +331,54 @@ export default function StoryDetailPage() {
         </div>
       </div>
 
+      {canEdit && (
+        <AuthorWorkEditor
+          kind="story"
+          id={story.id}
+          status={story.status}
+          name={story.title}
+          summary={story.summary}
+          tagsJson={story.tags_json}
+          onUpdated={(patch) =>
+            setStory((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    ...patch,
+                    title: typeof patch.title === "string" ? patch.title : prev.title,
+                  }
+                : prev,
+            )
+          }
+          onStatusChange={(st, publishAt) =>
+            setStory((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: st,
+                    publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
+                  }
+                : prev,
+            )
+          }
+        />
+      )}
+
       {/* 封面区域 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
           <span>🖼️</span> 封面图
         </h3>
-        {story.cover_url && (
-          <div className="mb-4 overflow-hidden rounded-xl border border-[#DCE9FF]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={story.cover_url} alt="封面" className="max-h-72 w-full object-cover" />
-          </div>
-        )}
-        {currentUserId && story.author_id === currentUserId && (
+        {canEdit ? (
           <CoverUploader
             endpoint={`/api/stories/${story.id}/cover`}
             coverUrl={story.cover_url}
             thumbnailUrl={story.cover_thumbnail_url}
             onUploaded={(url) => setStory((prev) => prev ? { ...prev, cover_url: url } : prev)}
           />
-        )}
-        {!story.cover_url && !(currentUserId && story.author_id === currentUserId) && (
+        ) : story.cover_url ? (
+          <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
+        ) : (
           <p className="text-sm text-[#5B6B8C]">暂无封面</p>
         )}
       </div>
@@ -362,7 +416,8 @@ export default function StoryDetailPage() {
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
           <span>📚</span> 更多操作
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className={`grid grid-cols-1 gap-4${canEdit ? " sm:grid-cols-2" : ""}`}>
+          {canEdit && (
           <Link
             href={`/stories/${story.id}/edit`}
             className="flex items-center justify-center gap-2 rounded-xl bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
@@ -373,6 +428,7 @@ export default function StoryDetailPage() {
               <p className="text-xs text-[#5B6B8C]">编辑故事章节结构</p>
             </div>
           </Link>
+          )}
           <Link
             href={`/stories/${story.id}/play`}
             className="flex items-center justify-center gap-2 rounded-xl bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"

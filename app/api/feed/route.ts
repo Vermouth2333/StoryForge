@@ -102,6 +102,17 @@ async function rankPersonalized(
   ).slice(0, 30);
 }
 
+function enrichFeedItemsWithCovers(items: Record<string, unknown>[]) {
+  return items.map((item) => {
+    const assetId = item.cover_asset_id ? String(item.cover_asset_id) : null;
+    return {
+      ...item,
+      cover_url: assetId ? `/api/assets/${assetId}/file` : null,
+      cover_thumbnail_url: assetId ? `/api/assets/${assetId}/thumbnail` : null,
+    };
+  });
+}
+
 const ORDER_SQL: Record<string, Record<string, string>> = {
   story: {
     latest: "s.publish_at DESC",
@@ -142,11 +153,14 @@ export async function GET(req: Request) {
   const candidateLimit = personalize ? 100 : 30;
 
   const cacheKey = cacheKeys.feed(`${kind}-${sort}-${search}-${tagsParam}-${author}-${minRating}${personalize ? `-u:${userId}` : ""}`);
-  const cached = await CacheService.get<Record<string, unknown>>(cacheKey);
-  if (cached) {
+  const cached = await CacheService.get<{ user_id: string | null; kind: string; items: Record<string, unknown>[] }>(cacheKey);
+  if (cached?.items) {
     return NextResponse.json({
       code: 200,
-      data: cached,
+      data: {
+        ...cached,
+        items: enrichFeedItemsWithCovers(cached.items),
+      },
       msg: "ok",
       fromCache: true,
     });
@@ -195,7 +209,7 @@ export async function GET(req: Request) {
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
     items = await db.all(
-      `SELECT c.id, c.name AS title, c.summary, c.tags_json, c.like_count, c.favorite_count, c.publish_at, c.updated_at, c.author_id,
+      `SELECT c.id, c.name AS title, c.summary, c.tags_json, c.like_count, c.favorite_count, c.publish_at, c.updated_at, c.author_id, c.cover_asset_id,
               CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
               'character' AS feed_kind
        FROM characters c
@@ -297,7 +311,7 @@ export async function GET(req: Request) {
     const whereClause = whereConditions.length > 0 ? "WHERE " + whereConditions.join(" AND ") : "";
 
     items = await db.all(
-      `SELECT s.id, s.title, s.summary, s.tags_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at, s.author_id,
+      `SELECT s.id, s.title, s.summary, s.tags_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at, s.author_id, s.cover_asset_id,
               CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
               'story' AS feed_kind
        FROM stories s
@@ -318,6 +332,8 @@ export async function GET(req: Request) {
   if (personalize && userId && items.length > 0) {
     items = await rankPersonalized(db, userId, items);
   }
+
+  items = enrichFeedItemsWithCovers(items);
 
   const data = { user_id: userId, kind, items };
   await CacheService.set(cacheKey, data, { ttlSeconds: 300 });
