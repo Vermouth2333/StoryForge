@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   const userId = await getCurrentUserId();
   if (!userId) {
-    return NextResponse.json({ error: "未登录" }, { status: 401 });
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
   }
   
   const db = await getDb();
@@ -13,37 +13,43 @@ export async function POST(request: NextRequest) {
   const { target_type, target_id, rating, content } = body;
   
   if (!target_type || !target_id || !rating) {
-    return NextResponse.json({ error: "参数不完整" }, { status: 400 });
+    return NextResponse.json({ code: 400, msg: "参数不完整" }, { status: 400 });
   }
   
   if (rating < 1 || rating > 5) {
-    return NextResponse.json({ error: "评分必须在 1-5 之间" }, { status: 400 });
+    return NextResponse.json({ code: 400, msg: "评分必须在 1-5 之间" }, { status: 400 });
   }
   
   // 检查是否已评分
-  const existingReview = await db.get(
-    "SELECT * FROM reviews WHERE user_id = ? AND target_type = ? AND target_id = ?",
+  const existingReview = await db.get<{ id: string }>(
+    "SELECT id FROM reviews WHERE user_id = ? AND target_type = ? AND target_id = ?",
     [userId, target_type, target_id]
   );
   
   const now = nowIso();
   
   if (existingReview) {
-    // 更新评分
     await db.run(
       "UPDATE reviews SET rating = ?, content = ?, updated_at = ? WHERE id = ?",
       [rating, content || null, now, existingReview.id]
     );
-    return NextResponse.json({ id: existingReview.id, updated: true });
-  } else {
-    // 创建评分
-    const reviewId = id("review");
-    await db.run(
-      "INSERT INTO reviews (id, user_id, target_type, target_id, rating, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      [reviewId, userId, target_type, target_id, rating, content || null, now, now]
-    );
-    return NextResponse.json({ id: reviewId, updated: false });
+    return NextResponse.json({
+      code: 200,
+      data: { id: existingReview.id, updated: true },
+      msg: "评价已更新",
+    });
   }
+
+  const reviewId = id("review");
+  await db.run(
+    "INSERT INTO reviews (id, user_id, target_type, target_id, rating, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    [reviewId, userId, target_type, target_id, rating, content || null, now, now]
+  );
+  return NextResponse.json({
+    code: 200,
+    data: { id: reviewId, updated: false },
+    msg: "评价已提交",
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -67,13 +73,13 @@ export async function GET(request: NextRequest) {
     [target_type, target_id]
   );
   
-  // 获取评分列表
+  // 获取评分列表（更新后按最近活动时间排序）
   const reviews = await db.all(
     `SELECT r.*, u.username, u.avatar_url 
      FROM reviews r 
      JOIN users u ON r.user_id = u.id 
      WHERE r.target_type = ? AND r.target_id = ? 
-     ORDER BY r.created_at DESC 
+     ORDER BY datetime(r.updated_at) DESC, datetime(r.created_at) DESC 
      LIMIT ? OFFSET ?`,
     [target_type, target_id, pageSize, (page - 1) * pageSize]
   );
@@ -91,12 +97,12 @@ export async function GET(request: NextRequest) {
   
   return NextResponse.json({
     stats: {
-      avg_rating: stats?.avg_rating || 0,
-      total_count: stats?.total_count || 0
+      avg_rating: Number(stats?.avg_rating) || 0,
+      total_count: Number(stats?.total_count) || 0,
     },
     reviews,
     user_review: userReview,
     page,
-    pageSize
+    pageSize,
   });
 }

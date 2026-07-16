@@ -75,6 +75,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ autho
       followers: followers?.count || 0
     },
     is_following: isFollowing,
+    is_self: currentUserId === authorId,
     works: { stories, characters, worlds }
   });
 }

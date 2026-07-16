@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 import { resolveStoryEditorValues } from "@/lib/work-draft";
@@ -48,12 +49,6 @@ type CharacterRelation = {
   description: string;
 };
 
-type ReviewData = {
-  stats: { avg_rating: number; total_count: number };
-  reviews: { id: string; username?: string; rating: number; content?: string }[];
-  user_review: { rating: number; content?: string } | null;
-};
-
 export default function StoryDetailPage() {
   const { message } = App.useApp();
   const params = useParams<{ id: string }>();
@@ -63,24 +58,17 @@ export default function StoryDetailPage() {
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [relations, setRelations] = useState<CharacterRelation[]>([]);
-  const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [userRating, setUserRating] = useState(5);
-  const [userReviewText, setUserReviewText] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
   const { canEdit } = useWorkPageMode(story?.author_id, currentUserId || null);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
-    setUserRating(5);
-    setUserReviewText("");
     void (async () => {
       const storyId = params.id;
       if (!storyId) return;
 
-      const [storyRes, relationsRes, reviewsRes, profileRes] = await Promise.all([
+      const [storyRes, relationsRes, profileRes] = await Promise.all([
         fetch(`/api/stories/${storyId}`),
         fetch(`/api/stories/${storyId}/relations`),
-        fetch(`/api/reviews?target_type=story&target_id=${storyId}`),
         fetch(`/api/profile`),
       ]);
       
@@ -95,11 +83,6 @@ export default function StoryDetailPage() {
       if (relationsJson.code === 200) {
         setRelations(relationsJson.data?.relations ?? []);
       }
-      
-      if (reviewsRes.ok) {
-        const reviewsJson = await reviewsRes.json();
-        setReviews(reviewsJson);
-      }
 
       if (profileRes.ok) {
         const profileJson = await profileRes.json();
@@ -111,45 +94,6 @@ export default function StoryDetailPage() {
       setLoading(false);
     })();
   }, [params.id]);
-
-  const handleSubmitReview = async () => {
-    if (userRating === 0) {
-      message.warning("请先选择评分");
-      return;
-    }
-
-    setSubmittingReview(true);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_type: "story",
-          target_id: params.id,
-          rating: userRating,
-          content: userReviewText,
-        }),
-      });
-      const json = await res.json();
-      if (json.code === 200) {
-        message.success("评价已提交");
-        const reviewsRes = await fetch(`/api/reviews?target_type=story&target_id=${params.id}`);
-        if (reviewsRes.ok) {
-          const reviewsJson = await reviewsRes.json();
-          setReviews(reviewsJson);
-        }
-        setUserRating(5);
-        setUserReviewText("");
-      } else {
-        message.error(json.msg ?? "评价提交失败");
-      }
-    } catch (error) {
-      console.error("评分失败", error);
-      message.error("评价提交失败");
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
 
   async function toggleLike() {
     if (!story) return;
@@ -245,19 +189,6 @@ export default function StoryDetailPage() {
     tags = [];
   }
 
-  const renderStars = (rating: number, interactive = false) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span
-        key={i}
-        className={`text-xl ${interactive ? "cursor-pointer" : ""} ${
-          i < rating ? "text-yellow-400" : "text-gray-300"}`}
-        onClick={() => interactive && setUserRating(i + 1)}
-      >
-        ★
-      </span>
-    ));
-  };
-
   return (
     <main className="mx-auto max-w-4xl p-6">
       {canEdit && story && (() => {
@@ -330,7 +261,7 @@ export default function StoryDetailPage() {
             >
               {story.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({story.favorite_count})
             </button>
-            {story.author_id && (
+            {story.author_id && story.author_id !== currentUserId && (
               <button
                 type="button"
                 className={`sf-tag ${story.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -445,72 +376,11 @@ export default function StoryDetailPage() {
         </div>
       </div>
 
-      {/* 评分区域 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-          <span>⭐</span> 评分与评价
-        </h3>
-        
-        {reviews && (
-          <div className="mb-4 p-4 bg-[#F8FBFF] rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#5B9DFF]">
-                  {reviews.stats.avg_rating ? reviews.stats.avg_rating.toFixed(1) : "0.0"}
-                </div>
-                <div className="flex justify-center">
-                  {renderStars(Math.round(reviews.stats.avg_rating || 0))}
-                </div>
-                <div className="text-sm text-[#5B6B8C] mt-1">
-                  共 {reviews.stats.total_count} 条评价
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t border-[#DCE9FF] pt-4">
-              <p className="text-sm text-[#5B6B8C] mb-2">分享你的评价</p>
-              <div className="flex items-center gap-2 mb-3">
-                {renderStars(userRating, true)}
-              </div>
-              <textarea
-                value={userReviewText}
-                onChange={(e) => setUserReviewText(e.target.value)}
-                placeholder="写下你的评价（可选）..."
-                className="sf-input mb-3 resize-none"
-                rows={3}
-                autoComplete="off"
-              />
-              <button
-                onClick={handleSubmitReview}
-                disabled={submittingReview || userRating === 0}
-                className="sf-btn-primary disabled:opacity-50"
-              >
-                {submittingReview ? "提交中..." : "提交评价"}
-              </button>
-            </div>
-            
-            {reviews.reviews.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-[#DCE9FF]">
-                <p className="text-sm text-[#5B6B8C] mb-3">其他用户评价</p>
-                {reviews.reviews.slice(0, 3).map((review) => (
-                  <div key={review.id} className="mb-4 pb-4 border-b border-[#DCE9FF] last:border-0 last:pb-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
-                        {review.username?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-                      <span className="text-sm font-medium text-[#1F2A44]">{review.username}</span>
-                      <div className="flex">{renderStars(review.rating)}</div>
-                    </div>
-                    {review.content && (
-                      <p className="text-sm text-[#5B6B8C] ml-10">{review.content}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      <TargetReviewSection
+        targetType="story"
+        targetId={story.id}
+        currentUserId={currentUserId || undefined}
+      />
     </main>
   );
 }

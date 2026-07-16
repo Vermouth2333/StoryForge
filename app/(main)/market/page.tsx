@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -40,11 +41,13 @@ const getPlaceholderIcon = (kind: string) => {
 };
 
 export default function MarketPage() {
+  const { message } = App.useApp();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [feedSort, setFeedSort] = useState("recommended");
   const [marketTab, setMarketTab] = useState<"story" | "character" | "world">("story");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
+  const [meId, setMeId] = useState<string | null>(null);
 
   async function loadFeed(sort = feedSort, tab = marketTab, search = searchQuery) {
     const kind = tab === "story" ? "story" : tab === "character" ? "character" : "world";
@@ -81,12 +84,21 @@ export default function MarketPage() {
   }
 
   async function followAuthor(authorId: string) {
+    if (meId && authorId === meId) {
+      message.warning("不能关注自己");
+      return;
+    }
     const res = await fetch("/api/follows/toggle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ author_id: authorId }),
     });
-    await res.json();
+    const json = await res.json();
+    if (json.code !== 200) {
+      message.error(json.msg ?? "关注失败");
+      return;
+    }
+    message.success(json.msg ?? "操作成功");
     await loadFeed(feedSort, marketTab);
   }
 
@@ -105,6 +117,12 @@ export default function MarketPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadFeed("recommended", "story");
+    void (async () => {
+      const res = await fetch("/api/profile");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.code === 200 && json.data?.id) setMeId(String(json.data.id));
+    })();
   }, []);
 
   return (
@@ -240,13 +258,15 @@ export default function MarketPage() {
                     <button className="sf-tag" onClick={() => favoriteFeedItem(item.id, kind)}>
                       收藏
                     </button>
-                    <button
-                      className="sf-tag disabled:opacity-40"
-                      disabled={(item.author_display || "") === "已注销用户"}
-                      onClick={() => followAuthor(item.author_id)}
-                    >
-                      关注
-                    </button>
+                    {!(meId && item.author_id === meId) && (
+                      <button
+                        className="sf-tag disabled:opacity-40"
+                        disabled={(item.author_display || "") === "已注销用户"}
+                        onClick={() => followAuthor(item.author_id)}
+                      >
+                        关注
+                      </button>
+                    )}
                   </div>
                 </div>
               </Link>

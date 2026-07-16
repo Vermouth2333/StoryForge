@@ -7,6 +7,7 @@ import { App } from "antd";
 import CoverUploader from "@/components/CoverUploader";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 import { resolveWorldEditorValues } from "@/lib/work-draft";
@@ -50,12 +51,6 @@ type KnowledgeEntry = {
   updated_at: string;
 };
 
-type ReviewData = {
-  stats: { avg_rating: number; total_count: number };
-  reviews: { id: string; username?: string; rating: number; content?: string }[];
-  user_review: { rating: number; content?: string } | null;
-};
-
 export default function WorldDetailPage() {
   const { message } = App.useApp();
   const params = useParams<{ id: string }>();
@@ -70,26 +65,17 @@ export default function WorldDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
-
-  // 评分状态
-  const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [userRating, setUserRating] = useState(5);
-  const [userReviewText, setUserReviewText] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
   const { canEdit } = useWorkPageMode(row?.author_id, meId);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
-    setUserRating(5);
-    setUserReviewText("");
     void (async () => {
       const id = params.id;
       if (!id) return;
       
-      const [worldRes, profileRes, reviewsRes] = await Promise.all([
+      const [worldRes, profileRes] = await Promise.all([
         fetch(`/api/worlds/${id}`),
         fetch("/api/profile"),
-        fetch(`/api/reviews?target_type=world&target_id=${id}`),
       ]);
       const worldJson = await worldRes.json();
       const profileJson = await profileRes.json();
@@ -109,51 +95,9 @@ export default function WorldDetailPage() {
         setError(worldJson.msg ?? "加载失败");
       }
       
-      if (reviewsRes.ok) {
-        const reviewsJson = await reviewsRes.json();
-        setReviews(reviewsJson);
-      }
-      
       setLoading(false);
     })();
   }, [params.id]);
-
-  const handleSubmitReview = async () => {
-    if (userRating === 0) return;
-
-    setSubmittingReview(true);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_type: "world",
-          target_id: params.id,
-          rating: userRating,
-          content: userReviewText,
-        }),
-      });
-      
-      if (res.ok) {
-        message.success("评价提交成功");
-        const reviewsRes = await fetch(`/api/reviews?target_type=world&target_id=${params.id}`);
-        if (reviewsRes.ok) {
-          const reviewsJson = await reviewsRes.json();
-          setReviews(reviewsJson);
-        }
-        setUserRating(5);
-        setUserReviewText("");
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        message.error(errJson.error || "提交评价失败，请先登录");
-      }
-    } catch (error) {
-      console.error("评分失败", error);
-      message.error("提交评价失败");
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
 
   async function toggleLike() {
     if (!row) return;
@@ -230,20 +174,6 @@ export default function WorldDetailPage() {
       }
     });
   }
-
-  const renderStars = (rating: number, interactive = false) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span
-        key={i}
-        className={`text-xl ${interactive ? "cursor-pointer" : ""} ${
-          i < rating ? "text-yellow-400" : "text-gray-300"
-        }`}
-        onClick={() => interactive && setUserRating(i + 1)}
-      >
-        ★
-      </span>
-    ));
-  };
 
   if (loading) {
     return <main className="sf-loading" />;
@@ -340,7 +270,7 @@ export default function WorldDetailPage() {
             >
               {row.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({row.favorite_count})
             </button>
-            {row.author_id && (
+            {row.author_id && row.author_id !== meId && (
               <button
                 type="button"
                 className={`sf-tag ${row.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -427,73 +357,6 @@ export default function WorldDetailPage() {
           <p className="text-sm text-[#5B6B8C]">暂无封面</p>
         )}
       </div>
-
-      {/* 评分区域 */}
-      {reviews && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>⭐</span> 评分与评价
-          </h3>
-          
-          <div className="mb-4 p-4 bg-[#F8FBFF] rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#5B9DFF]">
-                  {reviews.stats.avg_rating ? reviews.stats.avg_rating.toFixed(1) : "0.0"}
-                </div>
-                <div className="flex justify-center">
-                  {renderStars(Math.round(reviews.stats.avg_rating || 0))}
-                </div>
-                <div className="text-sm text-[#5B6B8C] mt-1">
-                  共 {reviews.stats.total_count} 条评价
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t border-[#DCE9FF] pt-4">
-              <p className="text-xs text-[#5B6B8C] mb-2">分享你的评价</p>
-              <div className="flex items-center gap-2 mb-3">
-                {renderStars(userRating, true)}
-              </div>
-              <textarea
-                value={userReviewText}
-                onChange={(e) => setUserReviewText(e.target.value)}
-                placeholder="写下你的评价（可选）..."
-                className="sf-input mb-3 resize-none"
-                rows={3}
-                autoComplete="off"
-              />
-              <button
-                onClick={handleSubmitReview}
-                disabled={submittingReview || userRating === 0}
-                className="sf-btn-primary disabled:opacity-50"
-              >
-                {submittingReview ? "提交中..." : "提交评价"}
-              </button>
-            </div>
-            
-            {reviews.reviews.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-[#DCE9FF]">
-                <p className="text-xs text-[#5B6B8C] mb-3">其他用户评价</p>
-                {reviews.reviews.slice(0, 3).map((review) => (
-                  <div key={review.id} className="mb-4 pb-4 border-b border-[#DCE9FF] last:border-0 last:pb-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
-                        {review.username?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-                      <span className="text-sm font-medium text-[#1F2A44]">{review.username}</span>
-                      <div className="flex">{renderStars(review.rating)}</div>
-                    </div>
-                    {review.content && (
-                      <p className="text-sm text-[#5B6B8C] ml-10">{review.content}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* 世界设定 */}
       {row.setting_notes && (
@@ -634,6 +497,12 @@ export default function WorldDetailPage() {
           </Link>
         </div>
       </div>
+
+      <TargetReviewSection
+        targetType="world"
+        targetId={row.id}
+        currentUserId={meId ?? undefined}
+      />
     </main>
   );
 }

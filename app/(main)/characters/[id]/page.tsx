@@ -7,6 +7,7 @@ import { App } from "antd";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverUploader from "@/components/CoverUploader";
 import CoverDisplay from "@/components/CoverDisplay";
+import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 import { resolveCharacterEditorValues } from "@/lib/work-draft";
@@ -41,12 +42,6 @@ type CharacterDetail = {
   has_unsynced_draft?: boolean;
 };
 
-type ReviewData = {
-  stats: { avg_rating: number; total_count: number };
-  reviews: { id: string; username?: string; rating: number; content?: string }[];
-  user_review: { rating: number; content?: string } | null;
-};
-
 export default function CharacterDetailPage() {
   const { message } = App.useApp();
   const params = useParams<{ id: string }>();
@@ -55,25 +50,16 @@ export default function CharacterDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
-
-  // 评分状态
-  const [reviews, setReviews] = useState<ReviewData | null>(null);
-  const [userRating, setUserRating] = useState(5);
-  const [userReviewText, setUserReviewText] = useState("");
-  const [submittingReview, setSubmittingReview] = useState(false);
   const { canEdit } = useWorkPageMode(row?.author_id, currentUserId || null);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
-    setUserRating(5);
-    setUserReviewText("");
     void (async () => {
       const id = params.id;
       if (!id) return;
 
-      const [characterRes, reviewsRes, profileRes] = await Promise.all([
+      const [characterRes, profileRes] = await Promise.all([
         fetch(`/api/characters/${id}`),
-        fetch(`/api/reviews?target_type=character&target_id=${id}`),
         fetch(`/api/profile`),
       ]);
       
@@ -82,11 +68,6 @@ export default function CharacterDetailPage() {
         setRow(characterJson.data);
       } else {
         setError(characterJson.msg ?? "加载失败");
-      }
-      
-      if (reviewsRes.ok) {
-        const reviewsJson = await reviewsRes.json();
-        setReviews(reviewsJson);
       }
 
       if (profileRes.ok) {
@@ -99,43 +80,6 @@ export default function CharacterDetailPage() {
       setLoading(false);
     })();
   }, [params.id]);
-
-  const handleSubmitReview = async () => {
-    if (userRating === 0) return;
-
-    setSubmittingReview(true);
-    try {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          target_type: "character",
-          target_id: params.id,
-          rating: userRating,
-          content: userReviewText,
-        }),
-      });
-      
-      if (res.ok) {
-        message.success("评价提交成功");
-        const reviewsRes = await fetch(`/api/reviews?target_type=character&target_id=${params.id}`);
-        if (reviewsRes.ok) {
-          const reviewsJson = await reviewsRes.json();
-          setReviews(reviewsJson);
-        }
-        setUserRating(5);
-        setUserReviewText("");
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        message.error(errJson.error || "提交评价失败，请先登录");
-      }
-    } catch (error) {
-      console.error("评分失败", error);
-      message.error("提交评价失败");
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
 
   async function toggleLike() {
     if (!row) return;
@@ -212,20 +156,6 @@ export default function CharacterDetailPage() {
       }
     });
   }
-  
-  const renderStars = (rating: number, interactive = false) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span
-        key={i}
-        className={`text-xl ${interactive ? "cursor-pointer" : ""} ${
-          i < rating ? "text-yellow-400" : "text-gray-300"
-        }`}
-        onClick={() => interactive && setUserRating(i + 1)}
-      >
-        ★
-      </span>
-    ));
-  };
 
   if (loading) {
     return <main className="sf-loading" />;
@@ -289,7 +219,7 @@ export default function CharacterDetailPage() {
             >
               {row.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({row.favorite_count})
             </button>
-            {row.author_id && (
+            {row.author_id && row.author_id !== currentUserId && (
               <button
                 type="button"
                 className={`sf-tag ${row.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -377,73 +307,6 @@ export default function CharacterDetailPage() {
         )}
       </div>
 
-      {/* 评分区域 */}
-      {reviews && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>⭐</span> 评分与评价
-          </h3>
-          
-          <div className="mb-4 p-4 bg-[#F8FBFF] rounded-xl">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-[#5B9DFF]">
-                  {reviews.stats.avg_rating ? reviews.stats.avg_rating.toFixed(1) : "0.0"}
-                </div>
-                <div className="flex justify-center">
-                  {renderStars(Math.round(reviews.stats.avg_rating || 0))}
-                </div>
-                <div className="text-sm text-[#5B6B8C] mt-1">
-                  共 {reviews.stats.total_count} 条评价
-                </div>
-              </div>
-            </div>
-            
-            <div className="border-t border-[#DCE9FF] pt-4">
-              <p className="text-sm text-[#5B6B8C] mb-2">分享你的评价</p>
-              <div className="flex items-center gap-2 mb-3">
-                {renderStars(userRating, true)}
-              </div>
-              <textarea
-                value={userReviewText}
-                onChange={(e) => setUserReviewText(e.target.value)}
-                placeholder="写下你的评价（可选）..."
-                className="sf-input mb-3 resize-none"
-                rows={3}
-                autoComplete="off"
-              />
-              <button
-                onClick={handleSubmitReview}
-                disabled={submittingReview || userRating === 0}
-                className="sf-btn-primary disabled:opacity-50"
-              >
-                {submittingReview ? "提交中..." : "提交评价"}
-              </button>
-            </div>
-            
-            {reviews.reviews.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-[#DCE9FF]">
-                <p className="text-sm text-[#5B6B8C] mb-3">其他用户评价</p>
-                {reviews.reviews.slice(0, 3).map((review) => (
-                  <div key={review.id} className="mb-4 pb-4 border-b border-[#DCE9FF] last:border-0 last:pb-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
-                        {review.username?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-                      <span className="text-sm font-medium text-[#1F2A44]">{review.username}</span>
-                      <div className="flex">{renderStars(review.rating)}</div>
-                    </div>
-                    {review.content && (
-                      <p className="text-sm text-[#5B6B8C] ml-10">{review.content}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* 性格与设定 */}
       {row.personality && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
@@ -470,6 +333,12 @@ export default function CharacterDetailPage() {
           </Link>
         </div>
       </div>
+
+      <TargetReviewSection
+        targetType="character"
+        targetId={row.id}
+        currentUserId={currentUserId || undefined}
+      />
     </main>
   );
 }
