@@ -8,7 +8,7 @@ const patchSchema = z.object({
   content: z.string().max(20000).optional(),
   type: z.enum(["chapter", "branch", "note"]).optional(),
   parent_id: z.string().nullable().optional(),
-  sort_order: z.number().int().min(0).optional(),
+  sort_order: z.number().int().optional(),
   move: z.enum(["up", "down"]).optional(),
 });
 

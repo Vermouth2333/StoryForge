@@ -389,6 +389,9 @@ export default function MyPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Link className="sf-tag text-xs" href={`/stories/${item.id}`}>
+                    详情
+                  </Link>
                   <Link className="sf-tag text-xs" href={`/stories/${item.id}/edit`}>
                     大纲
                   </Link>

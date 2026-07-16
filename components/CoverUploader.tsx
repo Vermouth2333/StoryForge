@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { message } from "antd";
 import CoverDisplay from "@/components/CoverDisplay";
+import CoverFieldLabel from "@/components/CoverFieldLabel";
+
+const COVER_HINT =
+  "JPG/PNG/WebP，≤10MB。点击封面图上传或更换，预览效果与市场展示一致。";
 
 interface CoverUploaderProps {
   /** 上传接口地址，例如 /api/characters/char_xxx/cover */
@@ -70,48 +74,50 @@ export default function CoverUploader({
     }
   }
 
+  function openPicker() {
+    if (busy) return;
+    inputRef.current?.click();
+  }
+
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label}</label>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-        <div className="relative">
-          <CoverDisplay
-            src={preview}
-            alt="封面预览"
-            placeholder={
-              <div className="market-card-placeholder">
-                <span className="text-sm text-[#5B6B8C]">暂无封面</span>
-              </div>
-            }
-          />
-          {busy && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-sm text-white">
-              上传中...
+      <CoverFieldLabel label={label} hint={COVER_HINT} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void handleFile(f);
+        }}
+      />
+      <button
+        type="button"
+        className="group relative block w-full max-w-[320px] cursor-pointer border-0 bg-transparent p-0 text-left disabled:cursor-not-allowed"
+        onClick={openPicker}
+        disabled={busy}
+        aria-label={preview ? "更换封面" : "上传封面"}
+      >
+        <CoverDisplay
+          src={preview}
+          alt="封面预览"
+          placeholder={
+            <div className="market-card-placeholder">
+              <span className="text-sm text-[#5B6B8C]">点击上传封面</span>
             </div>
-          )}
-        </div>
-        <div className="flex flex-col gap-2">
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleFile(f);
-            }}
-          />
-          <button
-            type="button"
-            className="sf-btn-secondary text-xs"
-            disabled={busy}
-            onClick={() => inputRef.current?.click()}
-          >
-            {busy ? "上传中..." : preview ? "更换封面" : "上传封面"}
-          </button>
-          <p className="text-xs text-[#5B6B8C]">JPG/PNG/WebP，≤10MB。预览效果与市场展示一致。</p>
-        </div>
-      </div>
+          }
+        />
+        {busy ? (
+          <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/40 text-sm text-white">
+            上传中...
+          </div>
+        ) : (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 text-sm font-medium text-white opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+            {preview ? "点击更换" : "点击上传"}
+          </div>
+        )}
+      </button>
     </div>
   );
 }

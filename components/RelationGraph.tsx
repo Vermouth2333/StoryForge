@@ -22,7 +22,68 @@ type GraphLink = d3.SimulationLinkDatum<GraphNode> & {
   relationType: string;
   description: string;
   relationId: string;
+  linkIndex: number;
+  linkTotal: number;
 };
+
+function relationPairKey(a: string, b: string) {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
+function buildGraphLinks(relations: RelationData[]): GraphLink[] {
+  const pairCounts = new Map<string, number>();
+  for (const r of relations) {
+    const key = relationPairKey(r.character_left_id, r.character_right_id);
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+  }
+
+  const pairSeen = new Map<string, number>();
+  return relations.map((r) => {
+    const key = relationPairKey(r.character_left_id, r.character_right_id);
+    const linkIndex = pairSeen.get(key) ?? 0;
+    pairSeen.set(key, linkIndex + 1);
+    return {
+      source: r.character_left_id,
+      target: r.character_right_id,
+      relationType: r.relation_type,
+      description: r.description,
+      relationId: r.id,
+      linkIndex,
+      linkTotal: pairCounts.get(key) ?? 1,
+    };
+  });
+}
+
+function linkPath(d: GraphLink) {
+  const sx = (d.source as GraphNode).x!;
+  const sy = (d.source as GraphNode).y!;
+  const tx = (d.target as GraphNode).x!;
+  const ty = (d.target as GraphNode).y!;
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const offset = (d.linkIndex - (d.linkTotal - 1) / 2) * 36;
+  const cx = (sx + tx) / 2 + (-dy / dist) * offset;
+  const cy = (sy + ty) / 2 + (dx / dist) * offset;
+  return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
+}
+
+function linkLabelPoint(d: GraphLink) {
+  const sx = (d.source as GraphNode).x!;
+  const sy = (d.source as GraphNode).y!;
+  const tx = (d.target as GraphNode).x!;
+  const ty = (d.target as GraphNode).y!;
+  const dx = tx - sx;
+  const dy = ty - sy;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+  const offset = (d.linkIndex - (d.linkTotal - 1) / 2) * 36;
+  const cx = (sx + tx) / 2 + (-dy / dist) * offset;
+  const cy = (sy + ty) / 2 + (dx / dist) * offset;
+  const t = 0.5;
+  const x = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * tx;
+  const y = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ty;
+  return { x, y };
+}
 
 const RELATION_COLORS: Record<string, string> = {
   "敌对": "#ef4444",
@@ -65,13 +126,7 @@ export function RelationGraph({
       name,
     }));
 
-    const links: GraphLink[] = relations.map((r) => ({
-      source: r.character_left_id,
-      target: r.character_right_id,
-      relationType: r.relation_type,
-      description: r.description,
-      relationId: r.id,
-    }));
+    const links: GraphLink[] = buildGraphLinks(relations);
 
     const g = svg.append("g");
 
@@ -90,11 +145,12 @@ export function RelationGraph({
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide(40));
 
-    // 连线
+    // 连线（同一对角色多条关系时用曲线错开）
     const link = g.append("g")
-      .selectAll("line")
+      .selectAll("path")
       .data(links)
-      .join("line")
+      .join("path")
+      .attr("fill", "none")
       .attr("stroke", (d) => RELATION_COLORS[d.relationType] || "#94a3b8")
       .attr("stroke-width", 2)
       .attr("stroke-opacity", 0.7);
@@ -151,15 +207,9 @@ export function RelationGraph({
 
     // 仿真 tick
     simulation.on("tick", () => {
-      link
-        .attr("x1", (d) => (d.source as GraphNode).x!)
-        .attr("y1", (d) => (d.source as GraphNode).y!)
-        .attr("x2", (d) => (d.target as GraphNode).x!)
-        .attr("y2", (d) => (d.target as GraphNode).y!);
+      link.attr("d", linkPath);
 
-      linkLabel
-        .attr("x", (d) => ((d.source as GraphNode).x! + (d.target as GraphNode).x!) / 2)
-        .attr("y", (d) => ((d.source as GraphNode).y! + (d.target as GraphNode).y!) / 2 - 6);
+      linkLabel.attr("x", (d) => linkLabelPoint(d).x).attr("y", (d) => linkLabelPoint(d).y - 6);
 
       node.attr("transform", (d) => `translate(${d.x},${d.y})`);
     });

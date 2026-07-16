@@ -109,6 +109,16 @@ export async function POST(
   return NextResponse.json({
     code: 200,
     msg: "创建成功",
-    data: { id: nodeId, sort_order: sortOrder, created_at: now },
+    data: {
+      id: nodeId,
+      story_id: storyId,
+      parent_id: parsed.data.parent_id ?? null,
+      title: parsed.data.title,
+      type: parsed.data.type,
+      sort_order: sortOrder,
+      content: parsed.data.content,
+      created_at: now,
+      updated_at: now,
+    },
   });
 }

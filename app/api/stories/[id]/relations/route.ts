@@ -88,23 +88,19 @@ export async function POST(
 
   const rid = id("rel");
   const now = nowIso();
-  try {
-    await db.run(
-      `INSERT INTO character_relations
-        (id, story_id, character_left_id, character_right_id, relation_type, description, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      rid,
-      storyId,
-      left,
-      right,
-      parsed.data.relation_type,
-      parsed.data.description,
-      now,
-      now,
-    );
-  } catch {
-    return NextResponse.json({ code: 400, msg: "该角色对已存在关系" }, { status: 400 });
-  }
+  await db.run(
+    `INSERT INTO character_relations
+      (id, story_id, character_left_id, character_right_id, relation_type, description, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    rid,
+    storyId,
+    left,
+    right,
+    parsed.data.relation_type,
+    parsed.data.description,
+    now,
+    now,
+  );
 
   return NextResponse.json({ code: 200, msg: "已添加", data: { id: rid } });
 }

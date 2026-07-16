@@ -35,12 +35,14 @@ CREATE TABLE IF NOT EXISTS character_relations (
   relation_type TEXT NOT NULL,
   description TEXT DEFAULT '',
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  UNIQUE(story_id, character_left_id, character_right_id)
+  updated_at TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_char_relations_story
   ON character_relations(story_id);
+
+CREATE INDEX IF NOT EXISTS idx_char_relations_pair
+  ON character_relations(story_id, character_left_id, character_right_id);
 
 CREATE TABLE IF NOT EXISTS characters (
   id TEXT PRIMARY KEY,
@@ -50,6 +52,7 @@ CREATE TABLE IF NOT EXISTS characters (
   summary TEXT DEFAULT '',
   personality TEXT DEFAULT '',
   tags_json TEXT NOT NULL DEFAULT '[]',
+  draft_json TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
@@ -66,6 +69,7 @@ CREATE TABLE IF NOT EXISTS worlds (
   summary TEXT DEFAULT '',
   setting_notes TEXT DEFAULT '',
   tags_json TEXT NOT NULL DEFAULT '[]',
+  draft_json TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
@@ -97,6 +101,7 @@ CREATE TABLE IF NOT EXISTS stories (
   cover_asset_id TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   tags_json TEXT NOT NULL DEFAULT '[]',
+  draft_json TEXT,
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
   publish_at TEXT,

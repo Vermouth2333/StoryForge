@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { message } from "antd";
+import CoverUploader from "@/components/CoverUploader";
 import { replayHeaders } from "@/lib/replay-headers";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
@@ -41,12 +42,16 @@ type AuthorWorkEditorProps = {
   kind: WorkKind;
   id: string;
   status: string;
+  hasUnsyncedDraft?: boolean;
   /** 故事标题 / 角色名 / 世界名 */
   name: string;
   summary: string;
   tagsJson: string;
   personality?: string;
   settingNotes?: string;
+  coverUrl?: string | null;
+  coverThumbnailUrl?: string | null;
+  onCoverUploaded?: (coverUrl: string) => void;
   onUpdated: (data: Record<string, unknown>) => void;
   onStatusChange: (status: string, publishAt?: string | null) => void;
 };
@@ -55,11 +60,15 @@ export default function AuthorWorkEditor({
   kind,
   id,
   status,
+  hasUnsyncedDraft = false,
   name: initialName,
   summary: initialSummary,
   tagsJson: initialTagsJson,
   personality: initialPersonality = "",
   settingNotes: initialSettingNotes = "",
+  coverUrl,
+  coverThumbnailUrl,
+  onCoverUploaded,
   onUpdated,
   onStatusChange,
 }: AuthorWorkEditorProps) {
@@ -82,15 +91,15 @@ export default function AuthorWorkEditor({
   const apiBase = `/api/${kind === "story" ? "stories" : kind === "character" ? "characters" : "worlds"}/${id}`;
   const nameLabel = kind === "story" ? "标题" : "名称";
 
-  function buildPatchBody() {
+  function buildPatchBody(syncToMarket: boolean) {
     const tags = buildTagsArray(tagsInput);
-    if (kind === "story") {
-      return { title: name.trim(), summary, tags };
-    }
-    if (kind === "character") {
-      return { name: name.trim(), summary, personality, tags };
-    }
-    return { name: name.trim(), summary, setting_notes: settingNotes, tags };
+    const base =
+      kind === "story"
+        ? { title: name.trim(), summary, tags }
+        : kind === "character"
+          ? { name: name.trim(), summary, personality, tags }
+          : { name: name.trim(), summary, setting_notes: settingNotes, tags };
+    return { ...base, sync_to_market: syncToMarket };
   }
 
   async function saveChanges(syncPublish = false) {
@@ -103,7 +112,7 @@ export default function AuthorWorkEditor({
       const res = await fetch(apiBase, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPatchBody()),
+        body: JSON.stringify(buildPatchBody(syncPublish)),
       });
       const json = await res.json();
       if (json.code !== 200) {
@@ -118,22 +127,44 @@ export default function AuthorWorkEditor({
       };
       if (kind === "character") patch.personality = personality;
       if (kind === "world") patch.setting_notes = settingNotes;
-      onUpdated(patch);
 
       if (syncPublish) {
-        const pubRes = await fetch(`${apiBase}/publish`, {
-          method: "POST",
-          headers: replayHeaders(),
+        patch.draft_json = null;
+        patch.has_unsynced_draft = false;
+        onUpdated(patch);
+      } else if (status === "published") {
+        onUpdated({
+          has_unsynced_draft: true,
+          draft_json: JSON.stringify(
+            kind === "story"
+              ? { title: name.trim(), summary, tags: buildTagsArray(tagsInput) }
+              : kind === "character"
+                ? { name: name.trim(), summary, personality, tags: buildTagsArray(tagsInput) }
+                : { name: name.trim(), summary, setting_notes: settingNotes, tags: buildTagsArray(tagsInput) },
+          ),
         });
-        const pubJson = await pubRes.json();
-        if (pubJson.code === 200) {
-          onStatusChange("published", pubJson.data?.publish_at ?? new Date().toISOString());
-          message.success(status === "published" ? "已保存并同步到市场" : "已保存并上架");
+      } else {
+        onUpdated(patch);
+      }
+
+      if (syncPublish) {
+        if (status === "published") {
+          message.success("已保存并同步到市场");
         } else {
-          message.warning(`内容已保存，但上架失败：${pubJson.msg ?? "未知错误"}`);
+          const pubRes = await fetch(`${apiBase}/publish`, {
+            method: "POST",
+            headers: replayHeaders(),
+          });
+          const pubJson = await pubRes.json();
+          if (pubJson.code === 200) {
+            onStatusChange("published", pubJson.data?.publish_at ?? new Date().toISOString());
+            message.success("已保存并上架");
+          } else {
+            message.warning(`内容已保存，但上架失败：${pubJson.msg ?? "未知错误"}`);
+          }
         }
       } else if (status === "published") {
-        message.success("已保存，市场展示将同步更新");
+        message.success("已保存草稿，尚未同步到市场");
       } else {
         message.success("已保存");
       }
@@ -183,15 +214,32 @@ export default function AuthorWorkEditor({
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
           <span>✏️</span> 编辑{KIND_LABEL[kind]}
         </h3>
-        <span className="sf-tag">{STATUS_LABELS[status] ?? status}</span>
+        <div className="flex flex-wrap gap-2">
+          <span className="sf-tag">{STATUS_LABELS[status] ?? status}</span>
+          {hasUnsyncedDraft && (
+            <span className="sf-tag !border-[#F5A623] !text-[#B87400]">有待同步的草稿</span>
+          )}
+        </div>
       </div>
       <p className="mb-4 text-xs text-[#5B6B8C]">
         {status === "published"
-          ? "保存后市场列表与详情会同步更新；也可下架修改后再「再次上架」。"
+          ? "「保存修改」仅保存本地草稿，不会更新市场展示；确认无误后点击「保存并同步市场」。"
           : "修改后点击「保存并上架」或先保存再单独上架，内容将出现在市场。"}
       </p>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(200px,280px)_1fr]">
+        {onCoverUploaded && (
+          <div className="shrink-0">
+            <CoverUploader
+              endpoint={`${apiBase}/cover`}
+              coverUrl={coverUrl}
+              thumbnailUrl={coverThumbnailUrl}
+              onUploaded={onCoverUploaded}
+            />
+          </div>
+        )}
+
+        <div className="space-y-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">
             {nameLabel} <span className="text-red-500">*</span>
@@ -246,6 +294,7 @@ export default function AuthorWorkEditor({
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
           />
+        </div>
         </div>
       </div>
 

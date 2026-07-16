@@ -4,11 +4,11 @@ import { App } from "antd";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import CoverUploader from "@/components/CoverUploader";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
+import { resolveStoryEditorValues } from "@/lib/work-draft";
 
 type StoryDetail = {
   id: string;
@@ -28,6 +28,8 @@ type StoryDetail = {
   liked_by_me?: boolean;
   favorited_by_me?: boolean;
   is_following?: boolean;
+  draft_json?: string | null;
+  has_unsynced_draft?: boolean;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -69,6 +71,8 @@ export default function StoryDetailPage() {
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
+    setUserRating(5);
+    setUserReviewText("");
     void (async () => {
       const storyId = params.id;
       if (!storyId) return;
@@ -95,10 +99,6 @@ export default function StoryDetailPage() {
       if (reviewsRes.ok) {
         const reviewsJson = await reviewsRes.json();
         setReviews(reviewsJson);
-        if (reviewsJson.user_review) {
-          setUserRating(reviewsJson.user_review.rating);
-          setUserReviewText(reviewsJson.user_review.content ?? "");
-        }
       }
 
       if (profileRes.ok) {
@@ -137,11 +137,9 @@ export default function StoryDetailPage() {
         if (reviewsRes.ok) {
           const reviewsJson = await reviewsRes.json();
           setReviews(reviewsJson);
-          if (reviewsJson.user_review) {
-            setUserRating(reviewsJson.user_review.rating);
-            setUserReviewText(reviewsJson.user_review.content ?? "");
-          }
         }
+        setUserRating(5);
+        setUserReviewText("");
       } else {
         message.error(json.msg ?? "评价提交失败");
       }
@@ -262,16 +260,58 @@ export default function StoryDetailPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
+      {canEdit && story && (() => {
+        const editorValues = resolveStoryEditorValues(story);
+        return (
+          <AuthorWorkEditor
+            kind="story"
+            id={story.id}
+            status={story.status}
+            hasUnsyncedDraft={Boolean(story.has_unsynced_draft)}
+            name={editorValues.name}
+            summary={editorValues.summary}
+            tagsJson={editorValues.tagsJson}
+            coverUrl={story.cover_url}
+            coverThumbnailUrl={story.cover_thumbnail_url}
+            onCoverUploaded={(url) => setStory((prev) => (prev ? { ...prev, cover_url: url } : prev))}
+            onUpdated={(patch) =>
+              setStory((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      ...patch,
+                      title: typeof patch.title === "string" ? patch.title : prev.title,
+                    }
+                  : prev,
+              )
+            }
+            onStatusChange={(st, publishAt) =>
+              setStory((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      status: st,
+                      publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
+                    }
+                  : prev,
+              )
+            }
+          />
+        );
+      })()}
+
       {/* 故事信息卡片 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
-            <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/market" className="sf-tag">
-              返回市场
+          {!canEdit && (
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
+              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
+            </div>
+          )}
+          <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
+            <Link href={canEdit ? "/my" : "/market"} className="sf-tag">
+              {canEdit ? "返回我的" : "返回市场"}
             </Link>
             <Link href={`/stories/${story.id}/play`} className="sf-btn-primary">
               🎮 开始体验
@@ -306,11 +346,13 @@ export default function StoryDetailPage() {
             )}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span key={tag} className="sf-tag">{tag}</span>
-          ))}
-        </div>
+        {!canEdit && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span key={tag} className="sf-tag">{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
             <p className="text-lg font-bold text-[#5B9DFF]">{story.like_count}</p>
@@ -331,57 +373,18 @@ export default function StoryDetailPage() {
         </div>
       </div>
 
-      {canEdit && (
-        <AuthorWorkEditor
-          kind="story"
-          id={story.id}
-          status={story.status}
-          name={story.title}
-          summary={story.summary}
-          tagsJson={story.tags_json}
-          onUpdated={(patch) =>
-            setStory((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    ...patch,
-                    title: typeof patch.title === "string" ? patch.title : prev.title,
-                  }
-                : prev,
-            )
-          }
-          onStatusChange={(st, publishAt) =>
-            setStory((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    status: st,
-                    publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
-                  }
-                : prev,
-            )
-          }
-        />
+      {!canEdit && (
+        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+            <span>🖼️</span> 封面图
+          </h3>
+          {story.cover_url ? (
+            <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
+          ) : (
+            <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+          )}
+        </div>
       )}
-
-      {/* 封面区域 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-          <span>🖼️</span> 封面图
-        </h3>
-        {canEdit ? (
-          <CoverUploader
-            endpoint={`/api/stories/${story.id}/cover`}
-            coverUrl={story.cover_url}
-            thumbnailUrl={story.cover_thumbnail_url}
-            onUploaded={(url) => setStory((prev) => prev ? { ...prev, cover_url: url } : prev)}
-          />
-        ) : story.cover_url ? (
-          <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
-        ) : (
-          <p className="text-sm text-[#5B6B8C]">暂无封面</p>
-        )}
-      </div>
 
       {/* 角色关系图谱 */}
       {relations.length > 0 && (
@@ -475,6 +478,7 @@ export default function StoryDetailPage() {
                 placeholder="写下你的评价（可选）..."
                 className="sf-input mb-3 resize-none"
                 rows={3}
+                autoComplete="off"
               />
               <button
                 onClick={handleSubmitReview}

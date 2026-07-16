@@ -3,6 +3,10 @@
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import CoverDisplay from "@/components/CoverDisplay";
+import CoverFieldLabel from "@/components/CoverFieldLabel";
+
+const COVER_HINT =
+  "JPG/PNG/WebP，≤10MB，可选。点击封面图上传或更换，预览效果与市场展示一致。";
 
 type CoverFileFieldProps = {
   file: File | null;
@@ -40,52 +44,43 @@ export default function CoverFileField({
     onChange(next);
   }
 
+  function openPicker() {
+    inputRef.current?.click();
+  }
+
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label}</label>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+      <CoverFieldLabel label={label} hint={COVER_HINT} />
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        className="group relative block w-full max-w-[320px] cursor-pointer border-0 bg-transparent p-0 text-left"
+        onClick={openPicker}
+        aria-label={preview ? "更换封面" : "上传封面"}
+      >
         <CoverDisplay
           src={preview}
           alt="封面预览"
           placeholder={
             <div className="market-card-placeholder">
-              <span className="text-sm text-[#5B6B8C]">暂无封面</span>
+              <span className="text-sm text-[#5B6B8C]">点击上传封面</span>
             </div>
           }
         />
-        <div className="flex flex-col gap-2">
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) handleFile(f);
-            }}
-          />
-          <button
-            type="button"
-            className="sf-btn-secondary text-xs"
-            onClick={() => inputRef.current?.click()}
-          >
-            {preview ? "更换封面" : "选择封面"}
-          </button>
-          {preview && (
-            <button
-              type="button"
-              className="text-xs text-[#5B6B8C] hover:text-[#8B2E2E]"
-              onClick={() => {
-                onChange(null);
-                if (inputRef.current) inputRef.current.value = "";
-              }}
-            >
-              移除
-            </button>
-          )}
-          <p className="text-xs text-[#5B6B8C]">JPG/PNG/WebP，≤10MB，可选。预览效果与市场展示一致。</p>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-black/0 text-sm font-medium text-white opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+          {preview ? "点击更换" : "点击上传"}
         </div>
-      </div>
+      </button>
     </div>
   );
 }

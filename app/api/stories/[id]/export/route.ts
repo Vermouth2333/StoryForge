@@ -1,11 +1,10 @@
-import fs from "node:fs";
-import path from "node:path";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { type BranchExportLine, buildExportBundle, buildMarkdown, buildTxt } from "@/lib/export-body";
 import { buildEpubBuffer } from "@/lib/export-epub";
 import { buildPdfBuffer } from "@/lib/export-pdf";
+import { ensurePdfFont, getPdfFontPath, hasPdfFont } from "@/lib/pdf-font";
 import { buildFilename, sanitizeFileBase } from "@/lib/export-shared";
 import type { OutlineNode } from "@/lib/outline-order";
 import { withRetry } from "@/lib/export-retry";
@@ -107,7 +106,7 @@ export async function POST(
     });
   }
 
-  const fontPath = path.join(process.cwd(), "storage", "fonts", "NotoSansSC-Regular.otf");
+  const fontPath = getPdfFontPath();
 
   if (parsed.data.format === "epub") {
     try {
@@ -137,7 +136,10 @@ export async function POST(
 
   if (parsed.data.format === "pdf") {
     const hasCjk = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff]/.test(md);
-    const fontOk = fs.existsSync(fontPath);
+    let fontOk = hasPdfFont();
+    if (hasCjk && !fontOk) {
+      fontOk = await ensurePdfFont();
+    }
     if (hasCjk && !fontOk) {
       const fn = buildFilename(story.title, authorName, "md");
       return new NextResponse(fallbackMd, {
@@ -145,6 +147,7 @@ export async function POST(
           "Content-Type": "text/markdown; charset=utf-8",
           "Content-Disposition": disposition(fn),
           "X-StoryForge-Fallback": "markdown",
+          "X-StoryForge-Fallback-Reason": "missing_cjk_font",
         },
       });
     }
@@ -168,6 +171,7 @@ export async function POST(
           "Content-Type": "text/markdown; charset=utf-8",
           "Content-Disposition": disposition(fn),
           "X-StoryForge-Fallback": "markdown",
+          "X-StoryForge-Fallback-Reason": "export_error",
         },
       });
     }

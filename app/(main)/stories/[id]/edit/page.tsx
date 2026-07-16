@@ -1,7 +1,7 @@
 "use client";
 
-import { App } from "antd";
-import Link from "next/link";
+import { App, Dropdown, Modal, Spin } from "antd";
+import type { MenuProps } from "antd";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { RELATION_TYPES } from "@/lib/character-relation";
@@ -52,18 +52,6 @@ type RelationRow = {
   name_right: string | null;
 };
 
-type BranchRow = {
-  id: string;
-  story_id: string;
-  parent_branch_id: string | null;
-  fork_outline_node_id: string;
-  title: string;
-  description: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-};
-
 type ImportedItem = {
   id: string;
   name: string;
@@ -85,32 +73,72 @@ function depthOf(nodes: OutlineNode[], id: string): number {
   return d;
 }
 
+function siblingSort(a: OutlineNode, b: OutlineNode) {
+  return a.sort_order - b.sort_order || a.id.localeCompare(b.id);
+}
+
+function getSiblingsOf(list: OutlineNode[], node: OutlineNode): OutlineNode[] {
+  return list.filter((x) => x.parent_id === node.parent_id).sort(siblingSort);
+}
+
+function getSiblingsByParentId(list: OutlineNode[], parentId: string | null): OutlineNode[] {
+  return list.filter((x) => x.parent_id === parentId).sort(siblingSort);
+}
+
+function getInsertSlots(siblings: OutlineNode[], movingId?: string): { label: string; insertIndex: number }[] {
+  const list = movingId ? siblings.filter((s) => s.id !== movingId) : siblings;
+  const slots: { label: string; insertIndex: number }[] = [{ label: "最前", insertIndex: 0 }];
+  list.forEach((s, i) => {
+    slots.push({ label: `在「${s.title}」之后`, insertIndex: i + 1 });
+  });
+  return slots;
+}
+
+function buildInsertOrder(siblings: OutlineNode[], newNode: OutlineNode, insertIndex: number): OutlineNode[] {
+  const reordered = siblings.filter((s) => s.id !== newNode.id);
+  const idx = Math.max(0, Math.min(insertIndex, reordered.length));
+  reordered.splice(idx, 0, newNode);
+  return reordered;
+}
+
+function buildSiblingReorder(siblings: OutlineNode[], nodeId: string, insertIndex: number): OutlineNode[] | null {
+  const currentIdx = siblings.findIndex((x) => x.id === nodeId);
+  if (currentIdx < 0 || insertIndex === currentIdx) return null;
+  const reordered = siblings.filter((x) => x.id !== nodeId);
+  reordered.splice(insertIndex, 0, siblings[currentIdx]);
+  return reordered;
+}
+
+type AddChapterDraft = {
+  mode: "root" | "child" | "sibling";
+  parentId: string | null;
+  anchorTitle?: string;
+};
+
+type ExportFormat = "markdown" | "txt" | "pdf" | "epub";
+
 export default function StoryOutlineEditPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const params = useParams<{ id: string }>();
   const storyId = params.id ?? "";
   const [nodes, setNodes] = useState<OutlineNode[]>([]);
   const [storyTitle, setStoryTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [newTitle, setNewTitle] = useState("新章节");
-  const [newType, setNewType] = useState<"chapter" | "branch" | "note">("chapter");
-  const [newParentId, setNewParentId] = useState<string>("");
-  const [exportBusy, setExportBusy] = useState(false);
+  const [outlineBusy, setOutlineBusy] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addDraft, setAddDraft] = useState<AddChapterDraft | null>(null);
+  const [addTitle, setAddTitle] = useState("");
+  const [addContent, setAddContent] = useState("");
+  const [addInsertIndex, setAddInsertIndex] = useState(0);
+  const [positionPickerId, setPositionPickerId] = useState<string | null>(null);
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
   const [charOptions, setCharOptions] = useState<CharOption[]>([]);
   const [relations, setRelations] = useState<RelationRow[]>([]);
   const [relLeft, setRelLeft] = useState("");
   const [relRight, setRelRight] = useState("");
   const [relType, setRelType] = useState<string>(RELATION_TYPES[0]);
   const [relDesc, setRelDesc] = useState("");
-  const [branches, setBranches] = useState<BranchRow[]>([]);
-  const [branchTitle, setBranchTitle] = useState("新剧情分支");
-  const [branchForkId, setBranchForkId] = useState("");
-  const [branchParentId, setBranchParentId] = useState("");
-  const [branchDesc, setBranchDesc] = useState("");
-  const [exportBranchAppendix, setExportBranchAppendix] = useState(false);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [importedChars, setImportedChars] = useState<ImportedItem[]>([]);
   const [conflictResult, setConflictResult] = useState<{ conflicts: unknown[]; total: number } | null>(null);
   const [conflictBusy, setConflictBusy] = useState(false);
@@ -122,23 +150,29 @@ export default function StoryOutlineEditPage() {
   const [worldOptions, setWorldOptions] = useState<WorldOption[]>([]);
   const [importCharId, setImportCharId] = useState("");
   const [importWorldId, setImportWorldId] = useState("");
-  const [coverBusy, setCoverBusy] = useState(false);
 
   const ordered = useMemo(() => orderedOutline(nodes), [nodes]);
+  const positionNode = positionPickerId ? nodes.find((n) => n.id === positionPickerId) : null;
+  const positionSlots = useMemo(() => {
+    if (!positionNode) return [];
+    return getInsertSlots(getSiblingsOf(nodes, positionNode), positionNode.id);
+  }, [positionNode, nodes]);
+  const addInsertSlots = useMemo(() => {
+    if (!addDraft) return [];
+    return getInsertSlots(getSiblingsByParentId(nodes, addDraft.parentId));
+  }, [addDraft, nodes]);
 
-  async function exportStory(fmt: "markdown" | "txt" | "pdf" | "epub") {
-    setExportBusy(true);
+  async function exportStory(fmt: ExportFormat) {
+    setExportingFormat(fmt);
     try {
       const res = await fetch(`/api/stories/${storyId}/export`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          format: fmt,
-          branch_mode: exportBranchAppendix ? "annotate" : "none",
-        }),
+        body: JSON.stringify({ format: fmt, branch_mode: "none" }),
       });
       const blob = await res.blob();
       const fallback = res.headers.get("X-StoryForge-Fallback");
+      const fallbackReason = res.headers.get("X-StoryForge-Fallback-Reason");
       let name =
         `${storyTitle || storyId}.${fmt === "markdown" ? "md" : fmt}`;
       const cd = res.headers.get("Content-Disposition");
@@ -157,15 +191,37 @@ export default function StoryOutlineEditPage() {
       a.click();
       URL.revokeObjectURL(url);
       if (fallback) {
-        message.warning("目标格式生成失败或超时，已改为 Markdown 备份（正文含说明注释）。");
+        if (fallbackReason === "missing_cjk_font") {
+          message.warning(
+            "PDF 导出需要中文字体，自动下载失败。请将 NotoSansSC-Regular.otf 放到 storage/fonts/ 后重试，已改为 Markdown 备份。",
+          );
+        } else {
+          message.warning("目标格式生成失败或超时，已改为 Markdown 备份（正文含说明注释）。");
+        }
       } else {
         message.success(`已导出 ${fmt.toUpperCase()} 文件`);
       }
     } catch {
       message.error("导出失败，请重试");
     } finally {
-      setExportBusy(false);
+      setExportingFormat(null);
     }
+  }
+
+  function renderExportButton(fmt: ExportFormat, label: string, title?: string) {
+    const loading = exportingFormat === fmt;
+    return (
+      <button
+        type="button"
+        disabled={exportingFormat !== null}
+        className="sf-tag inline-flex min-w-[3.25rem] items-center justify-center gap-1.5"
+        title={title}
+        onClick={() => void exportStory(fmt)}
+      >
+        {loading ? <Spin size="small" /> : null}
+        {loading ? "导出中" : label}
+      </button>
+    );
   }
 
   async function runConflictCheck() {
@@ -222,6 +278,17 @@ export default function StoryOutlineEditPage() {
     }
   }
 
+  async function loadOutline() {
+    const res = await fetch(`/api/stories/${storyId}/outline`);
+    const json = await res.json();
+    if (!res.ok) {
+      setErr(json.msg ?? "加载大纲失败");
+      return false;
+    }
+    setNodes((json.data ?? []) as OutlineNode[]);
+    return true;
+  }
+
   async function load() {
     const [outlineRes, storyRes, relRes, importsRes] = await Promise.all([
       fetch(`/api/stories/${storyId}/outline`),
@@ -239,9 +306,6 @@ export default function StoryOutlineEditPage() {
       return;
     }
     setNodes(outlineJson.data ?? []);
-    const branchRes = await fetch(`/api/stories/${storyId}/branches`);
-    const branchJson = await branchRes.json();
-    if (branchJson.code === 200) setBranches(branchJson.data ?? []);
 
     if (storyJson.code === 200) setStoryTitle(storyJson.data?.title ?? "");
     if (relRes.ok && relJson.code === 200) setRelations(relJson.data ?? []);
@@ -277,24 +341,197 @@ export default function StoryOutlineEditPage() {
     void load();
   }, [storyId]);
 
-  async function addNode() {
-    const body: Record<string, unknown> = {
-      title: newTitle.trim(),
-      type: newType,
-      content: "",
-    };
-    if (newParentId) body.parent_id = newParentId;
-    const res = await fetch(`/api/stories/${storyId}/outline`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+  function applyMoveLocally(nodeId: string, direction: "up" | "down") {
+    setNodes((prev) => {
+      const node = prev.find((x) => x.id === nodeId);
+      if (!node) return prev;
+      const siblings = prev.filter((x) => x.parent_id === node.parent_id).sort(siblingSort);
+      const idx = siblings.findIndex((x) => x.id === nodeId);
+      const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= siblings.length) return prev;
+      const a = siblings[idx];
+      const b = siblings[swapIdx];
+      return prev.map((n) => {
+        if (n.id === a.id) return { ...n, sort_order: b.sort_order };
+        if (n.id === b.id) return { ...n, sort_order: a.sort_order };
+        return n;
+      });
     });
-    const json = await res.json();
-    if (json.code !== 200) setErr(json.msg ?? "创建失败");
-    await load();
+  }
+
+  function collectDescendantIds(list: OutlineNode[], rootId: string): Set<string> {
+    const ids = new Set<string>([rootId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const n of list) {
+        if (n.parent_id && ids.has(n.parent_id) && !ids.has(n.id)) {
+          ids.add(n.id);
+          changed = true;
+        }
+      }
+    }
+    return ids;
+  }
+
+  async function persistSiblingOrder(reordered: OutlineNode[], snapshot: OutlineNode[]): Promise<boolean> {
+    const orderMap = new Map(reordered.map((n, i) => [n.id, i]));
+    const updates = reordered
+      .map((n, i) => ({ id: n.id, sort_order: i }))
+      .filter(({ id, sort_order }) => snapshot.find((x) => x.id === id)?.sort_order !== sort_order);
+
+    if (updates.length === 0) return true;
+
+    setNodes((prev) =>
+      prev.map((n) => {
+        const next = orderMap.get(n.id);
+        return next !== undefined ? { ...n, sort_order: next } : n;
+      }),
+    );
+
+    for (const { id, sort_order } of updates) {
+      const res = await fetch(`/api/stories/${storyId}/outline/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sort_order }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setErr(String(j.msg ?? "排序失败"));
+        setNodes(snapshot);
+        await loadOutline();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async function addNode(
+    parentId: string | null,
+    title: string,
+    insertIndex: number,
+    content = "",
+  ): Promise<boolean> {
+    setOutlineBusy(true);
+    setErr("");
+    try {
+      const res = await fetch(`/api/stories/${storyId}/outline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, type: "chapter", content, parent_id: parentId }),
+      });
+      const json = await res.json();
+      if (json.code !== 200) {
+        setErr(json.msg ?? "创建失败");
+        return false;
+      }
+      const created = json.data as OutlineNode;
+      const withNew = [...nodes, created];
+      const siblings = getSiblingsByParentId(withNew, parentId);
+      const reordered = buildInsertOrder(siblings, created, insertIndex);
+      setNodes(withNew);
+      const ok = await persistSiblingOrder(reordered, withNew);
+      if (!ok) return false;
+      message.success("章节已添加");
+      return true;
+    } finally {
+      setOutlineBusy(false);
+    }
+  }
+
+  function openAddModal(draft: AddChapterDraft) {
+    const siblings = getSiblingsByParentId(nodes, draft.parentId);
+    setAddDraft(draft);
+    setAddTitle("");
+    setAddContent("");
+    setAddInsertIndex(siblings.length);
+    setAddModalOpen(true);
+  }
+
+  function closeAddModal() {
+    setAddModalOpen(false);
+    setAddDraft(null);
+    setAddTitle("");
+    setAddContent("");
+    setAddInsertIndex(0);
+  }
+
+  async function confirmAddNode() {
+    const title = addTitle.trim();
+    if (!title) {
+      message.warning("请输入章节名称");
+      return;
+    }
+    if (!addDraft) return;
+    const ok = await addNode(addDraft.parentId, title, addInsertIndex, addContent.trim());
+    if (ok) closeAddModal();
+  }
+
+  async function moveNodeToPosition(nodeId: string, insertIndex: number) {
+    const node = nodes.find((x) => x.id === nodeId);
+    if (!node) return;
+    const siblings = getSiblingsOf(nodes, node);
+    const reordered = buildSiblingReorder(siblings, nodeId, insertIndex);
+    if (!reordered) {
+      setPositionPickerId(null);
+      return;
+    }
+    const snapshot = nodes;
+    setPositionPickerId(null);
+    const ok = await persistSiblingOrder(reordered, snapshot);
+    if (ok) message.success("位置已调整");
   }
 
   async function patchNode(nodeId: string, payload: Record<string, unknown>) {
+    if (payload.move === "up" || payload.move === "down") {
+      applyMoveLocally(nodeId, payload.move);
+      const res = await fetch(`/api/stories/${storyId}/outline/${nodeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ move: payload.move }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setErr(String(j.msg ?? "排序失败"));
+        await loadOutline();
+      }
+      return;
+    }
+
+    if (payload.sort_order !== undefined) {
+      const snapshot = nodes;
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === nodeId ? { ...n, sort_order: Number(payload.sort_order) } : n,
+        ),
+      );
+      const res = await fetch(`/api/stories/${storyId}/outline/${nodeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setErr(String(j.msg ?? "排序失败"));
+        setNodes(snapshot);
+        await loadOutline();
+      }
+      return;
+    }
+
+    const prev = nodes;
+    setNodes((list) =>
+      list.map((n) =>
+        n.id === nodeId
+          ? {
+              ...n,
+              ...(payload.title !== undefined ? { title: String(payload.title) } : {}),
+              ...(payload.content !== undefined ? { content: String(payload.content) } : {}),
+            }
+          : n,
+      ),
+    );
+
     const res = await fetch(`/api/stories/${storyId}/outline/${nodeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -303,48 +540,34 @@ export default function StoryOutlineEditPage() {
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       setErr(String(j.msg ?? "更新失败"));
+      setNodes(prev);
     }
-    await load();
   }
 
-  /** 获取同级节点列表（相同 parent_id） */
-  function getSiblings(nodeId: string): OutlineNode[] {
-    const node = nodes.find((x) => x.id === nodeId);
-    if (!node) return [];
-    return nodes
-      .filter((x) => x.parent_id === node.parent_id)
-      .sort((a, b) => a.sort_order - b.sort_order || a.id.localeCompare(b.id));
-  }
-
-  /** 拖拽放置：将 dragNode 移动到 dropNode 的位置（之前或之后） */
-  async function handleDrop(dragNodeId: string, dropNodeId: string, position: "before" | "after") {
-    const dragNode = nodes.find((x) => x.id === dragNodeId);
-    const dropNode = nodes.find((x) => x.id === dropNodeId);
-    if (!dragNode || !dropNode) return;
-    // 只允许同级拖拽
-    if (dragNode.parent_id !== dropNode.parent_id) return;
-    if (dragNodeId === dropNodeId) return;
-
-    const siblings = getSiblings(dropNodeId);
-    const dropIdx = siblings.findIndex((x) => x.id === dropNodeId);
-    // 计算新 sort_order：取目标位置前后的中间值
-    let newOrder: number;
-    if (position === "before") {
-      const prevOrder = dropIdx > 0 ? siblings[dropIdx - 1].sort_order : dropNode.sort_order - 200;
-      newOrder = (prevOrder + dropNode.sort_order) / 2;
+  async function executeRemoveNode(nodeId: string) {
+    const snapshot = nodes;
+    const removeIds = collectDescendantIds(nodes, nodeId);
+    setNodes((prev) => prev.filter((n) => !removeIds.has(n.id)));
+    const res = await fetch(`/api/stories/${storyId}/outline/${nodeId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setErr(String(j.msg ?? "删除失败"));
+      setNodes(snapshot);
     } else {
-      const nextOrder = dropIdx < siblings.length - 1 ? siblings[dropIdx + 1].sort_order : dropNode.sort_order + 200;
-      newOrder = (dropNode.sort_order + nextOrder) / 2;
+      message.success("已删除");
     }
-    await patchNode(dragNodeId, { sort_order: newOrder });
-    setDragId(null);
-    setDropTarget(null);
   }
 
-  async function removeNode(nodeId: string) {
-    if (!confirm("删除该节点及其所有子节点？")) return;
-    await fetch(`/api/stories/${storyId}/outline/${nodeId}`, { method: "DELETE" });
-    await load();
+  function removeNode(nodeId: string) {
+    const node = nodes.find((n) => n.id === nodeId);
+    modal.confirm({
+      title: "删除章节",
+      content: `确定删除「${node?.title ?? "该章节"}」及其所有子章节？此操作不可恢复。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: () => executeRemoveNode(nodeId),
+    });
   }
 
   async function importCharacter() {
@@ -384,23 +607,6 @@ export default function StoryOutlineEditPage() {
     await load();
   }
 
-  async function uploadCover(file: File) {
-    setCoverBusy(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch(`/api/stories/${storyId}/cover`, {
-        method: "POST",
-        body: fd,
-      });
-      const json = await res.json();
-      if (json.code !== 200) setErr(json.msg ?? "封面上传失败");
-      else setErr("");
-    } finally {
-      setCoverBusy(false);
-    }
-  }
-
   async function addRelation() {
     if (!relLeft || !relRight || relLeft === relRight) return;
     const res = await fetch(`/api/stories/${storyId}/relations`, {
@@ -425,64 +631,6 @@ export default function StoryOutlineEditPage() {
     await load();
   }
 
-  function forkNodeLabel(forkId: string) {
-    const n = nodes.find((x) => x.id === forkId);
-    return n ? n.title : forkId;
-  }
-
-  function parentBranchLabel(pid: string | null) {
-    if (!pid) return "—";
-    const b = branches.find((x) => x.id === pid);
-    return b ? b.title : pid;
-  }
-
-  async function addBranch() {
-    const t = branchTitle.trim();
-    const fork = branchForkId.trim();
-    if (!t || !fork) {
-      setErr("请填写分支标题并选择大纲锚点节点");
-      return;
-    }
-    const body: Record<string, unknown> = {
-      title: t,
-      fork_outline_node_id: fork,
-      description: branchDesc.trim(),
-    };
-    if (branchParentId.trim()) body.parent_branch_id = branchParentId.trim();
-    const res = await fetch(`/api/stories/${storyId}/branches`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (json.code !== 200) setErr(json.msg ?? "创建分支失败");
-    else {
-      setErr("");
-      setBranchDesc("");
-      setBranchParentId("");
-    }
-    await load();
-  }
-
-  async function toggleBranchArchive(b: BranchRow) {
-    const next = b.status === "archived" ? "active" : "archived";
-    await fetch(`/api/stories/${storyId}/branches/${b.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: next }),
-    });
-    await load();
-  }
-
-  async function removeBranch(branchId: string) {
-    if (!confirm("删除该分支记录？")) return;
-    const res = await fetch(`/api/stories/${storyId}/branches/${branchId}`, { method: "DELETE" });
-    const json = await res.json();
-    if (json.code !== 200) setErr(json.msg ?? "删除失败");
-    else setErr("");
-    await load();
-  }
-
   if (!storyId) return null;
 
   if (loading) {
@@ -491,61 +639,29 @@ export default function StoryOutlineEditPage() {
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">章节大纲（文档节点结构）</p>
-          <h1 className="text-xl font-semibold text-[#1F2A44]">{storyTitle || storyId}</h1>
-          <p className="mt-1 text-sm text-[#5B6B8C]">
-            拖拽节点可调整同级排序 · 类型：章节 / 分支 / 备注
-          </p>
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">章节大纲</p>
+        <div className="mt-0.5 flex items-center justify-between gap-4">
+          <h1 className="min-w-0 truncate text-xl font-semibold text-[#1F2A44]">{storyTitle || storyId}</h1>
+          <button
+            type="button"
+            className="sf-btn-primary shrink-0"
+            disabled={outlineBusy}
+            onClick={() => openAddModal({ mode: "root", parentId: null })}
+          >
+            添加章节
+          </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className="text-xs text-[#5B6B8C]">导出</span>
-          <button
-            type="button"
-            disabled={exportBusy}
-            className="sf-tag"
-            onClick={() => void exportStory("markdown")}
-          >
-            MD
-          </button>
-          <button
-            type="button"
-            disabled={exportBusy}
-            className="sf-tag"
-            onClick={() => void exportStory("txt")}
-          >
-            TXT
-          </button>
-          <button
-            type="button"
-            disabled={exportBusy}
-            className="sf-tag"
-            onClick={() => void exportStory("epub")}
-          >
-            EPUB
-          </button>
-          <button
-            type="button"
-            disabled={exportBusy}
-            className="sf-tag"
-            title="中文 PDF 可将 NotoSansSC-Regular.otf 放到 storage/fonts/"
-            onClick={() => void exportStory("pdf")}
-          >
-            PDF
-          </button>
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[#5B6B8C]">
-            <input
-              type="checkbox"
-              checked={exportBranchAppendix}
-              onChange={(e) => setExportBranchAppendix(e.target.checked)}
-            />
-            附带分支附录
-          </label>
-          <Link href="/" className="sf-tag">
-            返回首页
-          </Link>
+          {renderExportButton("markdown", "MD")}
+          {renderExportButton("txt", "TXT")}
+          {renderExportButton("epub", "EPUB")}
+          {renderExportButton("pdf", "PDF", "中文 PDF 首次导出会自动下载字体到 storage/fonts/")}
         </div>
+        <p className="mt-1 whitespace-nowrap text-sm text-[#5B6B8C]">
+          按顺序列出章节；可添加同级或子章节，更多操作在右侧菜单中。
+        </p>
       </div>
 
       {err ? (
@@ -556,235 +672,188 @@ export default function StoryOutlineEditPage() {
 
       {!err ? (
         <>
-          {/* 封面上传 */}
-          <div className="sf-card mb-6 flex flex-wrap items-center gap-4 p-4">
-            <p className="text-sm font-medium text-[#1F2A44]">故事封面</p>
-            <label className={`sf-btn-secondary cursor-pointer ${coverBusy ? "opacity-50 pointer-events-none" : ""}`}>
-              {coverBusy ? "上传中..." : "上传封面"}
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void uploadCover(f);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-            <span className="text-xs text-[#5B6B8C]">支持 JPG/PNG/WebP，最大 10MB</span>
-          </div>
-
-          <div className="sf-card mb-6 space-y-3 p-4">
-            <p className="text-sm font-medium text-[#1F2A44]">新增节点</p>
-            <div className="flex flex-wrap gap-2">
-              <input className="sf-input max-w-xs" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-              <select
-                className="sf-input w-32 py-2"
-                value={newType}
-                onChange={(e) => setNewType(e.target.value as typeof newType)}
-              >
-                <option value="chapter">章节</option>
-                <option value="branch">分支</option>
-                <option value="note">备注</option>
-              </select>
-              <select
-                className="sf-input flex-1 min-w-[140px]"
-                value={newParentId}
-                onChange={(e) => setNewParentId(e.target.value)}
-              >
-                <option value="">顶层（无父）</option>
-                {ordered.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {"—".repeat(depthOf(nodes, n.id))} {n.title}
-                  </option>
-                ))}
-              </select>
-              <button type="button" className="sf-btn-primary shrink-0" onClick={() => void addNode()}>
-                添加
-              </button>
-            </div>
-          </div>
-
           <ul className="space-y-3">
             {ordered.map((n) => {
-              const isDragging = dragId === n.id;
-              const isDropBefore = dropTarget === n.id && dragId !== n.id;
+              const depth = depthOf(nodes, n.id);
+              const siblings = getSiblingsOf(nodes, n);
+              const canReorder = siblings.length > 1;
+              const moreMenuItems: MenuProps["items"] = [];
+              if (canReorder) {
+                moreMenuItems.push(
+                  { key: "up", label: "上移", onClick: () => void patchNode(n.id, { move: "up" }) },
+                  { key: "down", label: "下移", onClick: () => void patchNode(n.id, { move: "down" }) },
+                  { type: "divider" },
+                  {
+                    key: "position",
+                    label: "调整位置",
+                    onClick: () => setPositionPickerId(n.id),
+                  },
+                );
+              }
+              moreMenuItems.push({
+                key: "delete",
+                label: "删除",
+                danger: true,
+                onClick: () => void removeNode(n.id),
+              });
               return (
-                <li
-                  key={n.id}
-                  draggable
-                  onDragStart={() => setDragId(n.id)}
-                  onDragEnd={() => { setDragId(null); setDropTarget(null); }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    if (dragId && dragId !== n.id) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const midY = rect.top + rect.height / 2;
-                      setDropTarget(n.id);
-                    }
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (!dragId || dragId === n.id) return;
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const midY = rect.top + rect.height / 2;
-                    const position = e.clientY < midY ? "before" : "after";
-                    void handleDrop(dragId, n.id, position);
-                  }}
-                  className={[
-                    "sf-card p-4 cursor-grab active:cursor-grabbing transition-all duration-200",
-                    isDragging ? "opacity-40 scale-95" : "",
-                    isDropBefore ? "border-t-2 border-t-[#5B9DFF]" : "",
-                  ].join(" ")}
-                  style={{ marginLeft: depthOf(nodes, n.id) * 14 }}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="cursor-grab text-[#5B6B8C] select-none" title="拖拽排序">⠿</span>
-                      <div className="min-w-0 flex-1">
-                        <span className="text-[10px] font-medium uppercase text-[#5B9DFF]">{n.type}</span>
-                        <input
-                          className="sf-input mt-1 font-medium"
-                          defaultValue={n.title}
-                          key={`${n.id}-${n.updated_at ?? n.sort_order}`}
-                          onBlur={(e) => {
-                            const t = e.target.value.trim();
-                            if (t && t !== n.title) void patchNode(n.id, { title: t });
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "up" })}>
-                        上移
-                      </button>
-                      <button type="button" className="sf-tag" onClick={() => void patchNode(n.id, { move: "down" })}>
-                        下移
-                      </button>
-                      <button type="button" className="sf-tag text-red-700" onClick={() => void removeNode(n.id)}>
-                        删除
-                      </button>
-                    </div>
-                  </div>
-                  <label className="mt-2 block text-xs text-[#5B6B8C]">
-                    大纲要点 / 附注
-                    <textarea
-                      className="sf-input mt-1 min-h-20 text-sm"
-                      defaultValue={n.content}
-                      key={`c-${n.id}-${n.updated_at ?? ""}`}
+              <li
+                key={n.id}
+                className="sf-card p-4"
+                style={{ marginLeft: depth * 14 }}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs text-[#5B6B8C]">{depth === 0 ? "章节" : "子章节"}</span>
+                    <input
+                      className="sf-input mt-1 font-medium"
+                      defaultValue={n.title}
+                      key={`${n.id}-${n.updated_at ?? n.sort_order}`}
                       onBlur={(e) => {
-                        const v = e.target.value;
-                        if (v !== n.content) void patchNode(n.id, { content: v });
+                        const t = e.target.value.trim();
+                        if (t && t !== n.title) void patchNode(n.id, { title: t });
                       }}
-                      onClick={(e) => e.stopPropagation()}
                     />
-                  </label>
-                </li>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="sf-tag"
+                      onClick={() => openAddModal({ mode: "child", parentId: n.id, anchorTitle: n.title })}
+                    >
+                      添加子章节
+                    </button>
+                    <button
+                      type="button"
+                      className="sf-tag"
+                      onClick={() =>
+                        openAddModal({ mode: "sibling", parentId: n.parent_id, anchorTitle: n.title })
+                      }
+                    >
+                      添加同级章节
+                    </button>
+                    <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]} placement="bottomRight">
+                      <button
+                        type="button"
+                        className="sf-tag px-2.5 text-base leading-none"
+                        aria-label="更多操作"
+                      >
+                        ⋯
+                      </button>
+                    </Dropdown>
+                  </div>
+                </div>
+                <label className="mt-2 block text-xs text-[#5B6B8C]">
+                  章节摘要（可选）
+                  <textarea
+                    className="sf-input mt-1 min-h-16 text-sm"
+                    placeholder="简要描述本章要点…"
+                    defaultValue={n.content}
+                    key={`c-${n.id}-${n.updated_at ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value;
+                      if (v !== n.content) void patchNode(n.id, { content: v });
+                    }}
+                  />
+                </label>
+              </li>
               );
             })}
             {ordered.length === 0 ? (
               <li className="rounded-xl border border-dashed border-[#DCE9FF] p-6 text-center text-sm text-[#5B6B8C]">
-                暂无节点，请在上方添加。
+                还没有章节，点击标题旁的「添加章节」开始。
               </li>
             ) : null}
           </ul>
 
-          <div className="sf-card mt-8 space-y-4 p-4">
-            <div>
-              <p className="text-sm font-medium text-[#1F2A44]">剧情分支</p>
-              <p className="mt-1 text-xs text-[#5B6B8C]">
-                从大纲节点锚定一条分支线，用于记录走向说明；可归档次要分支。合并回主线与导出分支策略见文档后续迭代。
+          <Modal
+            open={addModalOpen}
+            title={
+              addDraft?.mode === "child"
+                ? "添加子章节"
+                : addDraft?.mode === "sibling"
+                  ? "添加同级章节"
+                  : "添加章节"
+            }
+            okText="确定"
+            cancelText="取消"
+            confirmLoading={outlineBusy}
+            onCancel={closeAddModal}
+            onOk={() => void confirmAddNode()}
+            destroyOnHidden
+          >
+            {addDraft?.anchorTitle ? (
+              <p className="mb-3 text-sm text-[#5B6B8C]">
+                {addDraft.mode === "child"
+                  ? `将在「${addDraft.anchorTitle}」下添加`
+                  : `与「${addDraft.anchorTitle}」同级添加`}
               </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+            ) : null}
+            <label className="block text-sm font-medium text-[#1F2A44]">
+              章节名称
               <input
-                className="sf-input max-w-[200px]"
-                placeholder="分支标题"
-                value={branchTitle}
-                onChange={(e) => setBranchTitle(e.target.value)}
+                className="sf-input mt-1"
+                placeholder="请输入章节名称"
+                value={addTitle}
+                autoFocus
+                onChange={(e) => setAddTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void confirmAddNode();
+                }}
               />
+            </label>
+            <label className="mt-3 block text-sm font-medium text-[#1F2A44]">
+              插入位置
               <select
-                className="sf-input min-w-[160px]"
-                value={branchForkId}
-                onChange={(e) => setBranchForkId(e.target.value)}
+                className="sf-input mt-1"
+                value={addInsertIndex}
+                onChange={(e) => setAddInsertIndex(Number(e.target.value))}
               >
-                <option value="">大纲锚点节点</option>
-                {ordered.map((n) => (
-                  <option key={`fork-${n.id}`} value={n.id}>
-                    {"—".repeat(depthOf(nodes, n.id))} {n.title}
+                {addInsertSlots.map((slot) => (
+                  <option key={`add-pos-${slot.insertIndex}`} value={slot.insertIndex}>
+                    {slot.label}
                   </option>
                 ))}
               </select>
-              <select
-                className="sf-input min-w-[140px]"
-                value={branchParentId}
-                onChange={(e) => setBranchParentId(e.target.value)}
-              >
-                <option value="">父分支（可选）</option>
-                {branches.map((b) => (
-                  <option key={`pb-${b.id}`} value={b.id}>
-                    {b.title}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="sf-input min-w-[180px] flex-1"
-                placeholder="分支说明（可选）"
-                value={branchDesc}
-                onChange={(e) => setBranchDesc(e.target.value)}
+            </label>
+            <label className="mt-3 block text-sm font-medium text-[#1F2A44]">
+              章节摘要（可选）
+              <textarea
+                className="sf-input mt-1 min-h-24 text-sm"
+                placeholder="简要描述本章要点…"
+                value={addContent}
+                onChange={(e) => setAddContent(e.target.value)}
               />
-              <button type="button" className="sf-btn-primary shrink-0" onClick={() => void addBranch()}>
-                创建分支
-              </button>
-            </div>
-            <ul className="space-y-2 text-xs">
-              {branches.map((b) => (
-                <li
-                  key={b.id}
-                  className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-[#F8FBFF] p-3 text-[#1F2A44]"
+            </label>
+          </Modal>
+
+          <Modal
+            open={positionPickerId !== null}
+            title={positionNode ? `调整位置 · ${positionNode.title}` : "调整位置"}
+            footer={null}
+            onCancel={() => setPositionPickerId(null)}
+            destroyOnHidden
+          >
+            <p className="mb-3 text-sm text-[#5B6B8C]">选择要插入到的同级位置：</p>
+            <div className="flex flex-col gap-2">
+              {positionSlots.map((slot) => (
+                <button
+                  key={`modal-${positionPickerId}-${slot.insertIndex}`}
+                  type="button"
+                  className="w-full rounded-lg border border-[#DCE9FF] bg-[#F8FBFF] px-3 py-2.5 text-left text-sm text-[#1F2A44] transition-colors hover:bg-[#EEF6FF]"
+                  onClick={() => positionPickerId && void moveNodeToPosition(positionPickerId, slot.insertIndex)}
                 >
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium">{b.title}</span>
-                    <span
-                      className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${
-                        b.status === "archived"
-                          ? "bg-[#E8E8E8] text-[#5B6B8C]"
-                          : "bg-[#EEF6FF] text-[#5B9DFF]"
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                    <p className="mt-1 text-[#5B6B8C]">
-                      锚点：{forkNodeLabel(b.fork_outline_node_id)}
-                      {b.parent_branch_id ? ` · 父分支：${parentBranchLabel(b.parent_branch_id)}` : ""}
-                    </p>
-                    {b.description ? (
-                      <p className="mt-1 whitespace-pre-wrap text-[#5B6B8C]">{b.description}</p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="sf-tag" onClick={() => void toggleBranchArchive(b)}>
-                      {b.status === "archived" ? "恢复" : "归档"}
-                    </button>
-                    <button type="button" className="sf-tag text-red-700" onClick={() => void removeBranch(b.id)}>
-                      删除
-                    </button>
-                  </div>
-                </li>
+                  {slot.label}
+                </button>
               ))}
-              {branches.length === 0 ? (
-                <li className="text-[#5B6B8C]">暂无分支记录。</li>
-              ) : null}
-            </ul>
-          </div>
+            </div>
+          </Modal>
 
           <div className="sf-card mt-8 space-y-4 p-4">
             <div>
               <p className="text-sm font-medium text-[#1F2A44]">人物关系图谱（MVP）</p>
               <p className="mt-1 text-xs text-[#5B6B8C]">
-                文档约定类型：敌对 / 盟友 / 亲属 / 恋人 / 上下级 / 合作。两端角色须为你创建或市场已发布。
+                同一对角色可添加多条关系（如既是亲属又是盟友）。类型：敌对 / 盟友 / 亲属 / 恋人 / 上下级 / 合作。
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

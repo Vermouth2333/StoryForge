@@ -17,6 +17,48 @@ async function addColumnIfMissing(db: Database, table: string, column: string, d
   }
 }
 
+async function migrateCharacterRelationsAllowMultiple(db: Database) {
+  const tables = await db.all<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='character_relations'",
+  );
+  if (tables.length === 0) return;
+
+  const indexes = await db.all<{ name: string; unique: number }>("PRAGMA index_list(character_relations)");
+  for (const idx of indexes) {
+    if (idx.unique !== 1) continue;
+    const cols = await db.all<{ name: string }>(`PRAGMA index_info(${idx.name})`);
+    const names = cols.map((c) => c.name);
+    if (
+      names.length === 3 &&
+      names.includes("story_id") &&
+      names.includes("character_left_id") &&
+      names.includes("character_right_id")
+    ) {
+      await db.exec(`
+        CREATE TABLE character_relations__new (
+          id TEXT PRIMARY KEY,
+          story_id TEXT NOT NULL,
+          character_left_id TEXT NOT NULL,
+          character_right_id TEXT NOT NULL,
+          relation_type TEXT NOT NULL,
+          description TEXT DEFAULT '',
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        INSERT INTO character_relations__new
+          SELECT id, story_id, character_left_id, character_right_id, relation_type, description, created_at, updated_at
+          FROM character_relations;
+        DROP TABLE character_relations;
+        ALTER TABLE character_relations__new RENAME TO character_relations;
+        CREATE INDEX IF NOT EXISTS idx_char_relations_story ON character_relations(story_id);
+        CREATE INDEX IF NOT EXISTS idx_char_relations_pair
+          ON character_relations(story_id, character_left_id, character_right_id);
+      `);
+      return;
+    }
+  }
+}
+
 async function migrateSchema(db: Database) {
   await db.exec("PRAGMA foreign_keys = ON;");
 
@@ -101,12 +143,14 @@ async function migrateSchema(db: Database) {
       relation_type TEXT NOT NULL,
       description TEXT DEFAULT '',
       created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(story_id, character_left_id, character_right_id)
+      updated_at TEXT NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_char_relations_story
       ON character_relations(story_id);
+
+    CREATE INDEX IF NOT EXISTS idx_char_relations_pair
+      ON character_relations(story_id, character_left_id, character_right_id);
 
     CREATE TABLE IF NOT EXISTS basic_logs (
       id TEXT PRIMARY KEY,
@@ -317,6 +361,9 @@ async function migrateSchema(db: Database) {
   await addColumnIfMissing(db, "worlds", "favorite_count", "favorite_count INTEGER NOT NULL DEFAULT 0");
   await addColumnIfMissing(db, "characters", "cover_asset_id", "cover_asset_id TEXT");
   await addColumnIfMissing(db, "worlds", "cover_asset_id", "cover_asset_id TEXT");
+  await addColumnIfMissing(db, "characters", "draft_json", "draft_json TEXT");
+  await addColumnIfMissing(db, "worlds", "draft_json", "draft_json TEXT");
+  await addColumnIfMissing(db, "stories", "draft_json", "draft_json TEXT");
 
   // 会话级模型选择持久化
   await addColumnIfMissing(db, "chat_sessions", "model_id", "model_id TEXT");
@@ -398,6 +445,8 @@ async function migrateSchema(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_rag_vectors_world_type ON rag_vectors(world_id, type);
   `);
+
+  await migrateCharacterRelationsAllowMultiple(db);
 }
 
 

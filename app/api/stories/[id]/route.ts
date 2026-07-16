@@ -4,11 +4,13 @@ import { getCurrentUserId } from "@/lib/auth";
 import { deleteStory } from "@/lib/delete-content";
 import { getDb, nowIso } from "@/lib/db";
 import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
+import { patchStoryWork } from "@/lib/work-draft";
 
 const schema = z.object({
   title: z.string().min(1).max(120).optional(),
   summary: z.string().max(1000).optional(),
   tags: z.array(z.string().min(1).max(30)).max(10).optional(),
+  sync_to_market: z.boolean().optional(),
 });
 
 export async function GET(
@@ -29,11 +31,12 @@ export async function GET(
     like_count: number;
     favorite_count: number;
     publish_at: string | null;
+    draft_json: string | null;
     updated_at: string;
   }>(
     `SELECT s.id, s.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      s.title, s.summary, s.status, s.tags_json, s.cover_asset_id, s.like_count, s.favorite_count, s.publish_at, s.updated_at
+      s.title, s.summary, s.status, s.tags_json, s.cover_asset_id, s.draft_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at
      FROM stories s
      LEFT JOIN users u ON u.id = s.author_id
      WHERE s.id = ?`,
@@ -74,7 +77,16 @@ export async function GET(
   }
   return NextResponse.json({
     code: 200,
-    data: { ...story, cover_url: coverUrl, cover_thumbnail_url: coverThumbUrl, liked_by_me: likedByMe, favorited_by_me: favoritedByMe, is_following: isFollowing },
+    data: {
+      ...story,
+      cover_url: coverUrl,
+      cover_thumbnail_url: coverThumbUrl,
+      liked_by_me: likedByMe,
+      favorited_by_me: favoritedByMe,
+      is_following: isFollowing,
+      draft_json: userId === story.author_id ? story.draft_json ?? null : null,
+      has_unsynced_draft: userId === story.author_id && Boolean(story.draft_json),
+    },
     msg: "ok",
   });
 }
@@ -101,29 +113,24 @@ export async function PATCH(
     return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
   }
 
-  const fields: string[] = [];
-  const values: unknown[] = [];
-  if (parsed.data.title !== undefined) {
-    fields.push("title = ?");
-    values.push(parsed.data.title);
-  }
-  if (parsed.data.summary !== undefined) {
-    fields.push("summary = ?");
-    values.push(parsed.data.summary);
-  }
-  if (parsed.data.tags !== undefined) {
-    fields.push("tags_json = ?");
-    values.push(JSON.stringify(parsed.data.tags));
-  }
-  fields.push("updated_at = ?");
-  values.push(nowIso());
-  values.push(id);
-
-  await db.run(`UPDATE stories SET ${fields.join(", ")} WHERE id = ?`, ...values);
-  if (story.status === "published") {
+  const { sync_to_market: syncToMarket = false, ...patchData } = parsed.data;
+  const now = nowIso();
+  const { syncedToMarket } = await patchStoryWork(
+    db,
+    id,
+    story.status,
+    syncToMarket,
+    patchData,
+    now,
+  );
+  if (syncedToMarket) {
     await invalidateMarketCache();
   }
-  return NextResponse.json({ code: 200, msg: "更新成功" });
+  return NextResponse.json({
+    code: 200,
+    msg: syncedToMarket ? "已同步到市场" : story.status === "published" ? "已保存草稿" : "更新成功",
+    data: { synced_to_market: syncedToMarket },
+  });
 }
 
 export async function DELETE(

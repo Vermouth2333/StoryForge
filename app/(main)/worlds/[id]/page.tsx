@@ -9,6 +9,7 @@ import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
+import { resolveWorldEditorValues } from "@/lib/work-draft";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
@@ -35,6 +36,8 @@ type WorldDetail = {
   liked_by_me?: boolean;
   favorited_by_me?: boolean;
   is_following?: boolean;
+  draft_json?: string | null;
+  has_unsynced_draft?: boolean;
 };
 
 type KnowledgeEntry = {
@@ -77,6 +80,8 @@ export default function WorldDetailPage() {
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
+    setUserRating(5);
+    setUserReviewText("");
     void (async () => {
       const id = params.id;
       if (!id) return;
@@ -107,10 +112,6 @@ export default function WorldDetailPage() {
       if (reviewsRes.ok) {
         const reviewsJson = await reviewsRes.json();
         setReviews(reviewsJson);
-        if (reviewsJson.user_review) {
-          setUserRating(reviewsJson.user_review.rating);
-          setUserReviewText(reviewsJson.user_review.content ?? "");
-        }
       }
       
       setLoading(false);
@@ -139,11 +140,9 @@ export default function WorldDetailPage() {
         if (reviewsRes.ok) {
           const reviewsJson = await reviewsRes.json();
           setReviews(reviewsJson);
-          if (reviewsJson.user_review) {
-            setUserRating(reviewsJson.user_review.rating);
-            setUserReviewText(reviewsJson.user_review.content ?? "");
-          }
         }
+        setUserRating(5);
+        setUserReviewText("");
       } else {
         const errJson = await res.json().catch(() => ({}));
         message.error(errJson.error || "提交评价失败，请先登录");
@@ -382,15 +381,18 @@ export default function WorldDetailPage() {
         </div>
       </div>
 
-      {canEdit && (
+      {canEdit && row && (() => {
+        const editorValues = resolveWorldEditorValues(row);
+        return (
         <AuthorWorkEditor
           kind="world"
           id={row.id}
           status={row.status}
-          name={row.name}
-          summary={row.summary}
-          tagsJson={row.tags_json}
-          settingNotes={row.setting_notes}
+          hasUnsyncedDraft={Boolean(row.has_unsynced_draft)}
+          name={editorValues.name}
+          summary={editorValues.summary}
+          tagsJson={editorValues.tagsJson}
+          settingNotes={editorValues.settingNotes}
           onUpdated={(patch) => setRow((prev) => (prev ? { ...prev, ...patch } : prev))}
           onStatusChange={(st, publishAt) =>
             setRow((prev) =>
@@ -404,7 +406,8 @@ export default function WorldDetailPage() {
             )
           }
         />
-      )}
+        );
+      })()}
 
       {/* 封面区域 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
@@ -458,6 +461,7 @@ export default function WorldDetailPage() {
                 placeholder="写下你的评价（可选）..."
                 className="sf-input mb-3 resize-none"
                 rows={3}
+                autoComplete="off"
               />
               <button
                 onClick={handleSubmitReview}
