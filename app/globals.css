@@ -65,11 +65,152 @@
 }
 
 body {
-  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(91, 157, 255, 0.16), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 95% 5%, rgba(127, 180, 255, 0.14), transparent 50%),
+    radial-gradient(ellipse 50% 35% at 50% 100%, rgba(63, 134, 245, 0.08), transparent 55%),
+    linear-gradient(180deg, #f4f9ff 0%, var(--background) 40%, #f8fbff 100%);
+  background-attachment: fixed;
+}
+
+/* 页面切换入场 */
+.sf-page-enter {
+  animation: sf-page-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sf-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 列表交错显现 */
+.sf-stagger > * {
+  animation: sf-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sf-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.sf-stagger > *:nth-child(2) { animation-delay: 0.06s; }
+.sf-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.sf-stagger > *:nth-child(4) { animation-delay: 0.14s; }
+.sf-stagger > *:nth-child(5) { animation-delay: 0.18s; }
+.sf-stagger > *:nth-child(6) { animation-delay: 0.22s; }
+.sf-stagger > *:nth-child(7) { animation-delay: 0.26s; }
+.sf-stagger > *:nth-child(8) { animation-delay: 0.3s; }
+.sf-stagger > *:nth-child(n + 9) { animation-delay: 0.34s; }
+
+@keyframes sf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sf-reveal {
+  animation: sf-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sf-hero-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(238, 246, 255, 0.95) 55%, rgba(220, 233, 255, 0.9) 100%);
+  box-shadow: var(--shadow-soft);
+  padding: 1.75rem 1.5rem;
+}
+
+.sf-hero-banner::before {
+  content: "";
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(91, 157, 255, 0.22), transparent 68%);
+  animation: sf-float 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.sf-hero-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto auto -50% -10%;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(127, 180, 255, 0.18), transparent 70%);
+  animation: sf-float 10s ease-in-out infinite reverse;
+  pointer-events: none;
+}
+
+@keyframes sf-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-12px, 10px);
+  }
+}
+
+.sf-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sf-brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 0 0 rgba(91, 157, 255, 0.45);
+  animation: sf-pulse-dot 2.4s ease-out infinite;
+}
+
+@keyframes sf-pulse-dot {
+  0% {
+    box-shadow: 0 0 0 0 rgba(91, 157, 255, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(91, 157, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(91, 157, 255, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-page-enter,
+  .sf-stagger > *,
+  .sf-reveal,
+  .sf-hero-banner::before,
+  .sf-hero-banner::after,
+  .sf-brand-dot {
+    animation: none !important;
+  }
+
+  .market-card:hover,
+  .sf-card:hover,
+  .sf-btn-primary:hover {
+    transform: none;
+  }
 }
 
 .sf-card {
@@ -196,13 +337,18 @@ select.sf-input {
   border-radius: 16px;
   background: #fff;
   border: 1px solid var(--border);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease, border-color 0.25s ease;
   box-shadow: var(--shadow-soft);
 }
 
 .market-card:hover {
   box-shadow: var(--shadow-hover);
-  transform: translateY(-4px);
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.market-card:hover .market-card-cover img {
+  transform: scale(1.04);
 }
 
 .market-card-cover {
@@ -210,7 +356,7 @@ select.sf-input {
   width: 100%;
   padding-top: 133.33%;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(145deg, #7fb4ff 0%, #5b9dff 45%, #3f86f5 100%);
 }
 
 .market-card-cover::before {
@@ -240,6 +386,7 @@ select.sf-input {
   height: 100%;
   object-fit: contain;
   object-position: center;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* 详情页 / 创建预览：与市场卡片相同的 3:4 比例与展示宽度 */
@@ -264,6 +411,8 @@ select.sf-input {
   align-items: center;
   justify-content: center;
   font-size: 48px;
+  animation: sf-float 5s ease-in-out infinite;
+  filter: drop-shadow(0 8px 16px rgba(31, 42, 68, 0.12));
 }
 
 .market-card-content {
@@ -281,17 +430,17 @@ select.sf-input {
 }
 
 .market-card-kind.story {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #5b9dff 0%, #3f86f5 100%);
   color: #fff;
 }
 
 .market-card-kind.character {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: linear-gradient(135deg, #5bb8ff 0%, #3d8fd9 100%);
   color: #fff;
 }
 
 .market-card-kind.world {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: linear-gradient(135deg, #4aa8e8 0%, #2f7ec4 100%);
   color: #fff;
 }
 
@@ -360,12 +509,23 @@ select.sf-input {
   font-size: 22px;
   font-weight: 800;
   color: var(--foreground);
+  letter-spacing: -0.02em;
 }
 
 .section-subtitle {
   font-size: 14px;
   color: var(--text-secondary);
   margin-top: 4px;
+}
+
+.tab-button,
+.sort-button {
+  position: relative;
+}
+
+.tab-button.active,
+.sort-button.active {
+  transform: translateY(-1px);
 }
 
 .tab-button {

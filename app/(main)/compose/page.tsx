@@ -133,9 +133,11 @@ export default function ComposePage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="section-title">创作工作台</h2>
-        <p className="section-subtitle">创建故事、角色卡或世界卡，创建后进入对应编辑页继续完善</p>
+      <div className="sf-hero-banner sf-reveal">
+        <div className="relative z-10">
+          <h2 className="section-title">创作工作台</h2>
+          <p className="section-subtitle">创建故事、角色卡或世界卡，创建后进入对应编辑页继续完善</p>
+        </div>
       </div>
 
       {/* 创建类型切换 Tab */}

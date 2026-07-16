@@ -18,15 +18,22 @@ type FeedItem = {
 };
 
 const getCoverGradient = (kind: string, index: number) => {
-  const gradients = [
-    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-    "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
-    "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-    "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
-    "linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)",
-  ];
-  return gradients[index % gradients.length];
+  const byKind: Record<string, string[]> = {
+    story: [
+      "linear-gradient(145deg, #7FB4FF 0%, #5B9DFF 50%, #3F86F5 100%)",
+      "linear-gradient(160deg, #A8CBFF 0%, #5B9DFF 100%)",
+    ],
+    character: [
+      "linear-gradient(145deg, #8EC8FF 0%, #4A9FE8 55%, #2F7EC4 100%)",
+      "linear-gradient(160deg, #B7DBFF 0%, #5BB8FF 100%)",
+    ],
+    world: [
+      "linear-gradient(145deg, #79C2F0 0%, #3F9AD4 55%, #2A6FA8 100%)",
+      "linear-gradient(160deg, #A6D8F5 0%, #4AA8E8 100%)",
+    ],
+  };
+  const list = byKind[kind] ?? byKind.story;
+  return list[index % list.length];
 };
 
 const getPlaceholderIcon = (kind: string) => {
@@ -127,16 +134,18 @@ export default function MarketPage() {
 
   return (
     <div className="space-y-8">
-      {/* 页面标题 */}
-      <div className="section-header flex-col md:flex-row items-start md:items-center gap-4">
-        <div>
-          <h2 className="section-title">发现精彩创作</h2>
-          <p className="section-subtitle">探索故事、角色与世界，获取创作灵感</p>
+      <div className="sf-hero-banner sf-reveal relative z-0">
+        <div className="relative z-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5B9DFF]">StoryForge Market</p>
+          <h2 className="section-title mt-2">发现精彩创作</h2>
+          <p className="section-subtitle max-w-xl">
+            探索故事、角色与世界，获取创作灵感。点开作品即可体验与评价。
+          </p>
         </div>
       </div>
 
       {/* 搜索栏 */}
-      <div className="sf-card p-4">
+      <div className="sf-card p-4 sf-reveal" style={{ animationDelay: "0.08s" }}>
         <div className="flex gap-2">
           <input
             className="sf-input flex-1"
@@ -204,7 +213,7 @@ export default function MarketPage() {
 
       {/* 卡片网格 */}
       {feed.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="sf-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {feed.map((item, index) => {
             const kind = item.feed_kind ?? "story";
             const coverSrc = item.cover_url || item.cover_thumbnail_url;

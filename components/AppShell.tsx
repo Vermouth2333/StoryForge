@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import PageMotion from "@/components/PageMotion";
 
 function useRouteHash() {
   const [hash, setHash] = useState("");
@@ -140,7 +141,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
-            <Link href="/" className="block font-extrabold text-xl text-[var(--foreground)]" onClick={closeMobile}>
+            <Link
+              href="/"
+              className="sf-brand-mark block font-extrabold text-xl text-[var(--foreground)]"
+              onClick={closeMobile}
+            >
+              <span className="sf-brand-dot hidden lg:inline-block" aria-hidden />
               <span className="inline md:hidden lg:inline">StoryForge</span>
               <span className="hidden md:inline lg:hidden text-2xl">SF</span>
             </Link>
@@ -269,7 +275,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <main className="mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6">
+          <PageMotion>{children}</PageMotion>
+        </main>
       </div>
     </div>
   );

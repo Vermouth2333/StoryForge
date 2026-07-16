@@ -142,8 +142,10 @@ export default function HistoryPage() {
       {/* 页面标题 */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="section-title">会话历史</h2>
-          <p className="section-subtitle">查看和管理你的创作会话记录</p>
+          <div className="sf-reveal">
+            <h2 className="section-title">会话历史</h2>
+            <p className="section-subtitle">查看和管理你的创作会话记录</p>
+          </div>
         </div>
         {/* 搜索框 */}
         <div className="flex items-center gap-2">

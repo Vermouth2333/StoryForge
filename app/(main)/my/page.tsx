@@ -269,10 +269,11 @@ export default function MyPage() {
 
   return (
     <div className="space-y-8">
-      {/* 页面标题 */}
-      <div>
-        <h2 className="section-title">我的创作空间</h2>
-        <p className="section-subtitle">管理你的故事、角色和世界</p>
+      <div className="sf-hero-banner sf-reveal">
+        <div className="relative z-10">
+          <h2 className="section-title">我的创作空间</h2>
+          <p className="section-subtitle">管理你的故事、角色和世界，查看通知与收藏</p>
+        </div>
       </div>
 
       {/* 通知和收藏 */}
