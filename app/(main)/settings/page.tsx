@@ -325,9 +325,9 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between p-4 bg-[#F8FBFF] rounded-xl">
             <div>
               <p className="font-medium text-[#1F2A44]">登录方式</p>
-              <p className="text-sm text-[#5B6B8C]">当前使用 Google 账号登录</p>
+              <p className="text-sm text-[#5B6B8C]">账号密码登录</p>
             </div>
-            <span className="text-green-500 text-sm font-medium">已绑定</span>
+            <span className="text-green-500 text-sm font-medium">已启用</span>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-[#F8FBFF] rounded-xl">

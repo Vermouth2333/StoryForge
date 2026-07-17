@@ -267,9 +267,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
             ) : (
-              <a href="/api/auth/google" className="sf-btn-primary block w-full text-center no-underline text-sm">
-                Google 登录
-              </a>
+              <Link href="/login" className="sf-btn-primary block w-full text-center no-underline text-sm" onClick={closeMobile}>
+                登录 / 注册
+              </Link>
             )}
 
             {profile?.is_admin && (

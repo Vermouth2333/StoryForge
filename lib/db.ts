@@ -71,6 +71,14 @@ async function migrateSchema(db: Database) {
   await addColumnIfMissing(db, "users", "age", "age INTEGER");
   await addColumnIfMissing(db, "users", "phone_masked", "phone_masked TEXT");
   await addColumnIfMissing(db, "users", "bio", "bio TEXT");
+  await addColumnIfMissing(db, "users", "password_hash", "password_hash TEXT");
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_users_username
+      ON users(username);
+    CREATE INDEX IF NOT EXISTS idx_users_email
+      ON users(email);
+  `);
 
   await db.exec(`
     CREATE TABLE IF NOT EXISTS characters (
