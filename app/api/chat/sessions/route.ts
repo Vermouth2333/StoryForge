@@ -62,7 +62,7 @@ export async function GET(req: Request) {
   }
 
   const rows = await db.all(
-    `SELECT id, session_type, story_id, title, last_message_at, created_at, updated_at
+    `SELECT id, session_type, story_id, character_id, world_id, title, last_message_at, created_at, updated_at
      FROM chat_sessions
      WHERE ${where.join(" AND ")}
      ORDER BY updated_at DESC

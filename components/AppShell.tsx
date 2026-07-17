@@ -90,11 +90,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const myActive = pathname.startsWith("/my");
   const historyActive = pathname.startsWith("/history");
   const settingsActive = pathname.startsWith("/settings");
+  const isChatLayout =
+    /\/characters\/[^/]+\/chat\/?$/.test(pathname) ||
+    /\/worlds\/[^/]+\/chat\/?$/.test(pathname) ||
+    /\/stories\/[^/]+\/play\/?$/.test(pathname);
 
   const closeMobile = () => setMobileOpen(false);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)] md:flex-row">
+    <div
+      className={[
+        "flex flex-col bg-[var(--background)] md:flex-row",
+        isChatLayout ? "h-dvh overflow-hidden" : "min-h-screen",
+      ].join(" ")}
+    >
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 md:hidden">
         <button
           type="button"
@@ -274,9 +283,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <main className="mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6">
-          <PageMotion>{children}</PageMotion>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <main
+          className={
+            isChatLayout
+              ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden p-0"
+              : "mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6"
+          }
+        >
+          <PageMotion fillHeight={isChatLayout}>{children}</PageMotion>
         </main>
       </div>
     </div>

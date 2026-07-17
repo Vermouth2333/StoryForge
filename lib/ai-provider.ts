@@ -30,6 +30,13 @@ function sanitizeBaseUrl(raw: string): string | null {
   }
 }
 
+/** DeepSeek OpenAI 兼容接口需要 /v1 前缀 */
+function normalizeDeepseekBaseUrl(raw: string): string {
+  const trimmed = raw.replace(/\/+$/, "");
+  if (trimmed.endsWith("/v1")) return trimmed;
+  return `${trimmed}/v1`;
+}
+
 /**
  * 将模型配置 + 环境变量解析为可用的 provider 凭据。
  * 未配置（缺少 Key 或端点）时返回 null，调用方应回退到占位输出。
@@ -50,6 +57,10 @@ export function resolveProvider(config: ModelConfig): ResolvedProvider | null {
       baseUrlRaw = config.baseUrl ?? env.ANTHROPIC_BASE_URL;
       apiKey = config.apiKey ?? env.ANTHROPIC_API_KEY;
       break;
+    case "deepseek":
+      baseUrlRaw = config.baseUrl ?? env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1";
+      apiKey = config.apiKey ?? env.DEEPSEEK_API_KEY;
+      break;
     case "ollama":
       baseUrlRaw = config.baseUrl
         ? `${config.baseUrl.replace(/\/+$/, "")}/v1`
@@ -64,8 +75,11 @@ export function resolveProvider(config: ModelConfig): ResolvedProvider | null {
   }
 
   if (!baseUrlRaw || !apiKey) return null;
-  const baseUrl = sanitizeBaseUrl(baseUrlRaw);
+  let baseUrl = sanitizeBaseUrl(baseUrlRaw);
   if (!baseUrl) return null;
+  if (config.provider === "deepseek") {
+    baseUrl = normalizeDeepseekBaseUrl(baseUrl);
+  }
 
   return { baseUrl, apiKey, modelName: config.modelName };
 }

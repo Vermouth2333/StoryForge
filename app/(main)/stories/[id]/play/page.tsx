@@ -1,22 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ChatWorkspace, type ChatMessageItem, type ChatSessionInfo } from "@/components/ChatWorkspace";
 
 type StoryDetail = {
   id: string;
-  author_id: string;
-  author_display?: string;
   title: string;
   summary: string;
-  cover_asset_id: string | null;
-  status: string;
-  tags_json: string;
-  like_count: number;
-  favorite_count: number;
-  publish_at: string | null;
-  updated_at: string;
 };
 
 type CharacterItem = {
@@ -26,27 +18,23 @@ type CharacterItem = {
   summary: string;
 };
 
-type MessageItem = {
-  id: string;
-  role: "system" | "user" | "assistant";
-  content: string;
-  created_at: string;
-};
-
 export default function StoryPlayPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const resumeSessionId = searchParams.get("session") ?? "";
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [characters, setCharacters] = useState<CharacterItem[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  // 对话状态
-  const [sessionId, setSessionId] = useState("");
-  const [messages, setMessages] = useState<MessageItem[]>([]);
+
+  const [sessions, setSessions] = useState<ChatSessionInfo[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState("");
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [streamText, setStreamText] = useState("");
+  const [inChat, setInChat] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -55,60 +43,164 @@ export default function StoryPlayPage() {
       if (!id) return;
       const res = await fetch(`/api/stories/${id}`);
       const json = await res.json();
+      let loadedCharacters: CharacterItem[] = [];
       if (json.code === 200) {
-        setStory(json.data);
-        // 获取故事关联的角色
-        const charRes = await fetch(`/api/stories/${id}/relations`);
-        const charJson = await charRes.json();
-        if (charJson.code === 200) {
-          setCharacters(charJson.data?.characters ?? []);
+        setStory({ id: json.data.id, title: json.data.title, summary: json.data.summary ?? "" });
+        const [relRes, importsRes] = await Promise.all([
+          fetch(`/api/stories/${id}/relations`),
+          fetch(`/api/stories/${id}/imports`),
+        ]);
+        const importsJson = importsRes.ok ? await importsRes.json() : null;
+        const imported = (importsJson?.data?.characters ?? []) as CharacterItem[];
+        if (imported.length > 0) {
+          loadedCharacters = imported;
+          setCharacters(imported);
+        } else {
+          const relJson = await relRes.json();
+          void relJson;
+          setCharacters([]);
         }
       } else {
         setError(json.msg ?? "加载失败");
       }
+
+      if (resumeSessionId) {
+        const detailRes = await fetch(`/api/chat/sessions/${resumeSessionId}`);
+        const detailJson = await detailRes.json();
+        if (detailJson.code === 200 && detailJson.data?.story_id === id) {
+          const characterId = detailJson.data.character_id as string | null;
+          let character = loadedCharacters.find((c) => c.id === characterId) ?? null;
+          if (!character && characterId) {
+            const cRes = await fetch(`/api/characters/${characterId}`);
+            const cJson = await cRes.json();
+            if (cJson.code === 200) {
+              character = {
+                id: cJson.data.id,
+                name: cJson.data.name,
+                avatar_url: cJson.data.avatar_url,
+                summary: cJson.data.summary ?? "",
+              };
+            }
+          }
+
+          if (character) {
+            setSelectedCharacter(character);
+            const sessRes = await fetch(
+              `/api/chat/sessions?session_type=story&story_id=${id}&character_id=${character.id}`,
+            );
+            const sessJson = await sessRes.json();
+            let items = (sessJson.code === 200 ? sessJson.data : []) as ChatSessionInfo[];
+            items.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+            if (!items.some((s) => s.id === resumeSessionId)) {
+              items = [
+                {
+                  id: detailJson.data.id,
+                  title: detailJson.data.title,
+                  created_at: detailJson.data.created_at,
+                },
+                ...items,
+              ];
+            }
+            setSessions(items);
+            setActiveSessionId(resumeSessionId);
+            setInChat(true);
+          }
+        }
+      }
+
       setLoading(false);
     })();
-  }, [params.id]);
+  }, [params.id, resumeSessionId]);
 
-  async function startExperience() {
-    if (!selectedCharacter) return;
+  useEffect(() => {
+    if (!activeSessionId) {
+      setMessages([]);
+      return;
+    }
+    void (async () => {
+      const res = await fetch(`/api/chat/sessions/${activeSessionId}/messages`);
+      const json = await res.json();
+      if (json.code === 200) setMessages(json.data ?? []);
+      else setMessages([]);
+    })();
+  }, [activeSessionId]);
+
+  async function loadSessions(characterId: string) {
+    const res = await fetch(
+      `/api/chat/sessions?session_type=story&story_id=${params.id}&character_id=${characterId}`,
+    );
+    const json = await res.json();
+    if (json.code === 200) {
+      const list = (json.data ?? []) as ChatSessionInfo[];
+      list.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+      setSessions(list);
+      return list;
+    }
+    return [];
+  }
+
+  async function createSession(character = selectedCharacter) {
+    if (!character || !story) return;
     const res = await fetch("/api/chat/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_type: "story",
         story_id: params.id,
-        character_id: selectedCharacter.id,
-        title: `体验${story?.title}`,
+        character_id: character.id,
+        title: `体验${story.title} · ${character.name}`,
       }),
     });
     const json = await res.json();
     if (json.code === 200) {
-      setSessionId(json.data.session_id);
+      const newSessionId = json.data.session_id as string;
+      const session: ChatSessionInfo = {
+        id: newSessionId,
+        title: `体验${story.title} · ${character.name}`,
+        created_at: new Date().toISOString(),
+      };
+      setSessions((prev) => [session, ...prev]);
+      setActiveSessionId(newSessionId);
+      setMessages([]);
+      setInChat(true);
+    }
+  }
+
+  async function startExperience() {
+    if (!selectedCharacter) return;
+    const list = await loadSessions(selectedCharacter.id);
+    if (list.length > 0) {
+      setActiveSessionId(list[0].id);
+      setInChat(true);
+    } else {
+      await createSession(selectedCharacter);
     }
   }
 
   async function sendMessage() {
-    if (!inputMessage.trim() || !sessionId) return;
+    if (!inputMessage.trim() || !activeSessionId) return;
     setBusy(true);
     setStreamText("");
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const userMsg: MessageItem = {
-      id: "temp",
-      role: "user",
-      content: inputMessage,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "temp_" + Date.now(),
+        role: "user",
+        content: inputMessage,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    const sending = inputMessage;
     setInputMessage("");
 
     try {
-      const res = await fetch(`/api/chat/sessions/${sessionId}/generate`, {
+      const res = await fetch(`/api/chat/sessions/${activeSessionId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: inputMessage }),
+        body: JSON.stringify({ content: sending }),
         signal: controller.signal,
       });
       if (!res.body) {
@@ -130,35 +222,38 @@ export default function StoryPlayPage() {
           if (!line.startsWith("data:")) continue;
           const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
           if (payload.type === "content") {
-            acc += payload.content;
+            acc += payload.content ?? "";
             setStreamText(acc);
           }
         }
       }
       if (acc) {
-        const assistantMsg: MessageItem = {
-          id: "assistant_" + Date.now(),
-          role: "assistant",
-          content: acc,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "assistant_" + Date.now(),
+            role: "assistant",
+            content: acc,
+            created_at: new Date().toISOString(),
+          },
+        ]);
       }
       setStreamText("");
     } catch (err: unknown) {
       const isAbort =
-        (err as { name?: string })?.name === "AbortError" ||
-        err instanceof DOMException;
+        (err as { name?: string })?.name === "AbortError" || err instanceof DOMException;
       if (isAbort) {
         setStreamText((cur) => {
           if (cur) {
-            const assistantMsg: MessageItem = {
-              id: "assistant_" + Date.now(),
-              role: "assistant",
-              content: cur + "\n\n（已停止生成）",
-              created_at: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "assistant_" + Date.now(),
+                role: "assistant",
+                content: cur + "\n\n（已停止生成）",
+                created_at: new Date().toISOString(),
+              },
+            ]);
           }
           return "";
         });
@@ -169,195 +264,86 @@ export default function StoryPlayPage() {
     }
   }
 
-  function stopGeneration() {
-    abortRef.current?.abort();
-  }
-
-  if (loading) {
-    return <main className="sf-loading" />;
-  }
-  if (!story) {
+  if (loading) return <main className="sf-loading" />;
+  if (error || !story) {
     return (
-      <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">
-        {error || "故事不存在"}
+      <main className="mx-auto max-w-3xl p-6">
+        <p className="text-sm text-red-500">{error || "故事不存在"}</p>
+        <Link href="/market" className="sf-tag mt-4 inline-block">
+          返回市场
+        </Link>
       </main>
     );
   }
 
-  let tags: string[] = [];
-  try {
-    tags = JSON.parse(story.tags_json) as string[];
-  } catch {
-    tags = [];
+  if (inChat && selectedCharacter) {
+    return (
+      <ChatWorkspace
+        backHref={`/stories/${story.id}`}
+        backLabel="退出体验"
+        title={`${story.title} · ${selectedCharacter.name}`}
+        assistantName={selectedCharacter.name}
+        placeholder="输入你的行动指令…"
+        emptyHint={story.summary || `以 ${selectedCharacter.name} 的身份开始体验`}
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={setActiveSessionId}
+        onCreateSession={() => createSession()}
+        messages={messages}
+        streamText={streamText}
+        busy={busy}
+        inputMessage={inputMessage}
+        onInputChange={setInputMessage}
+        onSend={sendMessage}
+        onStop={() => abortRef.current?.abort()}
+      />
+    );
   }
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
-      {/* 故事信息 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
-            <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
-          </div>
-          <Link href="/market" className="sf-tag">
-            返回市场
-          </Link>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span key={tag} className="sf-tag">{tag}</span>
-          ))}
-        </div>
+    <main className="mx-auto max-w-3xl p-6">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <Link href={`/stories/${story.id}`} className="sf-tag">
+          ← 返回故事
+        </Link>
+        <h1 className="text-xl font-semibold text-[#1F2A44]">{story.title}</h1>
+        <div className="w-20" />
       </div>
 
-      {/* 选择角色开始体验 */}
-      {!sessionId && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>🎭</span> 选择角色开始体验
-          </h3>
-          {characters.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {characters.map((char) => (
-                <div
-                  key={char.id}
-                  className={`cursor-pointer rounded-xl border-2 p-4 transition-all ${
-                    selectedCharacter?.id === char.id
-                      ? "border-[#5B9DFF] bg-[#EEF6FF]"
-                      : "border-[#DCE9FF] bg-[#F8FBFF] hover:border-[#5B9DFF]"
-                  }`}
-                  onClick={() => setSelectedCharacter(char)}
-                >
-                  <div className="flex items-center gap-3">
-                    {char.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={char.avatar_url}
-                        alt=""
-                        className="h-12 w-12 rounded-full border-2 border-[#DCE9FF] object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-[#EEF6FF] to-[#E0F2FE] text-lg font-bold text-[#5B9DFF]">
-                        {char.name.charAt(0)}
-                      </div>
-                    )}
-                    <div>
-                      <p className="font-medium text-[#1F2A44]">{char.name}</p>
-                      <p className="text-xs text-[#5B6B8C] truncate max-w-[150px]">
-                        {char.summary || "暂无简介"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-3">👤</div>
-              <p className="text-sm text-[#5B6B8C]">该故事暂无可用角色</p>
-            </div>
-          )}
-          <div className="mt-6 text-center">
-            <button
-              className="sf-btn-primary"
-              onClick={startExperience}
-              disabled={!selectedCharacter}
-            >
-              🎮 开始体验
-            </button>
-            {!selectedCharacter && (
-              <p className="text-xs text-[#5B6B8C] mt-2">请先选择一个角色</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 体验对话区域 */}
-      {sessionId && selectedCharacter && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-              <span>🎮</span> 体验 {story.title}
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-[#5B6B8C]">扮演: {selectedCharacter.name}</span>
+      <div className="sf-card space-y-4 p-6">
+        <p className="text-sm text-[#5B6B8C]">{story.summary || "选择角色开始体验"}</p>
+        {characters.length > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {characters.map((c) => (
               <button
-                className="sf-tag"
-                onClick={() => {
-                  setSessionId("");
-                  setMessages([]);
-                  setSelectedCharacter(null);
-                }}
-              >
-                退出体验
-              </button>
-            </div>
-          </div>
-          
-          {/* 故事简介 */}
-          <div className="rounded-xl bg-[#F8FBFF] p-4 mb-4">
-            <p className="text-sm text-[#5B6B8C] italic">
-              {story.summary}
-            </p>
-          </div>
-          
-          {/* 消息区域 */}
-          <div className="space-y-3 max-h-[500px] overflow-y-auto mb-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`rounded-xl p-4 ${
-                  msg.role === "user"
-                    ? "bg-[#EEF6FF] border-l-4 border-[#5B9DFF]"
-                    : "bg-white border-l-4 border-[#4FACFE] border"
+                key={c.id}
+                type="button"
+                className={`rounded-xl border p-4 text-left transition ${
+                  selectedCharacter?.id === c.id
+                    ? "border-[#5B9DFF] bg-[#EEF6FF]"
+                    : "border-[#DCE9FF] bg-white hover:bg-[#F8FBFF]"
                 }`}
+                onClick={() => setSelectedCharacter(c)}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                    msg.role === "user"
-                      ? "bg-[#5B9DFF] text-white"
-                      : "bg-[#4FACFE] text-white"
-                  }`}>
-                    {msg.role === "user" ? "我" : selectedCharacter.name}
-                  </span>
-                </div>
-                <p className="text-sm text-[#1F2A44] leading-relaxed">{msg.content}</p>
-              </div>
-            ))}
-            {streamText && (
-              <div className="rounded-xl p-4 bg-white border-l-4 border-[#4FACFE]">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-semibold px-2 py-1 rounded-full bg-[#4FACFE] text-white">
-                    {selectedCharacter.name}
-                  </span>
-                </div>
-                <p className="text-sm text-[#1F2A44] leading-relaxed">{streamText}▌</p>
-              </div>
-            )}
-          </div>
-          
-          {/* 输入区域 */}
-          <div className="flex gap-3">
-            <input
-              className="sf-input flex-1"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="输入你的行动指令..."
-              disabled={busy}
-            />
-            <button className="sf-btn-primary" onClick={sendMessage} disabled={busy || !inputMessage.trim()}>
-              {busy ? "思考中..." : "行动"}
-            </button>
-            {busy && (
-              <button className="sf-btn-secondary" onClick={stopGeneration}>
-                停止
+                <p className="font-medium text-[#1F2A44]">{c.name}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-[#5B6B8C]">{c.summary}</p>
               </button>
-            )}
+            ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm text-[#5B6B8C]">
+            请先在大纲编辑页「引入角色卡」，再回来体验。
+          </p>
+        )}
+        <button
+          type="button"
+          className="sf-btn-primary"
+          disabled={!selectedCharacter}
+          onClick={() => void startExperience()}
+        >
+          开始体验
+        </button>
+      </div>
     </main>
   );
 }

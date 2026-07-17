@@ -1,11 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { App } from "antd";
+import { getContinueSessionHref } from "@/lib/session-continue";
 
 type SessionItem = {
   id: string;
   title: string;
+  session_type: string;
   story_id: string | null;
+  character_id: string | null;
+  world_id: string | null;
   updated_at: string;
 };
 
@@ -25,6 +31,7 @@ type SessionSnapshotItem = {
 };
 
 export default function HistoryPage() {
+  const { modal, message } = App.useApp();
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [selectedSessionForHistory, setSelectedSessionForHistory] = useState("");
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -83,45 +90,61 @@ export default function HistoryPage() {
     }
   }
 
-  async function restoreSessionSnapshot(snapshotId: string) {
+  function restoreSessionSnapshot(snapshotId: string) {
     if (!selectedSessionForHistory) return;
-    if (!window.confirm("将删除该快照时间点之后的所有消息，确定恢复到此检查点吗？")) {
-      return;
-    }
-    const res = await fetch(
-      `/api/chat/sessions/${selectedSessionForHistory}/snapshots/${snapshotId}/restore`,
-      { method: "POST" },
-    );
-    const json = await res.json();
-    if (json.code === 200) {
-      await loadMessages(selectedSessionForHistory, 1);
-      await loadSessionSnapshots(selectedSessionForHistory);
-    }
+    modal.confirm({
+      title: "恢复检查点",
+      content: "将删除该快照时间点之后的所有消息，确定恢复到此检查点吗？",
+      okText: "恢复",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(
+          `/api/chat/sessions/${selectedSessionForHistory}/snapshots/${snapshotId}/restore`,
+          { method: "POST" },
+        );
+        const json = await res.json();
+        if (json.code === 200) {
+          await loadMessages(selectedSessionForHistory, 1);
+          await loadSessionSnapshots(selectedSessionForHistory);
+          message.success("已恢复检查点");
+        } else {
+          message.error(json.msg ?? "恢复失败");
+        }
+      },
+    });
   }
 
-  async function deleteSession(sessionId: string) {
+  function deleteSession(sessionId: string) {
     const target = sessions.find((s) => s.id === sessionId);
-    if (!window.confirm(`确定删除会话「${target?.title ?? "未命名"}」？此操作不可恢复。`)) {
-      return;
-    }
-    const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
-    const json = await res.json();
-    if (json.code !== 200) {
-      window.alert(json.msg ?? "删除失败");
-      return;
-    }
-    const remaining = sessions.filter((s) => s.id !== sessionId);
-    setSessions(remaining);
-    if (selectedSessionForHistory === sessionId) {
-      const nextId = remaining[0]?.id ?? "";
-      setSelectedSessionForHistory(nextId);
-      setMessages([]);
-      setSessionSnapshots([]);
-      if (nextId) {
-        await loadMessages(nextId, 1);
-        await loadSessionSnapshots(nextId);
-      }
-    }
+    modal.confirm({
+      title: "删除会话",
+      content: `确定删除会话「${target?.title ?? "未命名"}」？此操作不可恢复。`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.code !== 200) {
+          message.error(json.msg ?? "删除失败");
+          return;
+        }
+        const remaining = sessions.filter((s) => s.id !== sessionId);
+        setSessions(remaining);
+        if (selectedSessionForHistory === sessionId) {
+          const nextId = remaining[0]?.id ?? "";
+          setSelectedSessionForHistory(nextId);
+          setMessages([]);
+          setSessionSnapshots([]);
+          if (nextId) {
+            await loadMessages(nextId, 1);
+            await loadSessionSnapshots(nextId);
+          }
+        }
+        message.success("会话已删除");
+      },
+    });
   }
 
   useEffect(() => {
@@ -189,22 +212,39 @@ export default function HistoryPage() {
                     <p className="text-xs text-[#5b6b8c] mt-1">
                       {new Date(s.updated_at).toLocaleDateString()}
                     </p>
-                    {s.story_id && (
-                      <span className="inline-block mt-1 text-xs bg-[#eef6ff] text-[#5b9dff] px-2 py-0.5 rounded-full">
-                        关联故事
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span className="inline-block text-xs bg-[#eef6ff] text-[#5b9dff] px-2 py-0.5 rounded-full">
+                        {s.session_type === "story"
+                          ? "故事"
+                          : s.session_type === "character"
+                            ? "角色"
+                            : s.session_type === "world" || s.session_type === "explore"
+                              ? "世界"
+                              : s.session_type}
                       </span>
-                    )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className="sf-tag shrink-0 text-xs !text-[#8B2E2E]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void deleteSession(s.id);
-                    }}
-                  >
-                    删除
-                  </button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {getContinueSessionHref(s) ? (
+                      <Link
+                        href={getContinueSessionHref(s)!}
+                        className="sf-tag shrink-0 text-xs !text-[#3F86F5]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        继续
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="sf-tag shrink-0 text-xs !text-[#8B2E2E]"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void deleteSession(s.id);
+                      }}
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -228,13 +268,25 @@ export default function HistoryPage() {
                   </h3>
                   <p className="mt-1 text-xs text-[#5b6b8c]">查看消息记录与管理检查点</p>
                 </div>
-                <button
-                  type="button"
-                  className="sf-tag !text-[#8B2E2E]"
-                  onClick={() => void deleteSession(selectedSessionForHistory)}
-                >
-                  删除此会话
-                </button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {(() => {
+                    const selected = sessions.find((s) => s.id === selectedSessionForHistory);
+                    const href = selected ? getContinueSessionHref(selected) : null;
+                    if (!href) return null;
+                    return (
+                      <Link href={href} className="sf-tag !text-[#3F86F5]">
+                        继续会话
+                      </Link>
+                    );
+                  })()}
+                  <button
+                    type="button"
+                    className="sf-tag !text-[#8B2E2E]"
+                    onClick={() => void deleteSession(selectedSessionForHistory)}
+                  >
+                    删除此会话
+                  </button>
+                </div>
               </div>
 
               {/* 消息列表 */}

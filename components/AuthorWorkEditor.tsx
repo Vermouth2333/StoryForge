@@ -54,6 +54,8 @@ type AuthorWorkEditorProps = {
   onCoverUploaded?: (coverUrl: string) => void;
   onUpdated: (data: Record<string, unknown>) => void;
   onStatusChange: (status: string, publishAt?: string | null) => void;
+  /** 草稿态删除；由详情页提供确认逻辑 */
+  onDelete?: () => void;
 };
 
 export default function AuthorWorkEditor({
@@ -71,6 +73,7 @@ export default function AuthorWorkEditor({
   onCoverUploaded,
   onUpdated,
   onStatusChange,
+  onDelete,
 }: AuthorWorkEditorProps) {
   const [name, setName] = useState(initialName);
   const [summary, setSummary] = useState(initialSummary);
@@ -227,7 +230,13 @@ export default function AuthorWorkEditor({
           : "修改后点击「保存并上架」或先保存再单独上架，内容将出现在市场。"}
       </p>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(200px,280px)_1fr]">
+      <div
+        className={
+          onCoverUploaded
+            ? "grid grid-cols-1 gap-6 lg:grid-cols-[minmax(200px,280px)_1fr]"
+            : "w-full"
+        }
+      >
         {onCoverUploaded && (
           <div className="shrink-0">
             <CoverUploader
@@ -239,7 +248,7 @@ export default function AuthorWorkEditor({
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="w-full min-w-0 space-y-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">
             {nameLabel} <span className="text-red-500">*</span>
@@ -298,7 +307,7 @@ export default function AuthorWorkEditor({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         <button
           type="button"
           className="sf-btn-primary"
@@ -328,7 +337,7 @@ export default function AuthorWorkEditor({
             </button>
             <button
               type="button"
-              className="sf-tag"
+              className="sf-btn-secondary"
               disabled={busy}
               onClick={() => confirmUnpublish(kind, name.trim(), () => unpublish())}
             >
@@ -337,14 +346,29 @@ export default function AuthorWorkEditor({
           </>
         )}
         {status !== "published" && (
-          <button type="button" className="sf-tag" disabled={busy} onClick={() => void publishOnly()}>
+          <button
+            type="button"
+            className="sf-btn-secondary"
+            disabled={busy}
+            onClick={() => void publishOnly()}
+          >
             再次上架
           </button>
         )}
         {kind === "story" && (
-          <Link href={`/stories/${id}/edit`} className="sf-tag">
+          <Link href={`/stories/${id}/edit`} className="sf-btn-secondary inline-flex items-center no-underline">
             大纲编辑
           </Link>
+        )}
+        {onDelete && status !== "published" && (
+          <button
+            type="button"
+            className="sf-btn-secondary !border-[#F0C0C0] !text-[#8B2E2E]"
+            disabled={busy}
+            onClick={onDelete}
+          >
+            删除
+          </button>
         )}
       </div>
     </div>

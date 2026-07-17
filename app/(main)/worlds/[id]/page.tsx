@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { App } from "antd";
-import CoverUploader from "@/components/CoverUploader";
-import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -52,7 +51,7 @@ type KnowledgeEntry = {
 };
 
 export default function WorldDetailPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [row, setRow] = useState<WorldDetail | null>(null);
@@ -217,13 +216,26 @@ export default function WorldDetailPage() {
     }
   }
 
-  async function deleteEntry(entryId: string) {
-    if (!window.confirm("确定删除该词条？")) return;
-    const res = await fetch(`/api/worlds/${world.id}/knowledge/${entryId}`, {
-      method: "DELETE",
+  function deleteEntry(entryId: string) {
+    modal.confirm({
+      title: "删除词条",
+      content: "确定删除该词条？此操作不可恢复。",
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/worlds/${world.id}/knowledge/${entryId}`, {
+          method: "DELETE",
+        });
+        const json = await res.json();
+        if (json.code === 200) {
+          await reloadKnowledge();
+          message.success("词条已删除");
+        } else {
+          message.error(json.msg ?? "删除失败");
+        }
+      },
     });
-    const json = await res.json();
-    if (json.code === 200) await reloadKnowledge();
   }
 
   async function saveEdit(entryId: string) {
@@ -242,20 +254,68 @@ export default function WorldDetailPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
+      {/* 对话入口 */}
+      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
+              <span>🌍</span> 探索 {row.name}
+            </h3>
+            <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
+          </div>
+          <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
+            进入对话 →
+          </Link>
+        </div>
+      </div>
+
+      {canEdit && row && (() => {
+        const editorValues = resolveWorldEditorValues(row);
+        return (
+          <AuthorWorkEditor
+            kind="world"
+            id={row.id}
+            status={row.status}
+            hasUnsyncedDraft={Boolean(row.has_unsynced_draft)}
+            name={editorValues.name}
+            summary={editorValues.summary}
+            tagsJson={editorValues.tagsJson}
+            settingNotes={editorValues.settingNotes}
+            coverUrl={row.cover_url}
+            coverThumbnailUrl={row.cover_thumbnail_url}
+            onCoverUploaded={(url) => setRow((prev) => (prev ? { ...prev, cover_url: url } : prev))}
+            onUpdated={(patch) => setRow((prev) => (prev ? { ...prev, ...patch } : prev))}
+            onStatusChange={(st, publishAt) =>
+              setRow((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      status: st,
+                      publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
+                    }
+                  : prev,
+              )
+            }
+            onDelete={handleDelete}
+          />
+        );
+      })()}
+
       {/* 世界信息卡片 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold text-[#1F2A44]">{row.name}</h1>
-            <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{row.summary || "暂无简介"}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link href="/market" className="sf-tag">
-              返回市场
-            </Link>
-            <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
-              🌍 探索世界
-            </Link>
+          {!canEdit && (
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-[#1F2A44]">{row.name}</h1>
+              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{row.summary || "暂无简介"}</p>
+            </div>
+          )}
+          <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
+            {!canEdit && (
+              <Link href="/market" className="sf-tag">
+                返回市场
+              </Link>
+            )}
             <button
               type="button"
               className={`sf-tag ${row.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -279,18 +339,15 @@ export default function WorldDetailPage() {
                 {row.is_following ? "已关注作者" : "＋ 关注作者"}
               </button>
             )}
-            {canEdit && row.status !== "published" && (
-              <button type="button" className="sf-tag !text-[#8B2E2E]" onClick={() => void handleDelete()}>
-                删除
-              </button>
-            )}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <span key={tag} className="sf-tag">{tag}</span>
-          ))}
-        </div>
+        {!canEdit && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <span key={tag} className="sf-tag">{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
             <p className="text-lg font-bold text-[#5B9DFF]">{row.like_count}</p>
@@ -306,60 +363,25 @@ export default function WorldDetailPage() {
           </div>
           <Link href={`/authors/${row.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">
             <p className="text-lg font-bold text-[#5B9DFF]">{row.author_display || "作者"}</p>
-            <p className="text-xs text-[#5B6B8C]">创建者</p>
+            <p className="text-xs text-[#5B6B8C]">作者</p>
           </Link>
         </div>
       </div>
 
-      {canEdit && row && (() => {
-        const editorValues = resolveWorldEditorValues(row);
-        return (
-        <AuthorWorkEditor
-          kind="world"
-          id={row.id}
-          status={row.status}
-          hasUnsyncedDraft={Boolean(row.has_unsynced_draft)}
-          name={editorValues.name}
-          summary={editorValues.summary}
-          tagsJson={editorValues.tagsJson}
-          settingNotes={editorValues.settingNotes}
-          onUpdated={(patch) => setRow((prev) => (prev ? { ...prev, ...patch } : prev))}
-          onStatusChange={(st, publishAt) =>
-            setRow((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    status: st,
-                    publish_at: publishAt !== undefined ? publishAt : prev.publish_at,
-                  }
-                : prev,
-            )
-          }
-        />
-        );
-      })()}
+      {!canEdit && (
+        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+            <span>🖼️</span> 封面图
+          </h3>
+          {row.cover_url ? (
+            <CoverDisplay src={row.cover_url} alt={`${row.name} 封面`} />
+          ) : (
+            <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+          )}
+        </div>
+      )}
 
-      {/* 封面区域 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-          <span>🖼️</span> 封面图
-        </h3>
-        {canEdit ? (
-          <CoverUploader
-            endpoint={`/api/worlds/${row.id}/cover`}
-            coverUrl={row.cover_url}
-            thumbnailUrl={row.cover_thumbnail_url}
-            onUploaded={(url) => setRow((prev) => prev ? { ...prev, cover_url: url } : prev)}
-          />
-        ) : row.cover_url ? (
-          <CoverDisplay src={row.cover_url} alt={`${row.name} 封面`} />
-        ) : (
-          <p className="text-sm text-[#5B6B8C]">暂无封面</p>
-        )}
-      </div>
-
-      {/* 世界设定 */}
-      {row.setting_notes && (
+      {!canEdit && row.setting_notes && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
           <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
             <span>📖</span> 世界设定
@@ -481,21 +503,6 @@ export default function WorldDetailPage() {
             </button>
           </div>
         )}
-      </div>
-
-      {/* 对话入口 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
-              <span>🌍</span> 探索 {row.name}
-            </h3>
-            <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
-          </div>
-          <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
-            进入对话 →
-          </Link>
-        </div>
       </div>
 
       <TargetReviewSection

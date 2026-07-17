@@ -1,49 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ChatWorkspace, type ChatMessageItem, type ChatSessionInfo } from "@/components/ChatWorkspace";
 
 type WorldInfo = {
   id: string;
   name: string;
 };
 
-type SessionInfo = {
-  id: string;
-  session_type: string;
-  title: string | null;
-  created_at: string;
-};
-
-type MessageItem = {
-  id: string;
-  role: "system" | "user" | "assistant";
-  content: string;
-  created_at: string;
-};
-
 export default function WorldChatPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const resumeSessionId = searchParams.get("session") ?? "";
   const [world, setWorld] = useState<WorldInfo | null>(null);
-  const [sessions, setSessions] = useState<SessionInfo[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string>("");
-  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [sessions, setSessions] = useState<ChatSessionInfo[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState("");
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [streamText, setStreamText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void (async () => {
       const id = params.id;
       if (!id) return;
-      const [worldRes, sessRes] = await Promise.all([
+      const [worldRes, worldSessRes, exploreSessRes] = await Promise.all([
         fetch(`/api/worlds/${id}`),
         fetch(`/api/chat/sessions?session_type=world&world_id=${id}`),
+        fetch(`/api/chat/sessions?session_type=explore&world_id=${id}`),
       ]);
       const worldJson = await worldRes.json();
       if (worldJson.code === 200) {
@@ -51,16 +40,38 @@ export default function WorldChatPage() {
       } else {
         setError(worldJson.msg ?? "加载失败");
       }
-      const sessJson = await sessRes.json();
-      if (sessJson.code === 200) {
-        const list = (sessJson.data ?? []) as SessionInfo[];
-        list.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-        setSessions(list);
-        if (list.length > 0) setActiveSessionId(list[0].id);
+      const worldSessJson = await worldSessRes.json();
+      const exploreSessJson = await exploreSessRes.json();
+      let list = [
+        ...((worldSessJson.code === 200 ? worldSessJson.data : []) as ChatSessionInfo[]),
+        ...((exploreSessJson.code === 200 ? exploreSessJson.data : []) as ChatSessionInfo[]),
+      ];
+      list.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+
+      if (resumeSessionId && !list.some((s) => s.id === resumeSessionId)) {
+        const detailRes = await fetch(`/api/chat/sessions/${resumeSessionId}`);
+        const detailJson = await detailRes.json();
+        if (detailJson.code === 200 && detailJson.data?.world_id === id) {
+          list = [
+            {
+              id: detailJson.data.id,
+              title: detailJson.data.title,
+              created_at: detailJson.data.created_at,
+            },
+            ...list,
+          ];
+        }
+      }
+
+      setSessions(list);
+      if (resumeSessionId && list.some((s) => s.id === resumeSessionId)) {
+        setActiveSessionId(resumeSessionId);
+      } else if (list.length > 0) {
+        setActiveSessionId(list[0].id);
       }
       setLoading(false);
     })();
-  }, [params.id]);
+  }, [params.id, resumeSessionId]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -70,17 +81,10 @@ export default function WorldChatPage() {
     void (async () => {
       const res = await fetch(`/api/chat/sessions/${activeSessionId}/messages`);
       const json = await res.json();
-      if (json.code === 200) {
-        setMessages(json.data ?? []);
-      } else {
-        setMessages([]);
-      }
+      if (json.code === 200) setMessages(json.data ?? []);
+      else setMessages([]);
     })();
   }, [activeSessionId]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamText]);
 
   async function createSession() {
     if (!world) return;
@@ -90,19 +94,20 @@ export default function WorldChatPage() {
       body: JSON.stringify({
         session_type: "world",
         world_id: params.id,
-        title: `与${world.name}对话`,
+        title: `探索${world.name}`,
       }),
     });
     const json = await res.json();
     if (json.code === 200) {
-      const newSessionId = json.data.session_id;
-      const newSession: SessionInfo = {
-        id: newSessionId,
-        session_type: "world",
-        title: `与${world.name}对话`,
-        created_at: new Date().toISOString(),
-      };
-      setSessions((prev) => [newSession, ...prev]);
+      const newSessionId = json.data.session_id as string;
+      setSessions((prev) => [
+        {
+          id: newSessionId,
+          title: `探索${world.name}`,
+          created_at: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
       setActiveSessionId(newSessionId);
       setMessages([]);
     }
@@ -115,13 +120,15 @@ export default function WorldChatPage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const userMsg: MessageItem = {
-      id: "temp_" + Date.now(),
-      role: "user",
-      content: inputMessage,
-      created_at: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "temp_" + Date.now(),
+        role: "user",
+        content: inputMessage,
+        created_at: new Date().toISOString(),
+      },
+    ]);
     const sending = inputMessage;
     setInputMessage("");
 
@@ -151,19 +158,21 @@ export default function WorldChatPage() {
           if (!line.startsWith("data:")) continue;
           const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
           if (payload.type === "content") {
-            acc += payload.content;
+            acc += payload.content ?? "";
             setStreamText(acc);
           }
         }
       }
       if (acc) {
-        const assistantMsg: MessageItem = {
-          id: "assistant_" + Date.now(),
-          role: "assistant",
-          content: acc,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: "assistant_" + Date.now(),
+            role: "assistant",
+            content: acc,
+            created_at: new Date().toISOString(),
+          },
+        ]);
       }
       setStreamText("");
     } catch (err: unknown) {
@@ -172,13 +181,15 @@ export default function WorldChatPage() {
       if (isAbort) {
         setStreamText((cur) => {
           if (cur) {
-            const assistantMsg: MessageItem = {
-              id: "assistant_" + Date.now(),
-              role: "assistant",
-              content: cur + "\n\n（已停止生成）",
-              created_at: new Date().toISOString(),
-            };
-            setMessages((prev) => [...prev, assistantMsg]);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: "assistant_" + Date.now(),
+                role: "assistant",
+                content: cur + "\n\n（已停止生成）",
+                created_at: new Date().toISOString(),
+              },
+            ]);
           }
           return "";
         });
@@ -189,162 +200,37 @@ export default function WorldChatPage() {
     }
   }
 
-  function stopGeneration() {
-    abortRef.current?.abort();
-  }
-
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-5xl p-6">
-        <p className="text-sm text-[#5B6B8C]">加载中...</p>
-      </main>
-    );
-  }
+  if (loading) return <main className="sf-loading" />;
   if (error || !world) {
     return (
-      <main className="mx-auto max-w-5xl p-6">
+      <main className="mx-auto max-w-3xl p-6">
         <p className="text-sm text-red-500">{error || "世界不存在"}</p>
-        <Link href="/market" className="sf-tag mt-4 inline-block">返回市场</Link>
+        <Link href="/market" className="sf-tag mt-4 inline-block">
+          返回市场
+        </Link>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-5xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <Link href={`/worlds/${world.id}`} className="sf-tag">
-          ← 返回世界详情
-        </Link>
-        <h1 className="text-lg font-bold text-[#1F2A44]">
-          与 {world.name} 对话
-        </h1>
-        <div className="w-24" />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
-        <aside className="rounded-xl border border-[#DCE9FF] bg-white p-4 max-h-[70vh] overflow-y-auto">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-[#1F2A44]">历史会话</h3>
-            <button className="sf-btn-secondary text-xs" onClick={createSession}>
-              + 新会话
-            </button>
-          </div>
-          {sessions.length === 0 ? (
-            <p className="text-xs text-[#5B6B8C]">暂无历史会话</p>
-          ) : (
-            <ul className="space-y-2">
-              {sessions.map((s) => (
-                <li key={s.id}>
-                  <button
-                    className={`w-full text-left rounded-lg px-3 py-2 text-xs transition-colors ${
-                      s.id === activeSessionId
-                        ? "bg-[#5B9DFF] text-white"
-                        : "bg-[#F8FBFF] text-[#1F2A44] hover:bg-[#EEF6FF]"
-                    }`}
-                    onClick={() => setActiveSessionId(s.id)}
-                  >
-                    <p className="truncate font-medium">{s.title || "未命名会话"}</p>
-                    <p className={`mt-1 text-[10px] ${s.id === activeSessionId ? "text-white/80" : "text-[#5B6B8C]"}`}>
-                      {new Date(s.created_at).toLocaleString()}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
-
-        <section className="rounded-xl border border-[#DCE9FF] bg-white p-6 flex flex-col max-h-[70vh]">
-          {!activeSessionId ? (
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
-                <p className="mb-3 text-sm text-[#5B6B8C]">暂无活跃会话，点击“新会话”开始对话</p>
-                <button className="sf-btn-primary" onClick={createSession}>
-                  💬 开始对话
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="flex-1 space-y-3 overflow-y-auto mb-4 pr-1">
-                {messages.length === 0 && !streamText && (
-                  <p className="py-8 text-center text-sm text-[#5B6B8C]">
-                    输入消息开始与 {world.name} 对话
-                  </p>
-                )}
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`rounded-xl p-4 ${
-                      msg.role === "user"
-                        ? "bg-[#EEF6FF] border-l-4 border-[#5B9DFF]"
-                        : "bg-[#F0F9FF] border-l-4 border-[#4FACFE]"
-                    }`}
-                  >
-                    <div className="mb-2 flex items-center gap-2">
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                          msg.role === "user"
-                            ? "bg-[#5B9DFF] text-white"
-                            : "bg-[#4FACFE] text-white"
-                        }`}
-                      >
-                        {msg.role === "user" ? "我" : world.name}
-                      </span>
-                      <span className="text-[10px] text-[#5B6B8C]">
-                        {new Date(msg.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2A44]">
-                      {msg.content}
-                    </p>
-                  </div>
-                ))}
-                {streamText && (
-                  <div className="rounded-xl border-l-4 border-[#4FACFE] bg-[#F0F9FF] p-4">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded-full bg-[#4FACFE] px-2 py-1 text-xs font-semibold text-white">
-                        {world.name}
-                      </span>
-                    </div>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#1F2A44]">
-                      {streamText}▌
-                    </p>
-                  </div>
-                )}
-                <div ref={bottomRef} />
-              </div>
-              <div className="flex gap-3">
-                <input
-                  className="sf-input flex-1"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void sendMessage();
-                    }
-                  }}
-                  placeholder={`与 ${world.name} 对话...`}
-                  disabled={busy}
-                />
-                <button
-                  className="sf-btn-primary"
-                  onClick={sendMessage}
-                  disabled={busy || !inputMessage.trim()}
-                >
-                  {busy ? "发送中..." : "发送"}
-                </button>
-                {busy && (
-                  <button className="sf-btn-secondary" onClick={stopGeneration}>
-                    停止
-                  </button>
-                )}
-              </div>
-            </>
-          )}
-        </section>
-      </div>
-    </main>
+    <ChatWorkspace
+      backHref={`/worlds/${world.id}`}
+      backLabel="世界详情"
+      title={`探索 ${world.name}`}
+      assistantName={world.name}
+      placeholder="描述你想探索的情节或提问世界观…"
+      emptyHint={`在 ${world.name} 中开始探索吧`}
+      sessions={sessions}
+      activeSessionId={activeSessionId}
+      onSelectSession={setActiveSessionId}
+      onCreateSession={createSession}
+      messages={messages}
+      streamText={streamText}
+      busy={busy}
+      inputMessage={inputMessage}
+      onInputChange={setInputMessage}
+      onSend={sendMessage}
+      onStop={() => abortRef.current?.abort()}
+    />
   );
 }

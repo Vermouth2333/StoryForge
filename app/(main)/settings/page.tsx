@@ -19,7 +19,7 @@ type Profile = {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -48,8 +48,14 @@ export default function SettingsPage() {
   const [showModelForm, setShowModelForm] = useState(false);
   const [editingModel, setEditingModel] = useState<typeof models[number] | null>(null);
   const [modelForm, setModelForm] = useState({
-    name: "", provider: "openai" as string, modelName: "", baseUrl: "", apiKey: "",
-    defaultTemperature: 0.7, maxTokens: 4096, enabled: true,
+    name: "",
+    provider: "deepseek" as string,
+    modelName: "deepseek-chat",
+    baseUrl: "https://api.deepseek.com/v1",
+    apiKey: "",
+    defaultTemperature: 0.7,
+    maxTokens: 4096,
+    enabled: true,
   });
   const [modelBusy, setModelBusy] = useState(false);
 
@@ -340,7 +346,7 @@ export default function SettingsPage() {
           <span>🤖</span> AI 模型管理
         </h3>
         <p className="text-sm text-[#5B6B8C] mb-6">
-          添加和管理你的 AI 模型，配置 API Key 后即可在创作中使用。支持 OpenAI、Anthropic、Ollama 等兼容接口。
+          添加和管理你的 AI 模型，配置 API Key 后即可在创作中使用。支持 DeepSeek、OpenAI、Anthropic、Ollama 及 OpenAI 兼容接口。
         </p>
 
         {/* 模型列表 */}
@@ -413,16 +419,25 @@ export default function SettingsPage() {
                   </button>
                   <button
                     className="text-xs text-red-400 hover:text-red-600"
-                    onClick={async () => {
-                      if (!confirm("确定删除此模型？")) return;
-                      const r = await fetch(`/api/models?id=${m.id}`, { method: "DELETE" });
-                      const j = await r.json();
-                      if (j.code === 200) {
-                        message.success("模型已删除");
-                        await loadModels();
-                      } else {
-                        message.error(j.msg ?? "删除失败");
-                      }
+                    onClick={() => {
+                      modal.confirm({
+                        title: "删除模型",
+                        content: `确定删除「${m.name}」？此操作不可恢复。`,
+                        okText: "删除",
+                        okButtonProps: { danger: true },
+                        cancelText: "取消",
+                        onOk: async () => {
+                          const r = await fetch(`/api/models?id=${m.id}`, { method: "DELETE" });
+                          const j = await r.json();
+                          if (j.code === 200) {
+                            message.success("模型已删除");
+                            await loadModels();
+                          } else {
+                            message.error(j.msg ?? "删除失败");
+                            return Promise.reject();
+                          }
+                        },
+                      });
                     }}
                   >
                     删除
@@ -459,8 +474,23 @@ export default function SettingsPage() {
                 <select
                   className="sf-input"
                   value={modelForm.provider}
-                  onChange={(e) => setModelForm((f) => ({ ...f, provider: e.target.value }))}
+                  onChange={(e) => {
+                    const provider = e.target.value;
+                    setModelForm((f) => {
+                      const next = { ...f, provider };
+                      if (provider === "deepseek") {
+                        return {
+                          ...next,
+                          name: f.name || "DeepSeek Chat",
+                          modelName: f.modelName || "deepseek-chat",
+                          baseUrl: f.baseUrl || "https://api.deepseek.com/v1",
+                        };
+                      }
+                      return next;
+                    });
+                  }}
                 >
+                  <option value="deepseek">DeepSeek</option>
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="ollama">Ollama (本地)</option>
@@ -471,7 +501,11 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">模型 ID *</label>
                 <input
                   className="sf-input"
-                  placeholder="如：gpt-4o, claude-3-opus-20240229"
+                  placeholder={
+                    modelForm.provider === "deepseek"
+                      ? "如：deepseek-chat / deepseek-reasoner"
+                      : "如：gpt-4o, claude-3-opus-20240229"
+                  }
                   value={modelForm.modelName}
                   onChange={(e) => setModelForm((f) => ({ ...f, modelName: e.target.value }))}
                 />
@@ -480,7 +514,11 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">API Base URL</label>
                 <input
                   className="sf-input"
-                  placeholder="留空使用默认地址"
+                  placeholder={
+                    modelForm.provider === "deepseek"
+                      ? "默认 https://api.deepseek.com/v1"
+                      : "留空使用默认地址"
+                  }
                   value={modelForm.baseUrl}
                   onChange={(e) => setModelForm((f) => ({ ...f, baseUrl: e.target.value }))}
                 />
@@ -494,6 +532,19 @@ export default function SettingsPage() {
                   value={modelForm.apiKey}
                   onChange={(e) => setModelForm((f) => ({ ...f, apiKey: e.target.value }))}
                 />
+                {modelForm.provider === "deepseek" ? (
+                  <p className="mt-1.5 text-xs text-[#5B6B8C]">
+                    还没有 Key？前往{" "}
+                    <a
+                      href="https://platform.deepseek.com/api_keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#5B9DFF] hover:underline"
+                    >
+                      DeepSeek 开放平台申请 API Key
+                    </a>
+                  </p>
+                ) : null}
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">Temperature</label>
@@ -572,7 +623,16 @@ export default function SettingsPage() {
                     if (json.code === 200) {
                       setShowModelForm(false);
                       setEditingModel(null);
-                      setModelForm({ name: "", provider: "openai", modelName: "", baseUrl: "", apiKey: "", defaultTemperature: 0.7, maxTokens: 4096, enabled: true });
+                      setModelForm({
+                        name: "",
+                        provider: "deepseek",
+                        modelName: "deepseek-chat",
+                        baseUrl: "https://api.deepseek.com/v1",
+                        apiKey: "",
+                        defaultTemperature: 0.7,
+                        maxTokens: 4096,
+                        enabled: true,
+                      });
                       await loadModels();
                       message.success(editingModel ? "模型已更新" : "模型已添加");
                     } else {
@@ -593,7 +653,16 @@ export default function SettingsPage() {
                 onClick={() => {
                   setShowModelForm(false);
                   setEditingModel(null);
-                  setModelForm({ name: "", provider: "openai", modelName: "", baseUrl: "", apiKey: "", defaultTemperature: 0.7, maxTokens: 4096, enabled: true });
+                  setModelForm({
+                    name: "",
+                    provider: "deepseek",
+                    modelName: "deepseek-chat",
+                    baseUrl: "https://api.deepseek.com/v1",
+                    apiKey: "",
+                    defaultTemperature: 0.7,
+                    maxTokens: 4096,
+                    enabled: true,
+                  });
                 }}
               >
                 取消
@@ -604,7 +673,20 @@ export default function SettingsPage() {
           <button
             type="button"
             className="sf-btn-primary"
-            onClick={() => setShowModelForm(true)}
+            onClick={() => {
+              setEditingModel(null);
+              setModelForm({
+                name: "DeepSeek Chat",
+                provider: "deepseek",
+                modelName: "deepseek-chat",
+                baseUrl: "https://api.deepseek.com/v1",
+                apiKey: "",
+                defaultTemperature: 0.7,
+                maxTokens: 4096,
+                enabled: true,
+              });
+              setShowModelForm(true);
+            }}
           >
             + 添加模型
           </button>

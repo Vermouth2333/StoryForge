@@ -220,7 +220,11 @@ export async function POST(
               user_id: userId,
             });
             usedModelName = "mock-model";
-            for (const part of MOCK_CHUNKS) {
+            for (const part of [
+              "已配置的模型调用失败（请检查 API Key、额度与 Base URL）。",
+              "DeepSeek 请确认 Base URL 为 https://api.deepseek.com/v1 。",
+              "也可到「设置 → AI 模型管理」核对后重试。",
+            ]) {
               emit(part);
             }
           }

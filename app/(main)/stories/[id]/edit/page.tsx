@@ -625,10 +625,19 @@ export default function StoryOutlineEditPage() {
     await load();
   }
 
-  async function deleteRelation(relationId: string) {
-    if (!confirm("删除该人物关系？")) return;
-    await fetch(`/api/stories/${storyId}/relations/${relationId}`, { method: "DELETE" });
-    await load();
+  function deleteRelation(relationId: string) {
+    modal.confirm({
+      title: "删除人物关系",
+      content: "确定删除该人物关系？",
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        await fetch(`/api/stories/${storyId}/relations/${relationId}`, { method: "DELETE" });
+        await load();
+        message.success("关系已删除");
+      },
+    });
   }
 
   if (!storyId) return null;

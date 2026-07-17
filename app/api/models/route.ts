@@ -3,7 +3,7 @@ import { getCurrentUserId } from "@/lib/auth";
 import { ModelManager } from "@/lib/model-manager";
 import { z } from "zod";
 
-const providerValues = ["openai", "anthropic", "ollama", "custom"] as const;
+const providerValues = ["openai", "anthropic", "deepseek", "ollama", "custom"] as const;
 
 const CreateSchema = z.object({
   name: z.string().min(1).max(100),

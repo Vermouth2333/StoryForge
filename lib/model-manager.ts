@@ -3,7 +3,7 @@ import { getDb, id, nowIso } from "@/lib/db";
 export interface ModelConfig {
   id: string;
   name: string;
-  provider: "openai" | "anthropic" | "ollama" | "custom";
+  provider: "openai" | "anthropic" | "deepseek" | "ollama" | "custom";
   baseUrl?: string;
   apiKey?: string;
   modelName: string;

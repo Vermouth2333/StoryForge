@@ -191,6 +191,32 @@ export default function StoryDetailPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
+      {/* 操作入口 */}
+      <div className={`mb-6 grid grid-cols-1 gap-4${canEdit ? " sm:grid-cols-2" : ""}`}>
+        {canEdit && (
+          <Link
+            href={`/stories/${story.id}/edit`}
+            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
+          >
+            <span className="text-xl">📖</span>
+            <div className="text-left">
+              <p className="font-medium text-[#1F2A44]">章节大纲</p>
+              <p className="text-xs text-[#5B6B8C]">编辑故事章节结构</p>
+            </div>
+          </Link>
+        )}
+        <Link
+          href={`/stories/${story.id}/play`}
+          className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
+        >
+          <span className="text-xl">🎮</span>
+          <div className="text-left">
+            <p className="font-medium text-[#5B9DFF]">互动体验</p>
+            <p className="text-xs text-[#5B6B8C]">选择角色开始冒险</p>
+          </div>
+        </Link>
+      </div>
+
       {canEdit && story && (() => {
         const editorValues = resolveStoryEditorValues(story);
         return (
@@ -227,6 +253,7 @@ export default function StoryDetailPage() {
                   : prev,
               )
             }
+            onDelete={handleDelete}
           />
         );
       })()}
@@ -241,12 +268,11 @@ export default function StoryDetailPage() {
             </div>
           )}
           <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
-            <Link href={canEdit ? "/my" : "/market"} className="sf-tag">
-              {canEdit ? "返回我的" : "返回市场"}
-            </Link>
-            <Link href={`/stories/${story.id}/play`} className="sf-btn-primary">
-              🎮 开始体验
-            </Link>
+            {!canEdit && (
+              <Link href="/market" className="sf-tag">
+                返回市场
+              </Link>
+            )}
             <button
               type="button"
               className={`sf-tag ${story.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
@@ -268,11 +294,6 @@ export default function StoryDetailPage() {
                 onClick={() => void toggleFollow()}
               >
                 {story.is_following ? "已关注作者" : "＋ 关注作者"}
-              </button>
-            )}
-            {canEdit && story.status !== "published" && (
-              <button type="button" className="sf-tag !text-[#8B2E2E]" onClick={() => void handleDelete()}>
-                删除
               </button>
             )}
           </div>
@@ -344,37 +365,6 @@ export default function StoryDetailPage() {
           </div>
         </div>
       )}
-
-      {/* 操作入口 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-          <span>📚</span> 更多操作
-        </h3>
-        <div className={`grid grid-cols-1 gap-4${canEdit ? " sm:grid-cols-2" : ""}`}>
-          {canEdit && (
-          <Link
-            href={`/stories/${story.id}/edit`}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
-          >
-            <span className="text-xl">📖</span>
-            <div className="text-left">
-              <p className="font-medium text-[#1F2A44]">章节大纲</p>
-              <p className="text-xs text-[#5B6B8C]">编辑故事章节结构</p>
-            </div>
-          </Link>
-          )}
-          <Link
-            href={`/stories/${story.id}/play`}
-            className="flex items-center justify-center gap-2 rounded-xl bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
-          >
-            <span className="text-xl">🎮</span>
-            <div className="text-left">
-              <p className="font-medium text-[#5B9DFF]">互动体验</p>
-              <p className="text-xs text-[#5B6B8C]">选择角色开始冒险</p>
-            </div>
-          </Link>
-        </div>
-      </div>
 
       <TargetReviewSection
         targetType="story"
