@@ -4,8 +4,12 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StoryForge MVP",
-  description: "StoryForge interactive novel creation platform MVP",
+  title: "StoryForge",
+  description: "StoryForge interactive novel creation platform",
+  icons: {
+    icon: [{ url: "/brand/logo.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/brand/logo.svg" }],
+  },
 };
 
 export default function RootLayout({

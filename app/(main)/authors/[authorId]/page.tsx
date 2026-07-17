@@ -4,6 +4,7 @@ import { App } from "antd";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { IconBadge, Star } from "@/components/icons";
 
 interface WorkItem {
   id: string;
@@ -156,7 +157,9 @@ export default function AuthorPage() {
                   <p className="mt-1 line-clamp-2 text-sm text-[#5B6B8C]">{story.summary}</p>
                   <div className="mt-2 flex items-center gap-2 text-xs text-[#5B6B8C]">
                     <span>❤️ {story.like_count}</span>
-                    <span>⭐ {story.favorite_count}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconBadge icon={Star} tone="star" size="sm" /> {story.favorite_count}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -176,7 +179,9 @@ export default function AuthorPage() {
                   <p className="mt-1 line-clamp-2 text-sm text-[#5B6B8C]">{character.summary}</p>
                   <div className="mt-2 flex items-center gap-2 text-xs text-[#5B6B8C]">
                     <span>❤️ {character.like_count}</span>
-                    <span>⭐ {character.favorite_count}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconBadge icon={Star} tone="star" size="sm" /> {character.favorite_count}
+                    </span>
                   </div>
                 </div>
               </Link>
@@ -196,7 +201,9 @@ export default function AuthorPage() {
                   <p className="mt-1 line-clamp-2 text-sm text-[#5B6B8C]">{world.summary}</p>
                   <div className="mt-2 flex items-center gap-2 text-xs text-[#5B6B8C]">
                     <span>❤️ {world.like_count}</span>
-                    <span>⭐ {world.favorite_count}</span>
+                    <span className="inline-flex items-center gap-1">
+                      <IconBadge icon={Star} tone="star" size="sm" /> {world.favorite_count}
+                    </span>
                   </div>
                 </div>
               </Link>

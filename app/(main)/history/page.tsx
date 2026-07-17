@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { App } from "antd";
+import { EmptyState } from "@/components/EmptyState";
+import { IconBadge, Inbox, MessagesSquare, MessageSquareText, MousePointerClick } from "@/components/icons";
+import { PageHero } from "@/components/PageHero";
 import { getContinueSessionHref } from "@/lib/session-continue";
 
 type SessionItem = {
@@ -161,29 +164,25 @@ export default function HistoryPage() {
   }, [selectedSessionForHistory]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
-      {/* 页面标题 */}
-      <div className="flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="sf-reveal">
-            <h2 className="section-title">会话历史</h2>
-            <p className="section-subtitle">查看和管理你的创作会话记录</p>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <PageHero
+        title="会话历史"
+        subtitle="查看和管理你的创作会话记录"
+        actions={
+          <div className="flex items-center gap-2">
+            <input
+              className="sf-input w-40 md:w-56"
+              placeholder="搜索会话..."
+              value={sessionKeyword}
+              onChange={(e) => setSessionKeyword(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && loadSessions()}
+            />
+            <button className="sf-btn-secondary shrink-0" onClick={loadSessions}>
+              搜索
+            </button>
           </div>
-        </div>
-        {/* 搜索框 */}
-        <div className="flex items-center gap-2">
-          <input
-            className="sf-input w-48 md:w-64"
-            placeholder="搜索会话..."
-            value={sessionKeyword}
-            onChange={(e) => setSessionKeyword(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && loadSessions()}
-          />
-          <button className="sf-btn-secondary shrink-0" onClick={loadSessions}>
-            搜索
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* 会话列表和消息 */}
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:grid lg:grid-cols-[minmax(280px,340px)_1fr]">
@@ -191,7 +190,7 @@ export default function HistoryPage() {
         <div className="sf-card flex max-h-[36vh] min-h-0 flex-col p-5 lg:max-h-none lg:h-full">
           <div className="mb-4 flex shrink-0 items-center justify-between">
             <h3 className="flex items-center gap-2 text-base font-semibold text-[#1f2a44]">
-              <span>💬</span> 会话列表
+              <IconBadge icon={MessagesSquare} tone="history" size="sm" /> 会话列表
             </h3>
             <span className="text-xs text-[#5b6b8c]">{sessions.length} 个会话</span>
           </div>
@@ -249,10 +248,12 @@ export default function HistoryPage() {
               </div>
             ))}
             {sessions.length === 0 && (
-              <div className="py-12 text-center text-[#5b6b8c]">
-                <div className="mb-3 text-4xl">📭</div>
-                <p className="text-sm">暂无会话记录</p>
-              </div>
+              <EmptyState
+                icon={Inbox}
+                tone="empty"
+                description="暂无会话记录"
+                className="py-8"
+              />
             )}
           </div>
         </div>
@@ -322,10 +323,12 @@ export default function HistoryPage() {
                   </div>
                 ))}
                 {messages.length === 0 && (
-                  <div className="py-12 text-center text-[#5b6b8c]">
-                    <div className="mb-3 text-4xl">💬</div>
-                    <p className="text-sm">该会话暂无消息</p>
-                  </div>
+                  <EmptyState
+                    icon={MessageSquareText}
+                    tone="empty"
+                    description="该会话暂无消息"
+                    className="py-8"
+                  />
                 )}
               </div>
 
@@ -401,10 +404,12 @@ export default function HistoryPage() {
               </div>
             </>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center text-[#5b6b8c]">
-              <div className="mb-4 text-6xl">👈</div>
-              <p className="text-sm">选择一个会话查看消息</p>
-            </div>
+            <EmptyState
+              icon={MousePointerClick}
+              tone="empty"
+              description="选择一个会话查看消息"
+              className="h-full py-8"
+            />
           )}
         </div>
       </div>

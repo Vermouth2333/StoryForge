@@ -102,9 +102,10 @@ export default function CoverUploader({
         <CoverDisplay
           src={preview}
           alt="封面预览"
+          uploadEmpty
           placeholder={
             <div className="market-card-placeholder">
-              <span className="text-sm text-[#5B6B8C]">点击上传封面</span>
+              <span className="sf-cover-upload-hint">点击上传封面</span>
             </div>
           }
         />

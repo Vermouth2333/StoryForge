@@ -4,6 +4,8 @@ import { App } from "antd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Bot, IconBadge, Lock, AlertTriangle, UserRound } from "@/components/icons";
+import { PageHero } from "@/components/PageHero";
 import { replayHeaders } from "@/lib/replay-headers";
 
 type Profile = {
@@ -169,22 +171,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* 页面标题 */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="section-title">账号设置</h2>
-          <p className="section-subtitle">管理你的个人信息和账号安全</p>
-        </div>
-        <Link href="/" className="sf-tag">
-          返回首页
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        title="账号设置"
+        subtitle="管理你的个人信息和账号安全"
+        actions={
+          <Link href="/" className="sf-tag">
+            返回首页
+          </Link>
+        }
+      />
 
       {/* 个人信息 */}
       <div className="sf-card p-6">
         <h3 className="text-base font-semibold text-[#1F2A44] mb-6 flex items-center gap-2">
-          <span>👤</span> 个人信息
+          <IconBadge icon={UserRound} tone="user" size="sm" /> 个人信息
         </h3>
 
         <div className="space-y-6">
@@ -318,7 +319,7 @@ export default function SettingsPage() {
       {/* 安全设置 */}
       <div className="sf-card p-6">
         <h3 className="text-base font-semibold text-[#1F2A44] mb-6 flex items-center gap-2">
-          <span>🔒</span> 安全设置
+          <IconBadge icon={Lock} tone="secure" size="sm" /> 安全设置
         </h3>
 
         <div className="space-y-4">
@@ -343,7 +344,7 @@ export default function SettingsPage() {
       {/* 模型管理 */}
       <div className="sf-card p-6">
         <h3 className="text-base font-semibold text-[#1F2A44] mb-2 flex items-center gap-2">
-          <span>🤖</span> AI 模型管理
+          <IconBadge icon={Bot} tone="ai" size="sm" /> AI 模型管理
         </h3>
         <p className="text-sm text-[#5B6B8C] mb-6">
           添加和管理你的 AI 模型，配置 API Key 后即可在创作中使用。支持 DeepSeek、OpenAI、Anthropic、Ollama 及 OpenAI 兼容接口。
@@ -696,7 +697,7 @@ export default function SettingsPage() {
       {/* 危险操作 */}
       <div className="sf-card border-[#FFD6D6] bg-[#FFF8F8] p-6">
         <h3 className="text-base font-semibold text-[#8B2E2E] mb-4 flex items-center gap-2">
-          <span>⚠️</span> 账号注销
+          <IconBadge icon={AlertTriangle} tone="danger" size="sm" /> 账号注销
         </h3>
 
         <p className="text-sm text-[#5B6B8C] mb-6">

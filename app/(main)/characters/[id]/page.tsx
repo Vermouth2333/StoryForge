@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { App } from "antd";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import { IconBadge, VenetianMask } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -320,7 +321,7 @@ export default function CharacterDetailPage() {
       {!canEdit && row.personality && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
           <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-            <span>🎭</span> 性格与设定
+            <IconBadge icon={VenetianMask} tone="character" size="sm" /> 性格与设定
           </h3>
           <p className="mt-3 whitespace-pre-wrap text-sm text-[#5B6B8C] leading-relaxed">
             {row.personality}

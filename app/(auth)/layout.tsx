@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,12 +18,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       />
 
       <div className="relative z-10 mb-8 text-center">
-        <Link href="/" className="no-underline">
-          <h1 className="font-[family-name:var(--font-display,ui-serif)] text-3xl font-bold tracking-tight text-[#1F2A44] md:text-4xl">
-            StoryForge
-          </h1>
+        <Link
+          href="/"
+          className="inline-flex justify-center no-underline [&_.sf-wordmark]:text-3xl md:[&_.sf-wordmark]:text-4xl"
+          aria-label="StoryForge 首页"
+        >
+          <BrandLogo size={48} className="justify-center" />
         </Link>
-        <p className="mt-2 text-sm text-[#5B6B8C]">互动小说创作平台</p>
+        <p className="mt-3 text-sm text-[#5B6B8C]">互动小说创作平台</p>
       </div>
 
       <div className="relative z-10 w-full max-w-md">{children}</div>

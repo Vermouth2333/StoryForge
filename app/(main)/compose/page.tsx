@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { message } from "antd";
 import { useState } from "react";
 import CoverFileField from "@/components/CoverFileField";
+import { WorkTypeIcon } from "@/components/icons";
+import { PageHero } from "@/components/PageHero";
 import WorkImportPanel from "@/components/WorkImportPanel";
 import { uploadWorkCover } from "@/lib/upload-cover";
 import type { WorkImportFields } from "@/components/WorkImportPanel";
@@ -155,20 +157,18 @@ export default function ComposePage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="sf-hero-banner sf-reveal">
-        <div className="relative z-10">
-          <h2 className="section-title">创作工作台</h2>
-          <p className="section-subtitle">创建故事、角色卡或世界卡，创建后进入对应编辑页继续完善</p>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        title="创作工作台"
+        subtitle="创建故事、角色卡或世界卡，创建后进入对应编辑页继续完善"
+      />
 
       {/* 创建类型切换 Tab */}
       <div className="sf-card flex flex-wrap items-center gap-2 p-3">
         {([
-          { key: "story", label: "📚 故事" },
-          { key: "character", label: "🎭 角色卡" },
-          { key: "world", label: "🌍 世界卡" },
+          { key: "story", label: "故事" },
+          { key: "character", label: "角色卡" },
+          { key: "world", label: "世界卡" },
         ] as const).map((t) => {
           const active = createTab === t.key;
           return (
@@ -178,12 +178,13 @@ export default function ComposePage() {
               onClick={() => setCreateTab(t.key)}
               aria-pressed={active}
               className={
-                "sf-tag transition-all duration-150 " +
+                "sf-tag inline-flex items-center gap-1.5 transition-all duration-150 " +
                 (active
                   ? "bg-[#3f86f5] text-white border-[#3f86f5] shadow-[0_4px_12px_rgba(63,134,245,0.35)] font-medium scale-[1.03]"
                   : "hover:border-[#3f86f5] hover:text-[#3f86f5]")
               }
             >
+              <WorkTypeIcon type={t.key} size="sm" />
               {t.label}
             </button>
           );

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { BrandLogo } from "@/components/BrandLogo";
+import { IconBadge, NavIcons, NavTones } from "@/components/icons";
 import PageMotion from "@/components/PageMotion";
 
 function useRouteHash() {
@@ -116,8 +118,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           菜单
         </button>
-        <Link href="/" className="font-semibold text-[var(--foreground)]">
-          StoryForge
+        <Link href="/" className="no-underline" aria-label="StoryForge 首页">
+          <BrandLogo size={28} />
         </Link>
         <span className="w-10 text-right text-xs text-[var(--text-secondary)]">{unread > 0 ? unread : ""}</span>
       </header>
@@ -154,12 +156,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
             <Link
               href="/"
-              className="sf-brand-mark block font-extrabold text-xl text-[var(--foreground)]"
+              className="block no-underline"
               onClick={closeMobile}
+              aria-label="StoryForge 首页"
             >
-              <span className="sf-brand-dot hidden lg:inline-block" aria-hidden />
-              <span className="inline md:hidden lg:inline">StoryForge</span>
-              <span className="hidden md:inline lg:hidden text-2xl">SF</span>
+              <span className="inline-flex md:hidden lg:inline-flex">
+                <BrandLogo size={34} />
+              </span>
+              <span className="hidden md:inline-flex lg:hidden justify-center w-full">
+                <BrandLogo size={30} showWordmark={false} />
+              </span>
             </Link>
             <p className="mt-2 hidden text-xs leading-relaxed text-[var(--text-secondary)] lg:block">
               AI 驱动的交互式小说创作平台
@@ -173,10 +179,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               className={navClass(marketActive)}
               onClick={closeMobile}
             >
-              <span className="shrink-0 text-xl" aria-hidden>
-                📖
+              <IconBadge
+                icon={NavIcons.market}
+                tone={NavTones.market}
+                size="md"
+                active={marketActive}
+              />
+              <span
+                className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--market ${marketActive ? "is-active" : ""}`}
+              >
+                市场
               </span>
-              <span className="inline md:hidden lg:inline truncate font-medium">市场</span>
             </Link>
             {profile && (
               <>
@@ -186,10 +199,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={navClass(composeActive)}
                   onClick={closeMobile}
                 >
-                  <span className="shrink-0 text-xl" aria-hidden>
-                    ✏️
+                  <IconBadge
+                    icon={NavIcons.compose}
+                    tone={NavTones.compose}
+                    size="md"
+                    active={composeActive}
+                  />
+                  <span
+                    className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--compose ${composeActive ? "is-active" : ""}`}
+                  >
+                    创作
                   </span>
-                  <span className="inline md:hidden lg:inline truncate font-medium">创作</span>
                 </Link>
                 <Link
                   href="/my"
@@ -197,10 +217,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={navClass(myActive)}
                   onClick={closeMobile}
                 >
-                  <span className="shrink-0 text-xl" aria-hidden>
-                    👤
+                  <IconBadge
+                    icon={NavIcons.my}
+                    tone={NavTones.my}
+                    size="md"
+                    active={myActive}
+                  />
+                  <span
+                    className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--my ${myActive ? "is-active" : ""}`}
+                  >
+                    我的
                   </span>
-                  <span className="inline md:hidden lg:inline truncate font-medium">我的</span>
                 </Link>
                 <Link
                   href="/history"
@@ -208,10 +235,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={navClass(historyActive)}
                   onClick={closeMobile}
                 >
-                  <span className="shrink-0 text-xl" aria-hidden>
-                    📜
+                  <IconBadge
+                    icon={NavIcons.history}
+                    tone={NavTones.history}
+                    size="md"
+                    active={historyActive}
+                  />
+                  <span
+                    className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--history ${historyActive ? "is-active" : ""}`}
+                  >
+                    历史
                   </span>
-                  <span className="inline md:hidden lg:inline truncate font-medium">历史</span>
                 </Link>
                 <Link
                   href="/settings"
@@ -219,10 +253,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className={navClass(settingsActive)}
                   onClick={closeMobile}
                 >
-                  <span className="shrink-0 text-xl" aria-hidden>
-                    ⚙️
+                  <IconBadge
+                    icon={NavIcons.settings}
+                    tone={NavTones.settings}
+                    size="md"
+                    active={settingsActive}
+                  />
+                  <span
+                    className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--settings ${settingsActive ? "is-active" : ""}`}
+                  >
+                    设置
                   </span>
-                  <span className="inline md:hidden lg:inline truncate font-medium">设置</span>
                 </Link>
               </>
             )}

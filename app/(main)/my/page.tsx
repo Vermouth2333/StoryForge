@@ -3,6 +3,8 @@
 import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BookOpen, Bell, Globe2, IconBadge, Star, UserRound } from "@/components/icons";
+import { PageHero } from "@/components/PageHero";
 import { replayHeaders } from "@/lib/replay-headers";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
@@ -268,13 +270,11 @@ export default function MyPage() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="sf-hero-banner sf-reveal">
-        <div className="relative z-10">
-          <h2 className="section-title">我的创作空间</h2>
-          <p className="section-subtitle">管理你的故事、角色和世界，查看通知与收藏</p>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        title="我的创作空间"
+        subtitle="管理你的故事、角色和世界，查看通知与收藏"
+      />
 
       {/* 通知和收藏 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -282,7 +282,7 @@ export default function MyPage() {
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span>🔔</span> 通知中心
+              <IconBadge icon={Bell} tone="notify" size="md" /> 通知中心
             </h3>
             <div className="flex gap-2">
               <button className="sf-tag" onClick={loadNotifications}>
@@ -328,7 +328,7 @@ export default function MyPage() {
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span>⭐</span> 我的收藏
+              <IconBadge icon={Star} tone="star" size="md" /> 我的收藏
             </h3>
             <button className="sf-tag" onClick={loadMyFavorites}>
               刷新
@@ -374,7 +374,9 @@ export default function MyPage() {
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span>📚</span> 我的故事
+              <span className="inline-flex items-center gap-2">
+                <IconBadge icon={BookOpen} tone="story" size="md" /> 我的故事
+              </span>
             </h3>
             <button className="sf-tag" onClick={loadMyStories}>
               刷新
@@ -426,7 +428,9 @@ export default function MyPage() {
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span>👤</span> 我的角色
+              <span className="inline-flex items-center gap-2">
+                <IconBadge icon={UserRound} tone="character" size="md" /> 我的角色
+              </span>
             </h3>
             <div className="flex gap-2">
               <button className="sf-tag" onClick={loadMyCharacters}>
@@ -478,7 +482,9 @@ export default function MyPage() {
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span>🌍</span> 我的世界
+              <span className="inline-flex items-center gap-2">
+                <IconBadge icon={Globe2} tone="world" size="md" /> 我的世界
+              </span>
             </h3>
             <div className="flex gap-2">
               <button className="sf-tag" onClick={loadMyWorlds}>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { message } from "antd";
 import CoverUploader from "@/components/CoverUploader";
+import { IconBadge, PenLine } from "@/components/icons";
 import WorkImportPanel from "@/components/WorkImportPanel";
 import { replayHeaders } from "@/lib/replay-headers";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -216,7 +217,7 @@ export default function AuthorWorkEditor({
     <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-          <span>✏️</span> 编辑{KIND_LABEL[kind]}
+          <IconBadge icon={PenLine} tone="compose" size="sm" /> 编辑{KIND_LABEL[kind]}
         </h3>
         <div className="flex flex-wrap gap-2">
           <span className="sf-tag">{STATUS_LABELS[status] ?? status}</span>

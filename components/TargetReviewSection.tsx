@@ -2,6 +2,7 @@
 
 import { App } from "antd";
 import { useCallback, useEffect, useState } from "react";
+import { IconBadge, Star } from "@/components/icons";
 import {
   emptyTargetReviewData,
   fetchTargetReviews,
@@ -99,7 +100,7 @@ export default function TargetReviewSection({
     <div className="mb-6 rounded-xl border border-[#DCE9FF] bg-white p-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <h3 className="flex items-center gap-2 text-base font-semibold text-[#1F2A44]">
-          <span>⭐</span> 评价
+          <IconBadge icon={Star} tone="star" size="sm" /> 评价
         </h3>
         <div className="flex items-center gap-3">
           <div className="text-2xl font-bold text-[#5B9DFF]">

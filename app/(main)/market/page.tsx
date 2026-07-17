@@ -3,6 +3,9 @@
 import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/EmptyState";
+import { IconBadge, Inbox, Star, WorkTypeIcon } from "@/components/icons";
+import { PageHero } from "@/components/PageHero";
 
 type FeedItem = {
   id: string;
@@ -34,17 +37,6 @@ const getCoverGradient = (kind: string, index: number) => {
   };
   const list = byKind[kind] ?? byKind.story;
   return list[index % list.length];
-};
-
-const getPlaceholderIcon = (kind: string) => {
-  switch (kind) {
-    case "character":
-      return "👤";
-    case "world":
-      return "🌍";
-    default:
-      return "📖";
-  }
 };
 
 export default function MarketPage() {
@@ -133,19 +125,14 @@ export default function MarketPage() {
   }, []);
 
   return (
-    <div className="space-y-8">
-      <div className="sf-hero-banner sf-reveal relative z-0">
-        <div className="relative z-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5B9DFF]">StoryForge Market</p>
-          <h2 className="section-title mt-2">发现精彩创作</h2>
-          <p className="section-subtitle max-w-xl">
-            探索故事、角色与世界，获取创作灵感。点开作品即可体验与评价。
-          </p>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHero
+        title="发现精彩创作"
+        subtitle="探索故事、角色与世界，获取创作灵感。点开作品即可体验与评价。"
+      />
 
       {/* 搜索栏 */}
-      <div className="sf-card p-4 sf-reveal" style={{ animationDelay: "0.08s" }}>
+      <div className="sf-card p-3 sf-reveal" style={{ animationDelay: "0.08s" }}>
         <div className="flex gap-2">
           <input
             className="sf-input flex-1"
@@ -172,22 +159,22 @@ export default function MarketPage() {
       {/* 分类标签 */}
       <div className="flex flex-wrap gap-3">
         <button
-          className={`tab-button ${marketTab === "story" ? "active" : ""}`}
+          className={`tab-button inline-flex items-center gap-1.5 ${marketTab === "story" ? "active" : ""}`}
           onClick={() => handleTabChange("story")}
         >
-          📖 故事
+          <WorkTypeIcon type="story" size="sm" /> 故事
         </button>
         <button
-          className={`tab-button ${marketTab === "character" ? "active" : ""}`}
+          className={`tab-button inline-flex items-center gap-1.5 ${marketTab === "character" ? "active" : ""}`}
           onClick={() => handleTabChange("character")}
         >
-          👤 角色
+          <WorkTypeIcon type="character" size="sm" /> 角色
         </button>
         <button
-          className={`tab-button ${marketTab === "world" ? "active" : ""}`}
+          className={`tab-button inline-flex items-center gap-1.5 ${marketTab === "world" ? "active" : ""}`}
           onClick={() => handleTabChange("world")}
         >
-          🌍 世界
+          <WorkTypeIcon type="world" size="sm" /> 世界
         </button>
         <div className="ml-auto flex gap-2">
           <button
@@ -237,8 +224,8 @@ export default function MarketPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={coverSrc} alt={`${item.title} 封面`} loading="lazy" />
                   ) : (
-                    <div className="market-card-placeholder">
-                      {getPlaceholderIcon(kind)}
+                    <div className="market-card-placeholder text-[var(--primary)]">
+                      <WorkTypeIcon type={kind} size="xl" />
                     </div>
                   )}
                 </div>
@@ -251,13 +238,15 @@ export default function MarketPage() {
                     {item.summary || "支持点赞、关注、通知与基础推荐排序。"}
                   </p>
                   <div className="market-card-meta">
-                    <span className="market-card-author">
-                      <span>👤</span>
+                    <span className="market-card-author inline-flex items-center gap-1">
+                      <WorkTypeIcon type="character" size="sm" plain />
                       {item.author_display || item.author_id}
                     </span>
                     <div className="market-card-stats">
-                      <span>❤️ {item.like_count}</span>
-                      <span>⭐ {Number(item.favorite_count ?? 0)}</span>
+                      <span>❤ {item.like_count}</span>
+                      <span className="inline-flex items-center gap-0.5">
+                        <IconBadge icon={Star} tone="star" size="sm" /> {Number(item.favorite_count ?? 0)}
+                      </span>
                     </div>
                   </div>
                   <div className="market-card-actions" onClick={(e) => e.preventDefault()}>
@@ -283,19 +272,21 @@ export default function MarketPage() {
           })}
         </div>
       ) : (
-        <div className="sf-card p-12 text-center">
-          <div className="text-6xl mb-4">📭</div>
-          <p className="text-[#5b6b8c] text-lg">
-            {searchQuery
-              ? `没有找到与「${searchQuery}」相关的${marketTab === "story" ? "故事" : marketTab === "character" ? "角色" : "世界"}，换个关键词试试吧。`
-              : (
-                <>
-                  {marketTab === "story" && "暂无已发布故事。先新建故事并发布，再刷新列表。"}
-                  {marketTab === "character" && "暂无已发布角色。创建角色卡并发布后在此展示。"}
-                  {marketTab === "world" && "暂无已发布世界。创建世界卡并发布后在此展示。"}
-                </>
-              )}
-          </p>
+        <div className="sf-card">
+          <EmptyState
+            icon={Inbox}
+            tone="empty"
+            title="暂无内容"
+            description={
+              searchQuery
+                ? `没有找到与「${searchQuery}」相关的${marketTab === "story" ? "故事" : marketTab === "character" ? "角色" : "世界"}，换个关键词试试吧。`
+                : marketTab === "story"
+                  ? "暂无已发布故事。先新建故事并发布，再刷新列表。"
+                  : marketTab === "character"
+                    ? "暂无已发布角色。创建角色卡并发布后在此展示。"
+                    : "暂无已发布世界。创建世界卡并发布后在此展示。"
+            }
+          />
         </div>
       )}
     </div>

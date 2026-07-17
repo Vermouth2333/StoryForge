@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { App } from "antd";
 import CoverDisplay from "@/components/CoverDisplay";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
+import { BookOpen, Globe2, IconBadge, Library } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -259,7 +260,7 @@ export default function WorldDetailPage() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
-              <span>🌍</span> 探索 {row.name}
+              <IconBadge icon={Globe2} tone="world" size="sm" /> 探索 {row.name}
             </h3>
             <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
           </div>
@@ -384,7 +385,7 @@ export default function WorldDetailPage() {
       {!canEdit && row.setting_notes && (
         <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
           <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-            <span>📖</span> 世界设定
+            <IconBadge icon={BookOpen} tone="story" size="sm" /> 世界设定
           </h3>
           <p className="mt-3 whitespace-pre-wrap text-sm text-[#5B6B8C] leading-relaxed">
             {row.setting_notes}
@@ -395,7 +396,7 @@ export default function WorldDetailPage() {
       {/* 知识库 */}
       <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
         <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
-          <span>📚</span> 知识库
+          <IconBadge icon={Library} tone="primary" size="sm" /> 知识库
         </h3>
         <p className="mt-1 text-xs text-[#5B6B8C]">
           词条用于补充规则、地理、势力等设定；已发布世界对访客可见。
