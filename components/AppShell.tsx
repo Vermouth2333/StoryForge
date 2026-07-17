@@ -94,6 +94,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     /\/characters\/[^/]+\/chat\/?$/.test(pathname) ||
     /\/worlds\/[^/]+\/chat\/?$/.test(pathname) ||
     /\/stories\/[^/]+\/play\/?$/.test(pathname);
+  const isHistoryLayout = pathname === "/history" || pathname.startsWith("/history/");
+  const lockViewport = isChatLayout || isHistoryLayout;
 
   const closeMobile = () => setMobileOpen(false);
 
@@ -101,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div
       className={[
         "flex flex-col bg-[var(--background)] md:flex-row",
-        isChatLayout ? "h-dvh overflow-hidden" : "min-h-screen",
+        lockViewport ? "h-dvh overflow-hidden" : "min-h-screen",
       ].join(" ")}
     >
       <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 md:hidden">
@@ -288,10 +290,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={
             isChatLayout
               ? "flex min-h-0 w-full flex-1 flex-col overflow-hidden p-0"
-              : "mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6"
+              : isHistoryLayout
+                ? "mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden p-4 md:p-6"
+                : "mx-auto w-full max-w-[1600px] flex-1 overflow-x-hidden p-4 md:p-6"
           }
         >
-          <PageMotion fillHeight={isChatLayout}>{children}</PageMotion>
+          <PageMotion fillHeight={lockViewport}>{children}</PageMotion>
         </main>
       </div>
     </div>

@@ -18,7 +18,9 @@
     "ioredis": "^5.10.1",
     "jose": "^6.2.2",
     "jszip": "^3.10.1",
+    "mammoth": "^1.12.0",
     "next": "16.2.3",
+    "pdf-parse": "^2.4.5",
     "pdfkit": "^0.18.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -27,11 +29,13 @@
     "sqlite": "^5.1.1",
     "sqlite3": "^6.0.1",
     "undici": "^7.28.0",
+    "word-extractor": "^1.0.4",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pdf-parse": "^1.1.5",
     "@types/pdfkit": "^0.17.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",

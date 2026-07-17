@@ -161,9 +161,9 @@ export default function HistoryPage() {
   }, [selectedSessionForHistory]);
 
   return (
-    <div className="space-y-6">
+    <div className="flex h-full min-h-0 flex-col gap-4">
       {/* 页面标题 */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="sf-reveal">
             <h2 className="section-title">会话历史</h2>
@@ -186,16 +186,16 @@ export default function HistoryPage() {
       </div>
 
       {/* 会话列表和消息 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_1fr] gap-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:grid lg:grid-cols-[minmax(280px,340px)_1fr]">
         {/* 会话列表 */}
-        <div className="sf-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-[#1f2a44] flex items-center gap-2">
+        <div className="sf-card flex max-h-[36vh] min-h-0 flex-col p-5 lg:max-h-none lg:h-full">
+          <div className="mb-4 flex shrink-0 items-center justify-between">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-[#1f2a44]">
               <span>💬</span> 会话列表
             </h3>
             <span className="text-xs text-[#5b6b8c]">{sessions.length} 个会话</span>
           </div>
-          <div className="space-y-2 max-h-[700px] overflow-y-auto">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             {sessions.map((s) => (
               <div
                 key={s.id}
@@ -208,12 +208,12 @@ export default function HistoryPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-[#1f2a44] truncate text-sm">{s.title}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">
+                    <p className="truncate text-sm font-medium text-[#1f2a44]">{s.title}</p>
+                    <p className="mt-1 text-xs text-[#5b6b8c]">
                       {new Date(s.updated_at).toLocaleDateString()}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      <span className="inline-block text-xs bg-[#eef6ff] text-[#5b9dff] px-2 py-0.5 rounded-full">
+                      <span className="inline-block rounded-full bg-[#eef6ff] px-2 py-0.5 text-xs text-[#5b9dff]">
                         {s.session_type === "story"
                           ? "故事"
                           : s.session_type === "character"
@@ -249,8 +249,8 @@ export default function HistoryPage() {
               </div>
             ))}
             {sessions.length === 0 && (
-              <div className="text-center py-12 text-[#5b6b8c]">
-                <div className="text-4xl mb-3">📭</div>
+              <div className="py-12 text-center text-[#5b6b8c]">
+                <div className="mb-3 text-4xl">📭</div>
                 <p className="text-sm">暂无会话记录</p>
               </div>
             )}
@@ -258,10 +258,10 @@ export default function HistoryPage() {
         </div>
 
         {/* 消息内容 */}
-        <div className="sf-card p-5">
+        <div className="sf-card flex min-h-0 flex-1 flex-col p-5">
           {selectedSessionForHistory ? (
             <>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#dce9ff] pb-4">
+              <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#dce9ff] pb-4">
                 <div className="min-w-0">
                   <h3 className="truncate text-base font-semibold text-[#1f2a44]">
                     {sessions.find((s) => s.id === selectedSessionForHistory)?.title ?? "会话详情"}
@@ -290,7 +290,7 @@ export default function HistoryPage() {
               </div>
 
               {/* 消息列表 */}
-              <div className="space-y-3 max-h-[600px] overflow-y-auto mb-4">
+              <div className="mb-4 min-h-0 flex-1 space-y-3 overflow-y-auto">
                 {messages.map((m) => (
                   <div
                     key={m.id}
@@ -302,26 +302,28 @@ export default function HistoryPage() {
                           : "bg-[#f8fafc] border-l-4 border-[#94a3b8]"
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        m.role === "user"
-                          ? "bg-[#5b9dff] text-white"
-                          : m.role === "assistant"
-                            ? "bg-[#4facfe] text-white"
-                            : "bg-[#94a3b8] text-white"
-                      }`}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          m.role === "user"
+                            ? "bg-[#5b9dff] text-white"
+                            : m.role === "assistant"
+                              ? "bg-[#4facfe] text-white"
+                              : "bg-[#94a3b8] text-white"
+                        }`}
+                      >
                         {m.role === "user" ? "我" : m.role === "assistant" ? "AI" : "系统"}
                       </span>
                       <span className="text-xs text-[#5b6b8c]">
                         {new Date(m.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-sm text-[#1f2a44] leading-relaxed">{m.content}</p>
+                    <p className="text-sm leading-relaxed text-[#1f2a44]">{m.content}</p>
                   </div>
                 ))}
                 {messages.length === 0 && (
-                  <div className="text-center py-12 text-[#5b6b8c]">
-                    <div className="text-4xl mb-3">💬</div>
+                  <div className="py-12 text-center text-[#5b6b8c]">
+                    <div className="mb-3 text-4xl">💬</div>
                     <p className="text-sm">该会话暂无消息</p>
                   </div>
                 )}
@@ -329,7 +331,7 @@ export default function HistoryPage() {
 
               {/* 分页 */}
               {messages.length > 0 && (messagePage > 1 || hasMoreMessages) && (
-                <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="mb-4 flex shrink-0 items-center justify-center gap-3">
                   {messagePage > 1 && (
                     <button
                       className="sf-tag"
@@ -351,10 +353,10 @@ export default function HistoryPage() {
               )}
 
               {/* 创建快照 */}
-              <div className="border-t border-[#dce9ff] pt-4">
+              <div className="shrink-0 border-t border-[#dce9ff] pt-4">
                 <div className="flex flex-wrap items-center gap-3">
                   <input
-                    className="sf-input flex-1 max-w-xs"
+                    className="sf-input max-w-xs flex-1"
                     placeholder="添加检查点备注..."
                     value={snapshotLabel}
                     onChange={(e) => setSnapshotLabel(e.target.value)}
@@ -366,8 +368,8 @@ export default function HistoryPage() {
 
                 {/* 检查点列表 */}
                 {sessionSnapshots.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-xs font-medium text-[#1f2a44] mb-2">检查点记录</p>
+                  <div className="mt-4 max-h-36 overflow-y-auto">
+                    <p className="mb-2 text-xs font-medium text-[#1f2a44]">检查点记录</p>
                     <div className="space-y-2">
                       {sessionSnapshots.map((sn) => (
                         <div
@@ -380,7 +382,7 @@ export default function HistoryPage() {
                             ) : (
                               <span className="text-sm text-[#5b6b8c]">（无备注）</span>
                             )}
-                            <span className="text-xs text-[#5b6b8c] ml-2">
+                            <span className="ml-2 text-xs text-[#5b6b8c]">
                               · {new Date(sn.created_at).toLocaleString()}
                             </span>
                           </div>
@@ -399,8 +401,8 @@ export default function HistoryPage() {
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-[#5b6b8c]">
-              <div className="text-6xl mb-4">👈</div>
+            <div className="flex h-full flex-col items-center justify-center text-[#5b6b8c]">
+              <div className="mb-4 text-6xl">👈</div>
               <p className="text-sm">选择一个会话查看消息</p>
             </div>
           )}

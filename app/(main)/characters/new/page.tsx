@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import CoverFileField from "@/components/CoverFileField";
+import WorkImportPanel from "@/components/WorkImportPanel";
 import { uploadWorkCover } from "@/lib/upload-cover";
 
 export default function NewCharacterPage() {
@@ -68,6 +69,15 @@ export default function NewCharacterPage() {
       )}
 
       <form onSubmit={handleSubmit} className="sf-card space-y-5 p-6">
+        <WorkImportPanel
+          kind="character"
+          onParsed={(data) => {
+            setName(data.title);
+            setSummary(data.summary);
+            setPersonality(data.personality ?? "");
+            setTagsInput((data.tags ?? []).join(", "));
+          }}
+        />
         {/* 名称 */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">

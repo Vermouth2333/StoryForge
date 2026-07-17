@@ -154,3 +154,40 @@ export async function* streamChat(
     }
   }
 }
+
+/**
+ * 以 OpenAI 兼容协议一次性生成完整回复（非流式）。
+ */
+export async function completeChat(
+  provider: ResolvedProvider,
+  messages: ChatMessage[],
+  options: StreamOptions = {},
+): Promise<string> {
+  const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${provider.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: provider.modelName,
+      messages,
+      stream: false,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 4096,
+    }),
+    signal: options.signal,
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`模型服务返回 ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+  }
+
+  const json = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+  const content = json.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!content) throw new Error("模型未返回有效内容");
+  return content;
+}

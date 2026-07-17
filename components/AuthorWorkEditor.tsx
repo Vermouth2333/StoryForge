@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { message } from "antd";
 import CoverUploader from "@/components/CoverUploader";
+import WorkImportPanel from "@/components/WorkImportPanel";
 import { replayHeaders } from "@/lib/replay-headers";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
@@ -305,6 +306,19 @@ export default function AuthorWorkEditor({
           />
         </div>
         </div>
+      </div>
+
+      <div className="mt-5">
+        <WorkImportPanel
+          kind={kind}
+          onParsed={(data) => {
+            setName(data.title);
+            setSummary(data.summary);
+            setTagsInput((data.tags ?? []).join(", "));
+            if (kind === "character") setPersonality(data.personality ?? "");
+            if (kind === "world") setSettingNotes(data.setting_notes ?? "");
+          }}
+        />
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">

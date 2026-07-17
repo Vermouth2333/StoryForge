@@ -4,7 +4,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { message } from "antd";
 import { useState } from "react";
 import CoverFileField from "@/components/CoverFileField";
+import WorkImportPanel from "@/components/WorkImportPanel";
 import { uploadWorkCover } from "@/lib/upload-cover";
+import type { WorkImportFields } from "@/components/WorkImportPanel";
 
 export default function ComposePage() {
   const router = useRouter();
@@ -32,6 +34,27 @@ export default function ComposePage() {
   const [worldTags, setWorldTags] = useState("");
   const [worldCoverFile, setWorldCoverFile] = useState<File | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
+
+  function applyImport(kind: "story" | "character" | "world", data: WorkImportFields) {
+    const tags = (data.tags ?? []).join(", ");
+    if (kind === "story") {
+      setStoryTitle(data.title);
+      setStorySummary(data.summary);
+      setStoryTags(tags);
+      return;
+    }
+    if (kind === "character") {
+      setCharName(data.title);
+      setCharSummary(data.summary);
+      setCharPersonality(data.personality ?? "");
+      setCharTags(tags);
+      return;
+    }
+    setWorldName(data.title);
+    setWorldSummary(data.summary);
+    setWorldSetting(data.setting_notes ?? "");
+    setWorldTags(tags);
+  }
 
   async function createStory(e: React.FormEvent) {
     e.preventDefault();
@@ -175,6 +198,7 @@ export default function ComposePage() {
             <h3 className="text-lg font-semibold text-[#1F2A44]">创建角色卡</h3>
             <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的角色卡，可直接对话测试，也可引入到故事项目中。</p>
           </div>
+          <WorkImportPanel kind="character" onParsed={(data) => applyImport("character", data)} />
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">角色名称 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：林晓月" value={charName} onChange={(e) => setCharName(e.target.value)} maxLength={120} />
@@ -208,6 +232,7 @@ export default function ComposePage() {
             <h3 className="text-lg font-semibold text-[#1F2A44]">创建世界卡</h3>
             <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的世界卡，定义世界观设定，可直接对话探索，也可引入到故事项目中。</p>
           </div>
+          <WorkImportPanel kind="world" onParsed={(data) => applyImport("world", data)} />
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界名称 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：赛博朋克夜之城" value={worldName} onChange={(e) => setWorldName(e.target.value)} maxLength={120} />
@@ -241,6 +266,7 @@ export default function ComposePage() {
             <h3 className="text-lg font-semibold text-[#1F2A44]">创建故事</h3>
             <p className="mt-1 text-sm text-[#5B6B8C]">填写基本信息与封面，创建后进入编辑页完善大纲与角色设定。</p>
           </div>
+          <WorkImportPanel kind="story" onParsed={(data) => applyImport("story", data)} />
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">故事标题 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：赛博朋克2077-初次相遇" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} maxLength={120} />
