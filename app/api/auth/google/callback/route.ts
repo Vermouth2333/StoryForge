@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppOrigin } from "@/lib/app-origin";
+import { cookieSecure } from "@/lib/cookie-secure";
 import { getDb } from "@/lib/db";
 import { signSessionJwt } from "@/lib/session-jwt";
 import { ensureGoogleUser } from "@/lib/user";
@@ -92,7 +93,7 @@ export async function GET(req: Request) {
   const res = NextResponse.redirect(base);
   res.cookies.set("sf_session", sessionJwt, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7,

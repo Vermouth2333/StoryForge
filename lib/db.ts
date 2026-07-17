@@ -18,15 +18,18 @@ async function addColumnIfMissing(db: Database, table: string, column: string, d
 }
 
 async function migrateCharacterRelationsAllowMultiple(db: Database) {
-  const tables = await db.all<{ name: string }>(
+  const tables = (await db.all(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='character_relations'",
-  );
+  )) as Array<{ name: string }>;
   if (tables.length === 0) return;
 
-  const indexes = await db.all<{ name: string; unique: number }>("PRAGMA index_list(character_relations)");
+  const indexes = (await db.all("PRAGMA index_list(character_relations)")) as Array<{
+    name: string;
+    unique: number;
+  }>;
   for (const idx of indexes) {
     if (idx.unique !== 1) continue;
-    const cols = await db.all<{ name: string }>(`PRAGMA index_info(${idx.name})`);
+    const cols = (await db.all(`PRAGMA index_info(${idx.name})`)) as Array<{ name: string }>;
     const names = cols.map((c) => c.name);
     if (
       names.length === 3 &&

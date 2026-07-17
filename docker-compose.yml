@@ -1,0 +1,35 @@
+services:
+  storyforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: storyforge:latest
+    container_name: storyforge
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      # 纯 HTTP 访问时设为 false，避免 OAuth Cookie 因 Secure 标志无法写入
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+    volumes:
+      - storyforge_storage:/app/storage
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  storyforge_storage:

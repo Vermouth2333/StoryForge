@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getAppOrigin } from "@/lib/app-origin";
+import { cookieSecure } from "@/lib/cookie-secure";
 
 /** 跳转 Google 授权页（需在 Google Cloud Console 登记 redirect_uri = …/api/auth/google/callback） */
 export async function GET(req: Request) {
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
   const cookieStore = await cookies();
   cookieStore.set("sf_oauth_state", state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: 600,
