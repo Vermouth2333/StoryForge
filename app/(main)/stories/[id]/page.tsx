@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
-import { BookOpen, IconBadge } from "@/components/icons";
+import { BookOpen, Gamepad2, IconBadge } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -210,7 +210,7 @@ export default function StoryDetailPage() {
           href={`/stories/${story.id}/play`}
           className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
         >
-          <span className="text-xl">🎮</span>
+          <IconBadge icon={Gamepad2} tone="primary" size="md" />
           <div className="text-left">
             <p className="font-medium text-[#5B9DFF]">互动体验</p>
             <p className="text-xs text-[#5B6B8C]">选择角色开始冒险</p>

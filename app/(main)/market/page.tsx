@@ -4,7 +4,7 @@ import { App } from "antd";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
-import { IconBadge, Inbox, Star, WorkTypeIcon } from "@/components/icons";
+import { Heart, IconBadge, Inbox, Star, VenetianMask, WorkTypeIcon } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
 
 type FeedItem = {
@@ -238,14 +238,18 @@ export default function MarketPage() {
                     {item.summary || "支持点赞、关注、通知与基础推荐排序。"}
                   </p>
                   <div className="market-card-meta">
-                    <span className="market-card-author inline-flex items-center gap-1">
-                      <WorkTypeIcon type="character" size="sm" plain />
+                    <span className="market-card-author">
+                      <IconBadge icon={VenetianMask} tone="character" size="sm" />
                       {item.author_display || item.author_id}
                     </span>
                     <div className="market-card-stats">
-                      <span>❤ {item.like_count}</span>
-                      <span className="inline-flex items-center gap-0.5">
-                        <IconBadge icon={Star} tone="star" size="sm" /> {Number(item.favorite_count ?? 0)}
+                      <span className="market-card-stat">
+                        <IconBadge icon={Heart} tone="danger" size="sm" />
+                        {item.like_count}
+                      </span>
+                      <span className="market-card-stat">
+                        <IconBadge icon={Star} tone="star" size="sm" />
+                        {Number(item.favorite_count ?? 0)}
                       </span>
                     </div>
                   </div>

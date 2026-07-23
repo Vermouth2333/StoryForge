@@ -150,6 +150,8 @@ export default function StoryOutlineEditPage() {
   const [worldOptions, setWorldOptions] = useState<WorldOption[]>([]);
   const [importCharId, setImportCharId] = useState("");
   const [importWorldId, setImportWorldId] = useState("");
+  const [importCharBusy, setImportCharBusy] = useState(false);
+  const [importWorldBusy, setImportWorldBusy] = useState(false);
 
   const ordered = useMemo(() => orderedOutline(nodes), [nodes]);
   const positionNode = positionPickerId ? nodes.find((n) => n.id === positionPickerId) : null;
@@ -571,31 +573,41 @@ export default function StoryOutlineEditPage() {
   }
 
   async function importCharacter() {
-    if (!importCharId) return;
-    const res = await fetch(`/api/stories/${storyId}/imports`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ character_id: importCharId }),
-    });
-    const json = await res.json();
-    if (json.code !== 200) setErr(json.msg ?? "引入失败");
-    else setErr("");
-    setImportCharId("");
-    await load();
+    if (!importCharId || importCharBusy) return;
+    setImportCharBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}/imports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ character_id: importCharId }),
+      });
+      const json = await res.json();
+      if (json.code !== 200) setErr(json.msg ?? "引入失败");
+      else setErr("");
+      setImportCharId("");
+      await load();
+    } finally {
+      setImportCharBusy(false);
+    }
   }
 
   async function importWorld() {
-    if (!importWorldId) return;
-    const res = await fetch(`/api/stories/${storyId}/imports`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ world_id: importWorldId }),
-    });
-    const json = await res.json();
-    if (json.code !== 200) setErr(json.msg ?? "引入失败");
-    else setErr("");
-    setImportWorldId("");
-    await load();
+    if (!importWorldId || importWorldBusy) return;
+    setImportWorldBusy(true);
+    try {
+      const res = await fetch(`/api/stories/${storyId}/imports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ world_id: importWorldId }),
+      });
+      const json = await res.json();
+      if (json.code !== 200) setErr(json.msg ?? "引入失败");
+      else setErr("");
+      setImportWorldId("");
+      await load();
+    } finally {
+      setImportWorldBusy(false);
+    }
   }
 
   async function removeImport(type: "character" | "world", itemId: string) {
@@ -926,6 +938,7 @@ export default function StoryOutlineEditPage() {
                 <select
                   className="sf-input min-w-[200px]"
                   value={importCharId}
+                  disabled={importCharBusy}
                   onChange={(e) => setImportCharId(e.target.value)}
                 >
                   <option value="">选择角色卡</option>
@@ -933,8 +946,14 @@ export default function StoryOutlineEditPage() {
                     <option key={`imp-c-${c.id}`} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <button type="button" className="sf-btn-primary shrink-0" onClick={() => void importCharacter()}>
-                  引入角色
+                <button
+                  type="button"
+                  className="sf-btn-primary inline-flex shrink-0 items-center justify-center gap-1.5"
+                  disabled={!importCharId || importCharBusy}
+                  onClick={() => void importCharacter()}
+                >
+                  {importCharBusy ? <Spin size="small" /> : null}
+                  {importCharBusy ? "引入中" : "引入角色"}
                 </button>
               </div>
               {importedChars.length > 0 && (
@@ -962,6 +981,7 @@ export default function StoryOutlineEditPage() {
                 <select
                   className="sf-input min-w-[200px]"
                   value={importWorldId}
+                  disabled={importWorldBusy}
                   onChange={(e) => setImportWorldId(e.target.value)}
                 >
                   <option value="">选择世界卡</option>
@@ -969,8 +989,14 @@ export default function StoryOutlineEditPage() {
                     <option key={`imp-w-${w.id}`} value={w.id}>{w.name}</option>
                   ))}
                 </select>
-                <button type="button" className="sf-btn-primary shrink-0" onClick={() => void importWorld()}>
-                  引入世界
+                <button
+                  type="button"
+                  className="sf-btn-primary inline-flex shrink-0 items-center justify-center gap-1.5"
+                  disabled={!importWorldId || importWorldBusy}
+                  onClick={() => void importWorld()}
+                >
+                  {importWorldBusy ? <Spin size="small" /> : null}
+                  {importWorldBusy ? "引入中" : "引入世界"}
                 </button>
               </div>
               {importedWorlds.length > 0 && (
