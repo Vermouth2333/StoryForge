@@ -10,6 +10,7 @@ import { BookOpen, Globe2, IconBadge, Library } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 import { resolveWorldEditorValues } from "@/lib/work-draft";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -99,8 +100,23 @@ export default function WorldDetailPage() {
     })();
   }, [params.id]);
 
+  async function ensureLoggedIn(): Promise<boolean> {
+    if (meId) return true;
+    const res = await fetch("/api/profile");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.code === 200 && json.data?.id) {
+        setMeId(String(json.data.id));
+        return true;
+      }
+    }
+    router.push(loginHref(currentPathForLogin()));
+    return false;
+  }
+
   async function toggleLike() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     setRow({
       ...prev,
@@ -121,6 +137,7 @@ export default function WorldDetailPage() {
 
   async function toggleFavorite() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     const nextFav = !prev.favorited_by_me;
     setRow({
@@ -144,6 +161,7 @@ export default function WorldDetailPage() {
 
   async function toggleFollow() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     const nextFollow = !prev.is_following;
     setRow({ ...prev, is_following: nextFollow });

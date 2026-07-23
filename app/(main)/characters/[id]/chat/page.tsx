@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChatWorkspace, type ChatMessageItem, type ChatSessionInfo } from "@/components/ChatWorkspace";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 type CharacterInfo = {
   id: string;
@@ -13,6 +14,7 @@ type CharacterInfo = {
 
 export default function CharacterChatPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const resumeSessionId = searchParams.get("session") ?? "";
   const [character, setCharacter] = useState<CharacterInfo | null>(null);
@@ -30,6 +32,18 @@ export default function CharacterChatPage() {
     void (async () => {
       const id = params.id;
       if (!id) return;
+
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+      const profileJson = await profileRes.json();
+      if (profileJson.code !== 200 || !profileJson.data?.id) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+
       const [charRes, sessRes] = await Promise.all([
         fetch(`/api/characters/${id}`),
         fetch(`/api/chat/sessions?session_type=character&character_id=${id}`),

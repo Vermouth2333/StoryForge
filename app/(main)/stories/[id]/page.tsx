@@ -10,6 +10,7 @@ import { BookOpen, Gamepad2, IconBadge } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 import { resolveStoryEditorValues } from "@/lib/work-draft";
 
 type StoryDetail = {
@@ -96,8 +97,23 @@ export default function StoryDetailPage() {
     })();
   }, [params.id]);
 
+  async function ensureLoggedIn(): Promise<boolean> {
+    if (currentUserId) return true;
+    const res = await fetch("/api/profile");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.code === 200 && json.data?.id) {
+        setCurrentUserId(String(json.data.id));
+        return true;
+      }
+    }
+    router.push(loginHref(currentPathForLogin()));
+    return false;
+  }
+
   async function toggleLike() {
     if (!story) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = story;
     setStory({
       ...prev,
@@ -118,6 +134,7 @@ export default function StoryDetailPage() {
 
   async function toggleFavorite() {
     if (!story) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = story;
     const nextFav = !prev.favorited_by_me;
     setStory({
@@ -141,6 +158,7 @@ export default function StoryDetailPage() {
 
   async function toggleFollow() {
     if (!story) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = story;
     const nextFollow = !prev.is_following;
     setStory({ ...prev, is_following: nextFollow });

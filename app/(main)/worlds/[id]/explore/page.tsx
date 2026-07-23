@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 export default function WorldExplorePage() {
   const params = useParams();
@@ -12,9 +13,26 @@ export default function WorldExplorePage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+      const profileJson = await profileRes.json();
+      if (profileJson.code !== 200 || !profileJson.data?.id) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+      setAuthReady(true);
+    })();
+  }, [router]);
 
   const startExplore = async () => {
-    if (!input.trim()) return;
+    if (!authReady || !input.trim()) return;
     setLoading(true);
     const userMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -31,6 +49,10 @@ export default function WorldExplorePage() {
           }),
         });
         const data = await res.json();
+        if (data.code === 401) {
+          router.replace(loginHref(currentPathForLogin()));
+          return;
+        }
         if (data.code === 200) setSessionId(data.data.session_id);
       }
 

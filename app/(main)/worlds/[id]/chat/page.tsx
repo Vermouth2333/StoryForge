@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChatWorkspace, type ChatMessageItem, type ChatSessionInfo } from "@/components/ChatWorkspace";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 type WorldInfo = {
   id: string;
@@ -12,6 +13,7 @@ type WorldInfo = {
 
 export default function WorldChatPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const resumeSessionId = searchParams.get("session") ?? "";
   const [world, setWorld] = useState<WorldInfo | null>(null);
@@ -29,6 +31,18 @@ export default function WorldChatPage() {
     void (async () => {
       const id = params.id;
       if (!id) return;
+
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+      const profileJson = await profileRes.json();
+      if (profileJson.code !== 200 || !profileJson.data?.id) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+
       const [worldRes, worldSessRes, exploreSessRes] = await Promise.all([
         fetch(`/api/worlds/${id}`),
         fetch(`/api/chat/sessions?session_type=world&world_id=${id}`),

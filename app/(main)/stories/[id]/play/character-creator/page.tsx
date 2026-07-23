@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 export default function CharacterCreatorPage() {
   const params = useParams();
@@ -21,6 +22,20 @@ export default function CharacterCreatorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    void (async () => {
+      const profileRes = await fetch("/api/profile");
+      if (!profileRes.ok) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
+      const profileJson = await profileRes.json();
+      if (profileJson.code !== 200 || !profileJson.data?.id) {
+        router.replace(loginHref(currentPathForLogin()));
+      }
+    })();
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,6 +49,11 @@ export default function CharacterCreatorPage() {
       });
 
       const data = await res.json();
+
+      if (data.code === 401) {
+        router.replace(loginHref(currentPathForLogin()));
+        return;
+      }
 
       if (data.code === 200) {
         router.push(`/stories/${storyId}/play`);

@@ -10,6 +10,7 @@ import { IconBadge, VenetianMask } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 import { resolveCharacterEditorValues } from "@/lib/work-draft";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -81,8 +82,23 @@ export default function CharacterDetailPage() {
     })();
   }, [params.id]);
 
+  async function ensureLoggedIn(): Promise<boolean> {
+    if (currentUserId) return true;
+    const res = await fetch("/api/profile");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.code === 200 && json.data?.id) {
+        setCurrentUserId(String(json.data.id));
+        return true;
+      }
+    }
+    router.push(loginHref(currentPathForLogin()));
+    return false;
+  }
+
   async function toggleLike() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     setRow({
       ...prev,
@@ -103,6 +119,7 @@ export default function CharacterDetailPage() {
 
   async function toggleFavorite() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     const nextFav = !prev.favorited_by_me;
     setRow({
@@ -126,6 +143,7 @@ export default function CharacterDetailPage() {
 
   async function toggleFollow() {
     if (!row) return;
+    if (!(await ensureLoggedIn())) return;
     const prev = row;
     const nextFollow = !prev.is_following;
     setRow({ ...prev, is_following: nextFollow });

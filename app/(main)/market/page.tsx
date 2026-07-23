@@ -2,10 +2,12 @@
 
 import { App } from "antd";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { Heart, IconBadge, Inbox, Star, VenetianMask, WorkTypeIcon } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 type FeedItem = {
   id: string;
@@ -41,12 +43,27 @@ const getCoverGradient = (kind: string, index: number) => {
 
 export default function MarketPage() {
   const { message } = App.useApp();
+  const router = useRouter();
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [feedSort, setFeedSort] = useState("recommended");
   const [marketTab, setMarketTab] = useState<"story" | "character" | "world">("story");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [meId, setMeId] = useState<string | null>(null);
+
+  async function requireLogin(): Promise<boolean> {
+    if (meId) return true;
+    const res = await fetch("/api/profile");
+    if (res.ok) {
+      const json = await res.json();
+      if (json.code === 200 && json.data?.id) {
+        setMeId(String(json.data.id));
+        return true;
+      }
+    }
+    router.push(loginHref(currentPathForLogin()));
+    return false;
+  }
 
   async function loadFeed(sort = feedSort, tab = marketTab, search = searchQuery) {
     const kind = tab === "story" ? "story" : tab === "character" ? "character" : "world";
@@ -61,6 +78,7 @@ export default function MarketPage() {
   }
 
   async function likeFeedItem(targetId: string, kind: FeedItem["feed_kind"]) {
+    if (!(await requireLogin())) return;
     const target_type = kind ?? "story";
     const res = await fetch("/api/likes/toggle", {
       method: "POST",
@@ -72,6 +90,7 @@ export default function MarketPage() {
   }
 
   async function favoriteFeedItem(targetId: string, kind: FeedItem["feed_kind"]) {
+    if (!(await requireLogin())) return;
     const target_type = kind ?? "story";
     const res = await fetch("/api/favorites/toggle", {
       method: "POST",
@@ -83,6 +102,7 @@ export default function MarketPage() {
   }
 
   async function followAuthor(authorId: string) {
+    if (!(await requireLogin())) return;
     if (meId && authorId === meId) {
       message.warning("不能关注自己");
       return;

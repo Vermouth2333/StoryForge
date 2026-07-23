@@ -2,9 +2,10 @@
 
 import { App } from "antd";
 import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { IconBadge, Star } from "@/components/icons";
+import { useParams, useRouter } from "next/navigation";
+import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
 
 interface WorkItem {
   id: string;
@@ -29,6 +30,7 @@ interface AuthorData {
 
 export default function AuthorPage() {
   const { message } = App.useApp();
+  const router = useRouter();
   const params = useParams<{ authorId: string }>();
   const authorId = params.authorId;
   const [data, setData] = useState<AuthorData | null>(null);
@@ -62,7 +64,24 @@ export default function AuthorPage() {
   const isSelf = !!meId && (meId === authorId || meId === data?.author?.id);
 
   async function toggleFollow() {
-    if (isSelf) {
+    let uid = meId;
+    if (!uid) {
+      const res = await fetch("/api/profile");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.code === 200 && json.data?.id) {
+          uid = String(json.data.id);
+          setMeId(uid);
+        } else {
+          router.push(loginHref(currentPathForLogin()));
+          return;
+        }
+      } else {
+        router.push(loginHref(currentPathForLogin()));
+        return;
+      }
+    }
+    if (uid === authorId || uid === data?.author?.id) {
       message.warning("不能关注自己");
       return;
     }
