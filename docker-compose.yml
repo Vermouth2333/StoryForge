@@ -14,10 +14,14 @@ services:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: "0.0.0.0"
-      # 纯 HTTP 访问时设为 false，避免 OAuth Cookie 因 Secure 标志无法写入
+      # 纯 HTTP 访问时设为 false，避免 Cookie 因 Secure 标志无法写入
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
     volumes:
       - storyforge_storage:/app/storage
+    networks:
+      - default
+      # 与占用 80 端口的 ebbinghaus-gateway 同网，便于按域名反代
+      - ebbinghaus_default
     healthcheck:
       test:
         [
@@ -33,3 +37,7 @@ services:
 
 volumes:
   storyforge_storage:
+
+networks:
+  ebbinghaus_default:
+    external: true
