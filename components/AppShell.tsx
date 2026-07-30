@@ -167,9 +167,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <BrandLogo size={30} showWordmark={false} />
               </span>
             </Link>
-            <p className="mt-2 hidden text-xs leading-relaxed text-[var(--text-secondary)] lg:block">
-              AI 驱动的交互式小说创作平台
-            </p>
           </div>
 
           <nav className="flex flex-1 flex-col gap-2 px-3 py-5 lg:px-4" aria-label="主导航">

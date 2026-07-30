@@ -1,3 +1,5 @@
+import { copyFile, mkdir } from "fs/promises";
+import path from "path";
 import type { Database } from "sqlite";
 import { id, nowIso } from "@/lib/db";
 
@@ -6,6 +8,124 @@ export type DownloadWorkType = "character" | "world" | "story";
 type SnapshotResult =
   | { ok: true; localWorkId: string; alreadyHad: boolean; sourceVersion: number }
   | { ok: false; msg: string; status: number };
+
+/**
+ * 将封面文件复制为下载者自有 asset，避免仍指向原作者资源导致本地副本无封面。
+ */
+async function cloneCoverAsset(
+  db: Database,
+  sourceAssetId: string | null | undefined,
+  userId: string,
+  targetType: DownloadWorkType,
+  targetId: string,
+): Promise<string | null> {
+  if (!sourceAssetId) return null;
+
+  const src = await db.get<{
+    file_name: string;
+    file_path: string;
+    thumbnail_path: string | null;
+    file_size_bytes: number;
+    mime_type: string;
+  }>(
+    `SELECT file_name, file_path, thumbnail_path, file_size_bytes, mime_type
+     FROM assets WHERE id = ?`,
+    sourceAssetId,
+  );
+  if (!src?.file_path) return null;
+
+  const storageRoot = path.join(process.cwd(), "storage");
+  const srcFile = path.join(storageRoot, src.file_path);
+  const assetId = id("asset");
+  const originalDir = path.join(storageRoot, "users", userId, "assets", assetId, "original");
+  const thumbnailDir = path.join(storageRoot, "users", userId, "assets", assetId, "thumbnails");
+  await mkdir(originalDir, { recursive: true });
+  await mkdir(thumbnailDir, { recursive: true });
+
+  const ext = path.extname(src.file_path) || path.extname(src.file_name) || ".webp";
+  const fileName = `cover_${assetId}${ext}`;
+  const destFile = path.join(originalDir, fileName);
+
+  try {
+    await copyFile(srcFile, destFile);
+  } catch (e) {
+    console.error("克隆封面原图失败:", e);
+    return null;
+  }
+
+  let thumbRel: string | null = null;
+  if (src.thumbnail_path) {
+    const destThumb = path.join(thumbnailDir, "thumb_200x200.jpg");
+    try {
+      await copyFile(path.join(storageRoot, src.thumbnail_path), destThumb);
+      thumbRel = path.relative(storageRoot, destThumb).replace(/\\/g, "/");
+    } catch (e) {
+      console.error("克隆封面缩略图失败:", e);
+    }
+  }
+
+  const relativePath = path.relative(storageRoot, destFile).replace(/\\/g, "/");
+  const now = nowIso();
+  await db.run(
+    `INSERT INTO assets
+     (id, user_id, asset_type, target_type, target_id, file_name, file_path, thumbnail_path, file_size_bytes, mime_type, created_at)
+     VALUES (?, ?, 'cover', ?, ?, ?, ?, ?, ?, ?, ?)`,
+    assetId,
+    userId,
+    targetType,
+    targetId,
+    fileName,
+    relativePath,
+    thumbRel,
+    src.file_size_bytes,
+    src.mime_type,
+    now,
+  );
+  return assetId;
+}
+
+/** 已下载副本若缺封面或封面文件丢失，从源作品再克隆一份 */
+async function ensureLocalCoverFromSource(
+  db: Database,
+  userId: string,
+  workType: DownloadWorkType,
+  localWorkId: string,
+  sourceWorkId: string,
+): Promise<void> {
+  const table =
+    workType === "character" ? "characters" : workType === "world" ? "worlds" : "stories";
+  const local = await db.get<{ cover_asset_id: string | null }>(
+    `SELECT cover_asset_id FROM ${table} WHERE id = ? AND author_id = ?`,
+    localWorkId,
+    userId,
+  );
+  if (!local) return;
+
+  if (local.cover_asset_id) {
+    const owned = await db.get<{ id: string; file_path: string }>(
+      "SELECT id, file_path FROM assets WHERE id = ? AND user_id = ?",
+      local.cover_asset_id,
+      userId,
+    );
+    if (owned) return;
+    // 仍引用他人 asset 且文件可读时，也克隆到本地，保证副本自洽
+  }
+
+  const src = await db.get<{ cover_asset_id: string | null }>(
+    `SELECT cover_asset_id FROM ${table} WHERE id = ?`,
+    sourceWorkId,
+  );
+  const cloned = await cloneCoverAsset(
+    db,
+    src?.cover_asset_id ?? local.cover_asset_id,
+    userId,
+    workType,
+    localWorkId,
+  );
+  if (cloned) {
+    await db.run(`UPDATE ${table} SET cover_asset_id = ? WHERE id = ?`, cloned, localWorkId);
+  }
+}
 
 /**
  * 将市场已发布作品快照为用户本地副本。
@@ -36,6 +156,13 @@ export async function downloadWorkSnapshot(
       version,
     );
     if (existing) {
+      await ensureLocalCoverFromSource(
+        db,
+        userId,
+        "character",
+        existing.local_work_id,
+        sourceWorkId,
+      );
       return {
         ok: true,
         localWorkId: existing.local_work_id,
@@ -46,6 +173,13 @@ export async function downloadWorkSnapshot(
 
     const localId = id("char");
     const now = nowIso();
+    const coverAssetId = await cloneCoverAsset(
+      db,
+      src.cover_asset_id as string | null,
+      userId,
+      "character",
+      localId,
+    );
     await db.run(
       `INSERT INTO characters (
         id, author_id, name, avatar_url, cover_asset_id, summary, personality,
@@ -58,7 +192,7 @@ export async function downloadWorkSnapshot(
       userId,
       src.name,
       src.avatar_url ?? null,
-      src.cover_asset_id ?? null,
+      coverAssetId,
       src.summary ?? "",
       src.personality ?? "",
       src.appearance ?? "",
@@ -107,6 +241,13 @@ export async function downloadWorkSnapshot(
       version,
     );
     if (existing) {
+      await ensureLocalCoverFromSource(
+        db,
+        userId,
+        "world",
+        existing.local_work_id,
+        sourceWorkId,
+      );
       return {
         ok: true,
         localWorkId: existing.local_work_id,
@@ -117,6 +258,13 @@ export async function downloadWorkSnapshot(
 
     const localId = id("world");
     const now = nowIso();
+    const coverAssetId = await cloneCoverAsset(
+      db,
+      src.cover_asset_id as string | null,
+      userId,
+      "world",
+      localId,
+    );
     await db.run(
       `INSERT INTO worlds (
         id, author_id, name, cover_asset_id, summary, setting_notes, greeting,
@@ -127,7 +275,7 @@ export async function downloadWorkSnapshot(
       localId,
       userId,
       src.name,
-      src.cover_asset_id ?? null,
+      coverAssetId,
       src.summary ?? "",
       src.setting_notes ?? "",
       src.greeting ?? "",
@@ -193,6 +341,7 @@ export async function downloadWorkSnapshot(
     version,
   );
   if (existing) {
+    await ensureLocalCoverFromSource(db, userId, "story", existing.local_work_id, sourceWorkId);
     return {
       ok: true,
       localWorkId: existing.local_work_id,
@@ -203,6 +352,13 @@ export async function downloadWorkSnapshot(
 
   const localId = id("story");
   const now = nowIso();
+  const coverAssetId = await cloneCoverAsset(
+    db,
+    src.cover_asset_id as string | null,
+    userId,
+    "story",
+    localId,
+  );
   await db.run(
     `INSERT INTO stories (
       id, author_id, title, summary, cover_asset_id, greeting, tags_json, draft_json,
@@ -213,7 +369,7 @@ export async function downloadWorkSnapshot(
     userId,
     src.title,
     src.summary ?? "",
-    src.cover_asset_id ?? null,
+    coverAssetId,
     src.greeting ?? "",
     src.tags_json ?? "[]",
     sourceWorkId,

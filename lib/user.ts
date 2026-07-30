@@ -1,9 +1,13 @@
 import type { Database } from "sqlite";
+import { ensureDefaultPersonaMask } from "@/lib/default-persona-mask";
 import { nowIso } from "@/lib/db";
 
 export async function ensureUserRow(db: Database, userId: string) {
   const row = await db.get<{ id: string }>("SELECT id FROM users WHERE id = ?", userId);
-  if (row) return;
+  if (row) {
+    await ensureDefaultPersonaMask(db, userId);
+    return;
+  }
   const now = nowIso();
   const suffix = userId.replace(/\W/g, "").slice(-6) || "user";
   await db.run(
@@ -14,6 +18,7 @@ export async function ensureUserRow(db: Database, userId: string) {
     now,
     now,
   );
+  await ensureDefaultPersonaMask(db, userId);
 }
 
 /** Google OAuth：用户主键为 `google_${sub}`。已注销账号重新登录时复活为活跃账号。 */
@@ -48,6 +53,7 @@ export async function ensureGoogleUser(
       now,
       now,
     );
+    await ensureDefaultPersonaMask(db, id);
     return;
   }
 
@@ -67,4 +73,5 @@ export async function ensureGoogleUser(
   }
   values.push(id);
   await db.run(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, ...values);
+  await ensureDefaultPersonaMask(db, id);
 }

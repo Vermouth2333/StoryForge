@@ -317,28 +317,50 @@ export default function StoryPlayPage() {
           {story.summary || "选择人设面具，直接进入故事体验（故事中的角色均为 NPC）"}
         </p>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">
+          <label className="mb-2 block text-sm font-medium text-[#1F2A44]">
             人设面具 <span className="text-red-500">*</span>
           </label>
-          <select
-            className="sf-input w-full"
-            value={selectedPersonaId}
-            onChange={(e) => setSelectedPersonaId(e.target.value)}
-          >
-            <option value="">请选择你在故事中的身份</option>
-            {personaMasks.map((mask) => (
-              <option key={mask.id} value={mask.id}>
-                {mask.name}
-              </option>
-            ))}
-          </select>
-          {personaMasks.length === 0 && (
-            <p className="mt-2 text-xs text-[#5B6B8C]">
-              还没有人设面具，
-              <Link className="text-[#3F86F5]" href="/compose?tab=persona">
-                先去创建
+          {personaMasks.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[#C5DDF5] bg-[#F8FBFF] px-4 py-6 text-center">
+              <p className="text-sm text-[#5B6B8C]">还没有人设面具</p>
+              <p className="mt-1 text-xs text-[#8A97B3]">创建后即可选择身份进入故事体验</p>
+              <Link className="sf-btn-primary mt-4 inline-flex" href="/compose?tab=persona">
+                去创建人设面具
               </Link>
-            </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {personaMasks.map((mask) => {
+                const active = selectedPersonaId === mask.id;
+                return (
+                  <button
+                    key={mask.id}
+                    type="button"
+                    onClick={() => setSelectedPersonaId(mask.id)}
+                    className={[
+                      "rounded-xl border px-4 py-3 text-left transition-all",
+                      active
+                        ? "border-[#3F86F5] bg-[#EEF6FF] shadow-[0_0_0_1px_#3F86F5]"
+                        : "border-[#DCE9FF] bg-white hover:border-[#5B9DFF] hover:bg-[#F8FBFF]",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-[#1F2A44]">{mask.name}</p>
+                      {active ? (
+                        <span className="shrink-0 text-xs font-semibold text-[#3F86F5]">已选</span>
+                      ) : null}
+                    </div>
+                    {mask.summary ? (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#5B6B8C]">
+                        {mask.summary}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-[#8A97B3]">暂无简介</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
         <button

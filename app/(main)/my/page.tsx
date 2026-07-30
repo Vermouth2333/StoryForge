@@ -28,6 +28,8 @@ type MyStoryItem = {
   status: "draft" | "published" | "archived";
   updated_at: string;
   source_work_id?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
 };
 
 type MyCharacterItem = {
@@ -36,6 +38,8 @@ type MyCharacterItem = {
   status: string;
   updated_at: string;
   source_work_id?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
 };
 
 type MyWorldItem = {
@@ -44,6 +48,8 @@ type MyWorldItem = {
   status: string;
   updated_at: string;
   source_work_id?: string | null;
+  cover_url?: string | null;
+  cover_thumbnail_url?: string | null;
 };
 
 type FavoriteRow = {
@@ -439,15 +445,25 @@ export default function MyPage() {
             </button>
           </div>
           <ul className="space-y-3">
-            {myStories.map((item) => (
+            {myStories.map((item) => {
+              const coverSrc = item.cover_thumbnail_url || item.cover_url;
+              return (
               <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
                   </span>
                 ) : null}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-3">
+                  <div className="h-14 w-11 shrink-0 overflow-hidden rounded-md bg-[#E8F3FF]">
+                    {coverSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={coverSrc} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[10px] text-[#8A97B3]">无封面</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.title}</p>
                     <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
@@ -478,7 +494,8 @@ export default function MyPage() {
                   )}
                 </div>
               </li>
-            ))}
+              );
+            })}
             {myStories.length === 0 && (
               <li className="text-center py-8 text-[#5b6b8c]">暂无我的故事</li>
             )}
@@ -501,15 +518,25 @@ export default function MyPage() {
             </div>
           </div>
           <ul className="space-y-3">
-            {myCharacters.map((item) => (
+            {myCharacters.map((item) => {
+              const coverSrc = item.cover_thumbnail_url || item.cover_url;
+              return (
               <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
                   </span>
                 ) : null}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-3">
+                  <div className="h-14 w-11 shrink-0 overflow-hidden rounded-md bg-[#E8F3FF]">
+                    {coverSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={coverSrc} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[10px] text-[#8A97B3]">无封面</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
                     <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
@@ -537,7 +564,8 @@ export default function MyPage() {
                   )}
                 </div>
               </li>
-            ))}
+              );
+            })}
             {myCharacters.length === 0 && (
               <li className="text-center py-8 text-[#5b6b8c]">暂无角色卡</li>
             )}
@@ -560,15 +588,25 @@ export default function MyPage() {
             </div>
           </div>
           <ul className="space-y-3">
-            {myWorlds.map((item) => (
+            {myWorlds.map((item) => {
+              const coverSrc = item.cover_thumbnail_url || item.cover_url;
+              return (
               <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
                   </span>
                 ) : null}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                <div className="flex items-start gap-3">
+                  <div className="h-14 w-11 shrink-0 overflow-hidden rounded-md bg-[#E8F3FF]">
+                    {coverSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={coverSrc} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[10px] text-[#8A97B3]">无封面</div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
                     <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
@@ -596,7 +634,8 @@ export default function MyPage() {
                   )}
                 </div>
               </li>
-            ))}
+              );
+            })}
             {myWorlds.length === 0 && (
               <li className="text-center py-8 text-[#5b6b8c]">暂无世界卡</li>
             )}

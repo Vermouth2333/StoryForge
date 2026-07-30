@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, id, nowIso } from "@/lib/db";
+import { ensureDefaultPersonaMask } from "@/lib/default-persona-mask";
 import { hashPassword } from "@/lib/password";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { attachSessionCookie } from "@/lib/session-cookie";
@@ -56,6 +57,7 @@ export async function POST(req: Request) {
     now,
     now,
   );
+  await ensureDefaultPersonaMask(db, userId);
 
   const res = NextResponse.json({
     code: 200,

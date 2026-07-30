@@ -25,6 +25,7 @@ const MOCK_CHUNKS = [
   "已收到你的创作指令，",
   "这是一个 MVP 版本的流式回复（未配置真实模型）。",
   "请在「设置 → 模型管理」页面配置 API Key 和模型，即可启用真实模型输出。",
+  "\n\n[前往配置 API →](/settings#ai-model-settings)",
 ];
 
 function sseData(payload: object) {
@@ -238,6 +239,7 @@ export async function POST(
               "已配置的模型调用失败（请检查 API Key、额度与 Base URL）。",
               "DeepSeek 请确认 Base URL 为 https://api.deepseek.com/v1 。",
               "也可到「设置 → AI 模型管理」核对后重试。",
+              "\n\n[前往配置 API →](/settings#ai-model-settings)",
             ]) {
               emit(part);
             }

@@ -35,7 +35,16 @@ export async function GET(req: Request) {
          LIMIT 100`,
       );
 
-  return NextResponse.json({ code: 200, data: rows, msg: "ok" });
+  const data = (rows as Array<Record<string, unknown>>).map((row) => {
+    const coverAssetId = row.cover_asset_id ? String(row.cover_asset_id) : null;
+    return {
+      ...row,
+      cover_url: coverAssetId ? `/api/assets/${coverAssetId}/file` : null,
+      cover_thumbnail_url: coverAssetId ? `/api/assets/${coverAssetId}/thumbnail` : null,
+    };
+  });
+
+  return NextResponse.json({ code: 200, data, msg: "ok" });
 }
 
 export async function POST(req: Request) {

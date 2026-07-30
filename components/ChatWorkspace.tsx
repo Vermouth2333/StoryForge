@@ -39,6 +39,45 @@ type ChatWorkspaceProps = {
   headerExtra?: React.ReactNode;
 };
 
+/** 将文本中的 [文案](/path#hash) 渲染为可点击链接 */
+function MessageText({ text }: { text: string }) {
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const m = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+        if (m) {
+          const href = m[2];
+          const label = m[1];
+          if (href.startsWith("/")) {
+            return (
+              <Link
+                key={i}
+                href={href}
+                className="mt-2 inline-flex font-semibold text-[#3F86F5] underline underline-offset-2 hover:text-[#2F8FFF]"
+              >
+                {label}
+              </Link>
+            );
+          }
+          return (
+            <a
+              key={i}
+              href={href}
+              className="mt-2 inline-flex font-semibold text-[#3F86F5] underline underline-offset-2 hover:text-[#2F8FFF]"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {label}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export function ChatWorkspace({
   backHref,
   backLabel = "返回",
@@ -192,7 +231,7 @@ export function ChatWorkspace({
                             : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
                         ].join(" ")}
                       >
-                        {msg.content}
+                        <MessageText text={msg.content} />
                       </div>
                     </div>
                   </div>
@@ -204,7 +243,7 @@ export function ChatWorkspace({
                   <div className="max-w-[min(720px,92%)]">
                     <p className="mb-1.5 px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
                     <div className="rounded-2xl rounded-bl-md border border-[#E6ECF5] bg-white px-4 py-3 text-sm leading-relaxed text-[#1F2A44] shadow-sm whitespace-pre-wrap">
-                      {streamText}
+                      <MessageText text={streamText} />
                       <span className="ml-0.5 inline-block animate-pulse text-[#6B7CFF]">▍</span>
                     </div>
                   </div>

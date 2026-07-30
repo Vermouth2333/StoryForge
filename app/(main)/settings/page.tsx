@@ -83,6 +83,21 @@ export default function SettingsPage() {
     void loadModels();
   }, [router]);
 
+  useEffect(() => {
+    if (loading) return;
+    const scrollToModels = () => {
+      if (typeof window === "undefined") return;
+      if (window.location.hash !== "#ai-model-settings") return;
+      document.getElementById("ai-model-settings")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    scrollToModels();
+    const t = window.setTimeout(scrollToModels, 120);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
   async function loadModels() {
     const res = await fetch("/api/models");
     if (res.ok) {
@@ -342,7 +357,7 @@ export default function SettingsPage() {
       </div>
 
       {/* 模型管理 */}
-      <div className="sf-card p-6">
+      <div id="ai-model-settings" className="sf-card scroll-mt-24 p-6">
         <h3 className="text-base font-semibold text-[#1F2A44] mb-2 flex items-center gap-2">
           <IconBadge icon={Bot} tone="ai" size="sm" /> AI 模型管理
         </h3>

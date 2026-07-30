@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
   const rows = mine
     ? await db.all(
-        `SELECT id, author_id, name, avatar_url, summary, personality, tags_json, status, like_count, publish_at, updated_at, source_work_id
+        `SELECT id, author_id, name, avatar_url, cover_asset_id, summary, personality, tags_json, status, like_count, publish_at, updated_at, source_work_id
          FROM characters
          WHERE author_id = ?
          ORDER BY updated_at DESC
@@ -32,14 +32,23 @@ export async function GET(req: Request) {
         userId,
       )
     : await db.all(
-        `SELECT id, author_id, name, avatar_url, summary, personality, tags_json, status, like_count, publish_at, updated_at
+        `SELECT id, author_id, name, avatar_url, cover_asset_id, summary, personality, tags_json, status, like_count, publish_at, updated_at
          FROM characters
          WHERE status = 'published'
          ORDER BY publish_at DESC
          LIMIT 100`,
       );
 
-  return NextResponse.json({ code: 200, data: rows, msg: "ok" });
+  const data = (rows as Array<Record<string, unknown>>).map((row) => {
+    const coverAssetId = row.cover_asset_id ? String(row.cover_asset_id) : null;
+    return {
+      ...row,
+      cover_url: coverAssetId ? `/api/assets/${coverAssetId}/file` : null,
+      cover_thumbnail_url: coverAssetId ? `/api/assets/${coverAssetId}/thumbnail` : null,
+    };
+  });
+
+  return NextResponse.json({ code: 200, data, msg: "ok" });
 }
 
 export async function POST(req: Request) {

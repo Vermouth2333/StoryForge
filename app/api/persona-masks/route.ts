@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { ensureDefaultPersonaMask } from "@/lib/default-persona-mask";
 
 const createSchema = z.object({
   name: z.string().min(1).max(120),
@@ -20,12 +21,13 @@ export async function GET() {
     return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
   }
   const db = await getDb();
+  await ensureDefaultPersonaMask(db, userId);
   const rows = await db.all(
     `SELECT id, name, summary, appearance, personality, background, speech_style,
             tags_json, avatar_url, created_at, updated_at
      FROM persona_masks
      WHERE user_id = ?
-     ORDER BY updated_at DESC
+     ORDER BY CASE WHEN tags_json LIKE '%"系统默认"%' THEN 0 ELSE 1 END, updated_at DESC
      LIMIT 100`,
     userId,
   );
