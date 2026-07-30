@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { App } from "antd";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import MarketDownloadButton from "@/components/MarketDownloadButton";
 import { IconBadge, VenetianMask } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
@@ -30,6 +31,13 @@ type CharacterDetail = {
   cover_thumbnail_url?: string | null;
   summary: string;
   personality: string;
+  appearance?: string;
+  background?: string;
+  speech_style?: string;
+  likes_dislikes?: string;
+  greeting?: string;
+  is_derivative?: boolean;
+  source_work_id?: string | null;
   tags_json: string;
   status: string;
   like_count: number;
@@ -51,7 +59,7 @@ export default function CharacterDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
-  const { canEdit } = useWorkPageMode(row?.author_id, currentUserId || null);
+  const { canEdit, isAuthor } = useWorkPageMode(row?.author_id, currentUserId || null);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
@@ -193,22 +201,43 @@ export default function CharacterDetailPage() {
     tags = [];
   }
 
+  const showDownload = Boolean(row && !isAuthor && row.status === "published");
+  const showChat = Boolean(row && isAuthor);
+
   return (
     <main className="mx-auto max-w-4xl p-6">
-      {/* 对话入口 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
-              <span>💬</span> 与 {row.name} 对话
-            </h3>
-            <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
-          </div>
-          <Link href={`/characters/${row.id}/chat`} className="sf-btn-primary">
-            进入对话 →
-          </Link>
+      {(showDownload || showChat) && (
+        <div className="mb-6 space-y-4">
+          {showDownload && (
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-6">
+              <div>
+                <h3 className="text-base font-semibold text-[#1F2A44] mb-1">下载到本地</h3>
+                <p className="text-xs text-[#5B6B8C]">下载后可在「我的角色」中开启对话</p>
+              </div>
+              <MarketDownloadButton
+                workType="character"
+                workId={row.id}
+                currentUserId={currentUserId || undefined}
+              />
+            </div>
+          )}
+          {showChat && (
+            <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
+                    <span>💬</span> 与 {row.name} 对话
+                  </h3>
+                  <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
+                </div>
+                <Link href={`/characters/${row.id}/chat`} className="sf-btn-primary">
+                  进入对话 →
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {canEdit && row && (() => {
         const editorValues = resolveCharacterEditorValues(row);
@@ -222,6 +251,13 @@ export default function CharacterDetailPage() {
             summary={editorValues.summary}
             tagsJson={editorValues.tagsJson}
             personality={editorValues.personality}
+            appearance={editorValues.appearance}
+            background={editorValues.background}
+            speechStyle={editorValues.speechStyle}
+            likesDislikes={editorValues.likesDislikes}
+            greeting={editorValues.greeting}
+            isDerivative={Boolean(row.is_derivative)}
+            sourceWorkId={row.source_work_id}
             coverUrl={row.cover_url}
             coverThumbnailUrl={row.cover_thumbnail_url}
             onCoverUploaded={(url) => setRow((prev) => (prev ? { ...prev, cover_url: url } : prev))}

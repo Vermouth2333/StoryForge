@@ -14,18 +14,24 @@ export default function ComposePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const initialTab: "story" | "character" | "world" =
-    tabParam === "character" || tabParam === "world" ? tabParam : "story";
-  const [createTab, setCreateTab] = useState<"story" | "character" | "world">(initialTab);
+  const initialTab: "story" | "character" | "world" | "persona" =
+    tabParam === "character" || tabParam === "world" || tabParam === "persona" ? tabParam : "story";
+  const [createTab, setCreateTab] = useState<"story" | "character" | "world" | "persona">(initialTab);
   const [storyTitle, setStoryTitle] = useState("");
   const [storySummary, setStorySummary] = useState("");
   const [storyTags, setStoryTags] = useState("");
+  const [storyGreeting, setStoryGreeting] = useState("");
   const [storyCoverFile, setStoryCoverFile] = useState<File | null>(null);
   const [storyBusy, setStoryBusy] = useState(false);
   // 角色卡表单
   const [charName, setCharName] = useState("");
   const [charSummary, setCharSummary] = useState("");
   const [charPersonality, setCharPersonality] = useState("");
+  const [charGreeting, setCharGreeting] = useState("");
+  const [charAppearance, setCharAppearance] = useState("");
+  const [charBackground, setCharBackground] = useState("");
+  const [charSpeechStyle, setCharSpeechStyle] = useState("");
+  const [charLikesDislikes, setCharLikesDislikes] = useState("");
   const [charTags, setCharTags] = useState("");
   const [charCoverFile, setCharCoverFile] = useState<File | null>(null);
   const [charBusy, setCharBusy] = useState(false);
@@ -34,10 +40,19 @@ export default function ComposePage() {
   const [worldSummary, setWorldSummary] = useState("");
   const [worldSetting, setWorldSetting] = useState("");
   const [worldTags, setWorldTags] = useState("");
+  const [worldGreeting, setWorldGreeting] = useState("");
   const [worldCoverFile, setWorldCoverFile] = useState<File | null>(null);
   const [worldBusy, setWorldBusy] = useState(false);
+  const [personaName, setPersonaName] = useState("");
+  const [personaSummary, setPersonaSummary] = useState("");
+  const [personaAppearance, setPersonaAppearance] = useState("");
+  const [personaPersonality, setPersonaPersonality] = useState("");
+  const [personaBackground, setPersonaBackground] = useState("");
+  const [personaSpeechStyle, setPersonaSpeechStyle] = useState("");
+  const [personaTags, setPersonaTags] = useState("");
+  const [personaBusy, setPersonaBusy] = useState(false);
 
-  function applyImport(kind: "story" | "character" | "world", data: WorkImportFields) {
+  function applyImport(kind: "story" | "character" | "world" | "persona", data: WorkImportFields) {
     const tags = (data.tags ?? []).join(", ");
     if (kind === "story") {
       setStoryTitle(data.title);
@@ -50,6 +65,16 @@ export default function ComposePage() {
       setCharSummary(data.summary);
       setCharPersonality(data.personality ?? "");
       setCharTags(tags);
+      return;
+    }
+    if (kind === "persona") {
+      setPersonaName(data.title);
+      setPersonaSummary(data.summary);
+      setPersonaAppearance(data.appearance ?? "");
+      setPersonaPersonality(data.personality ?? "");
+      setPersonaBackground(data.background ?? "");
+      setPersonaSpeechStyle(data.speech_style ?? "");
+      setPersonaTags(tags);
       return;
     }
     setWorldName(data.title);
@@ -76,6 +101,7 @@ export default function ComposePage() {
       body: JSON.stringify({
         title: storyTitle.trim(),
         summary: storySummary,
+        greeting: storyGreeting,
         tags,
       }),
     });
@@ -107,7 +133,11 @@ export default function ComposePage() {
     const res = await fetch("/api/characters", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: charName.trim(), summary: charSummary, personality: charPersonality, tags }),
+      body: JSON.stringify({
+        name: charName.trim(), summary: charSummary, personality: charPersonality,
+        appearance: charAppearance, background: charBackground, speech_style: charSpeechStyle,
+        likes_dislikes: charLikesDislikes, greeting: charGreeting, tags,
+      }),
     });
     const json = await res.json();
     if (json.code === 200) {
@@ -137,7 +167,7 @@ export default function ComposePage() {
     const res = await fetch("/api/worlds", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: worldName.trim(), summary: worldSummary, setting_notes: worldSetting, tags }),
+      body: JSON.stringify({ name: worldName.trim(), summary: worldSummary, setting_notes: worldSetting, greeting: worldGreeting, tags }),
     });
     const json = await res.json();
     if (json.code === 200) {
@@ -156,6 +186,36 @@ export default function ComposePage() {
     setWorldBusy(false);
   }
 
+  async function createPersona(e: React.FormEvent) {
+    e.preventDefault();
+    if (!personaName.trim()) {
+      message.error("面具名称不能为空");
+      return;
+    }
+    setPersonaBusy(true);
+    try {
+      const tags = personaTags.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean).slice(0, 10);
+      const res = await fetch("/api/persona-masks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: personaName.trim(), summary: personaSummary, appearance: personaAppearance,
+          personality: personaPersonality, background: personaBackground,
+          speech_style: personaSpeechStyle, tags,
+        }),
+      });
+      const json = await res.json();
+      if (json.code === 200) {
+        message.success("人设面具创建成功");
+        router.push(json.data?.id ? `/persona-masks/${json.data.id}` : "/my");
+      } else {
+        message.error(json.msg ?? "创建失败");
+      }
+    } finally {
+      setPersonaBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHero
@@ -169,6 +229,7 @@ export default function ComposePage() {
           { key: "story", label: "故事" },
           { key: "character", label: "角色卡" },
           { key: "world", label: "世界卡" },
+          { key: "persona", label: "人设面具" },
         ] as const).map((t) => {
           const active = createTab === t.key;
           return (
@@ -191,6 +252,43 @@ export default function ComposePage() {
         })}
       </div>
 
+      {createTab === "persona" && (
+        <form onSubmit={createPersona} className="sf-card space-y-5 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">私有身份</p>
+            <h3 className="text-lg font-semibold text-[#1F2A44]">创建人设面具</h3>
+            <p className="mt-1 text-sm text-[#5B6B8C]">面具代表你在互动中的身份，仅自己可见，不会上架市场。</p>
+          </div>
+          <WorkImportPanel kind="persona" onParsed={(data) => applyImport("persona", data)} />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">名称 <span className="text-red-500">*</span></label>
+            <input className="sf-input w-full" placeholder="如：旅人小羽" value={personaName} onChange={(e) => setPersonaName(e.target.value)} maxLength={120} />
+          </div>
+          {[
+            ["简介", personaSummary, setPersonaSummary, "简要描述你扮演的身份与处境…"],
+            ["外貌", personaAppearance, setPersonaAppearance, "描述外貌：身高、发型、穿着等…"],
+            ["性格", personaPersonality, setPersonaPersonality, "描述性格特质、处事态度、优缺点…"],
+            ["背景", personaBackground, setPersonaBackground, "描述过往经历、出身与关键记忆…"],
+            ["说话风格", personaSpeechStyle, setPersonaSpeechStyle, "描述语气、口头禅、常用表达方式…"],
+          ].map(([label, value, setter, ph]) => (
+            <div key={label as string}>
+              <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label as string}</label>
+              <textarea
+                className="sf-input min-h-24 w-full resize-y"
+                placeholder={ph as string}
+                value={value as string}
+                onChange={(e) => (setter as (v: string) => void)(e.target.value)}
+              />
+            </div>
+          ))}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：旅人, 冷静, 观察者" value={personaTags} onChange={(e) => setPersonaTags(e.target.value)} />
+          </div>
+          <button type="submit" className="sf-btn-primary" disabled={personaBusy}>{personaBusy ? "创建中..." : "创建人设面具"}</button>
+        </form>
+      )}
+
       {/* 角色卡创建表单 */}
       {createTab === "character" && (
         <form onSubmit={createCharacter} className="sf-card space-y-5 p-6">
@@ -212,6 +310,23 @@ export default function ComposePage() {
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">性格与动机</label>
             <textarea className="sf-input w-full min-h-28 resize-y" placeholder="描述角色的性格特质、说话风格、核心动机、内心冲突等..." value={charPersonality} onChange={(e) => setCharPersonality(e.target.value)} maxLength={8000} />
           </div>
+          {[
+            ["外貌", charAppearance, setCharAppearance, "描述角色的外貌特征：身高、体型、发色、穿着等…"],
+            ["背景经历", charBackground, setCharBackground, "描述角色的过往经历、成长环境、关键记忆等…"],
+            ["说话风格", charSpeechStyle, setCharSpeechStyle, "描述语气、口头禅、常用表达方式…"],
+            ["喜好与厌恶", charLikesDislikes, setCharLikesDislikes, "描述角色喜欢什么、讨厌什么…"],
+            ["开场语", charGreeting, setCharGreeting, "创建会话后由角色先说出的第一句话…"],
+          ].map(([label, value, setter, ph]) => (
+            <div key={label as string}>
+              <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label as string}</label>
+              <textarea
+                className="sf-input min-h-24 w-full resize-y"
+                placeholder={ph as string}
+                value={value as string}
+                onChange={(e) => (setter as (v: string) => void)(e.target.value)}
+              />
+            </div>
+          ))}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：剑客, 傲娇, 古风" value={charTags} onChange={(e) => setCharTags(e.target.value)} />
@@ -247,6 +362,15 @@ export default function ComposePage() {
             <textarea className="sf-input w-full min-h-36 resize-y" placeholder="描述世界的核心规则、社会体系、科技水平、地理环境、历史大事件等..." value={worldSetting} onChange={(e) => setWorldSetting(e.target.value)} maxLength={8000} />
           </div>
           <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">开场语</label>
+            <textarea
+              className="sf-input min-h-24 w-full resize-y"
+              placeholder="创建会话后由世界先说出的第一句话…"
+              value={worldGreeting}
+              onChange={(e) => setWorldGreeting(e.target.value)}
+            />
+          </div>
+          <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 反乌托邦, 未来" value={worldTags} onChange={(e) => setWorldTags(e.target.value)} />
             <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
@@ -275,6 +399,15 @@ export default function ComposePage() {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
             <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述故事背景、核心冲突..." value={storySummary} onChange={(e) => setStorySummary(e.target.value)} maxLength={1000} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">开场语</label>
+            <textarea
+              className="sf-input min-h-24 w-full resize-y"
+              placeholder="创建会话后由故事先说出的第一句话…"
+              value={storyGreeting}
+              onChange={(e) => setStoryGreeting(e.target.value)}
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>

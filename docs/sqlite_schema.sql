@@ -49,13 +49,25 @@ CREATE TABLE IF NOT EXISTS characters (
   author_id TEXT NOT NULL,
   name TEXT NOT NULL,
   avatar_url TEXT,
+  cover_asset_id TEXT,
   summary TEXT DEFAULT '',
   personality TEXT DEFAULT '',
+  appearance TEXT NOT NULL DEFAULT '',
+  background TEXT NOT NULL DEFAULT '',
+  speech_style TEXT NOT NULL DEFAULT '',
+  likes_dislikes TEXT NOT NULL DEFAULT '',
+  greeting TEXT NOT NULL DEFAULT '',
   tags_json TEXT NOT NULL DEFAULT '[]',
   draft_json TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
+  content_version INTEGER NOT NULL DEFAULT 1,
+  download_cost INTEGER NOT NULL DEFAULT 0,
+  source_work_id TEXT,
+  source_version INTEGER,
+  is_derivative INTEGER NOT NULL DEFAULT 0,
+  derivative_declared INTEGER NOT NULL DEFAULT 0,
   publish_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -68,11 +80,18 @@ CREATE TABLE IF NOT EXISTS worlds (
   cover_asset_id TEXT,
   summary TEXT DEFAULT '',
   setting_notes TEXT DEFAULT '',
+  greeting TEXT NOT NULL DEFAULT '',
   tags_json TEXT NOT NULL DEFAULT '[]',
   draft_json TEXT,
   status TEXT NOT NULL DEFAULT 'draft',
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
+  content_version INTEGER NOT NULL DEFAULT 1,
+  download_cost INTEGER NOT NULL DEFAULT 0,
+  source_work_id TEXT,
+  source_version INTEGER,
+  is_derivative INTEGER NOT NULL DEFAULT 0,
+  derivative_declared INTEGER NOT NULL DEFAULT 0,
   publish_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -99,11 +118,18 @@ CREATE TABLE IF NOT EXISTS stories (
   title TEXT NOT NULL,
   summary TEXT DEFAULT '',
   cover_asset_id TEXT,
+  greeting TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'draft',
   tags_json TEXT NOT NULL DEFAULT '[]',
   draft_json TEXT,
   like_count INTEGER NOT NULL DEFAULT 0,
   favorite_count INTEGER NOT NULL DEFAULT 0,
+  content_version INTEGER NOT NULL DEFAULT 1,
+  download_cost INTEGER NOT NULL DEFAULT 0,
+  source_work_id TEXT,
+  source_version INTEGER,
+  is_derivative INTEGER NOT NULL DEFAULT 0,
+  derivative_declared INTEGER NOT NULL DEFAULT 0,
   publish_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -112,10 +138,12 @@ CREATE TABLE IF NOT EXISTS stories (
 CREATE TABLE IF NOT EXISTS chat_sessions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  session_type TEXT NOT NULL, -- story/character/world
+  session_type TEXT NOT NULL, -- story/character/world/explore
   story_id TEXT,
   character_id TEXT,
   world_id TEXT,
+  persona_mask_id TEXT,
+  model_id TEXT,
   title TEXT NOT NULL,
   summary TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'active',
@@ -123,6 +151,52 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS persona_masks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  summary TEXT NOT NULL DEFAULT '',
+  appearance TEXT NOT NULL DEFAULT '',
+  personality TEXT NOT NULL DEFAULT '',
+  background TEXT NOT NULL DEFAULT '',
+  speech_style TEXT NOT NULL DEFAULT '',
+  tags_json TEXT NOT NULL DEFAULT '[]',
+  avatar_url TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_persona_masks_user
+  ON persona_masks(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS affinity_scores (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  character_id TEXT NOT NULL,
+  story_id TEXT NOT NULL DEFAULT '',
+  score INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  UNIQUE(user_id, character_id, story_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_affinity_user_char
+  ON affinity_scores(user_id, character_id);
+
+CREATE TABLE IF NOT EXISTS work_downloads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  work_type TEXT NOT NULL,
+  source_work_id TEXT NOT NULL,
+  local_work_id TEXT NOT NULL,
+  source_version INTEGER NOT NULL DEFAULT 1,
+  cost INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  UNIQUE(user_id, work_type, source_work_id, source_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_work_downloads_user
+  ON work_downloads(user_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS chat_messages (
   id TEXT PRIMARY KEY,

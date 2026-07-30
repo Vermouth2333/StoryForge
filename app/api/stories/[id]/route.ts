@@ -9,8 +9,10 @@ import { patchStoryWork } from "@/lib/work-draft";
 const schema = z.object({
   title: z.string().min(1).max(120).optional(),
   summary: z.string().max(1000).optional(),
+  greeting: z.string().max(2000).optional(),
   tags: z.array(z.string().min(1).max(30)).max(10).optional(),
   sync_to_market: z.boolean().optional(),
+  declare_derivative: z.boolean().optional(),
 });
 
 export async function GET(
@@ -36,7 +38,8 @@ export async function GET(
   }>(
     `SELECT s.id, s.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      s.title, s.summary, s.status, s.tags_json, s.cover_asset_id, s.draft_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at
+      s.title, s.summary, s.greeting, s.status, s.tags_json, s.cover_asset_id, s.draft_json, s.like_count, s.favorite_count, s.publish_at, s.updated_at,
+      s.source_work_id, s.is_derivative, s.derivative_declared, s.content_version, s.download_cost
      FROM stories s
      LEFT JOIN users u ON u.id = s.author_id
      WHERE s.id = ?`,
@@ -113,7 +116,14 @@ export async function PATCH(
     return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
   }
 
-  const { sync_to_market: syncToMarket = false, ...patchData } = parsed.data;
+  const { sync_to_market: syncToMarket = false, declare_derivative, ...patchData } = parsed.data;
+  if (declare_derivative) {
+    await db.run(
+      "UPDATE stories SET is_derivative = 1, derivative_declared = 1, updated_at = ? WHERE id = ?",
+      nowIso(),
+      id,
+    );
+  }
   const now = nowIso();
   const { syncedToMarket } = await patchStoryWork(
     db,

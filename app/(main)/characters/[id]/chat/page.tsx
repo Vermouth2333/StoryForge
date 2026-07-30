@@ -11,6 +11,8 @@ type CharacterInfo = {
   name: string;
   avatar_url: string | null;
 };
+type PersonaMask = { id: string; name: string };
+type Affinity = { score: number; label: string };
 
 export default function CharacterChatPage() {
   const params = useParams<{ id: string }>();
@@ -26,6 +28,9 @@ export default function CharacterChatPage() {
   const [streamText, setStreamText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [personaMasks, setPersonaMasks] = useState<PersonaMask[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState("");
+  const [affinity, setAffinity] = useState<Affinity | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -44,9 +49,11 @@ export default function CharacterChatPage() {
         return;
       }
 
-      const [charRes, sessRes] = await Promise.all([
+      const [charRes, sessRes, masksRes, affinityRes] = await Promise.all([
         fetch(`/api/characters/${id}`),
         fetch(`/api/chat/sessions?session_type=character&character_id=${id}`),
+        fetch("/api/persona-masks"),
+        fetch(`/api/affinity?character_id=${encodeURIComponent(id)}`),
       ]);
       const charJson = await charRes.json();
       if (charJson.code === 200) {
@@ -59,6 +66,10 @@ export default function CharacterChatPage() {
         setError(charJson.msg ?? "加载失败");
       }
       const sessJson = await sessRes.json();
+      const masksJson = await masksRes.json();
+      if (masksJson.code === 200) setPersonaMasks(masksJson.data ?? []);
+      const affinityJson = await affinityRes.json();
+      if (affinityJson.code === 200) setAffinity(affinityJson.data);
       if (sessJson.code === 200) {
         let list = (sessJson.data ?? []) as ChatSessionInfo[];
         list.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
@@ -87,7 +98,7 @@ export default function CharacterChatPage() {
       }
       setLoading(false);
     })();
-  }, [params.id, resumeSessionId]);
+  }, [params.id, resumeSessionId, router]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -110,6 +121,7 @@ export default function CharacterChatPage() {
       body: JSON.stringify({
         session_type: "character",
         character_id: params.id,
+        persona_mask_id: selectedPersonaId || undefined,
         title: `与${character.name}对话`,
       }),
     });
@@ -170,10 +182,12 @@ export default function CharacterChatPage() {
         for (const ev of events) {
           const line = ev.trim();
           if (!line.startsWith("data:")) continue;
-          const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
+          const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string; affinity?: Affinity | null };
           if (payload.type === "content") {
             acc += payload.content;
             setStreamText(acc);
+          } else if (payload.type === "done" && payload.affinity) {
+            setAffinity(payload.affinity);
           }
         }
       }
@@ -233,6 +247,19 @@ export default function CharacterChatPage() {
       title={`与 ${character.name} 对话`}
       assistantName={character.name}
       placeholder={`和 ${character.name} 说点什么…`}
+      affinity={affinity}
+      personaLabel={personaMasks.find((mask) => mask.id === selectedPersonaId)?.name ?? null}
+      headerExtra={
+        <select
+          className="sf-input max-w-44 py-1 text-xs"
+          value={selectedPersonaId}
+          onChange={(e) => setSelectedPersonaId(e.target.value)}
+          aria-label="选择人设面具"
+        >
+          <option value="">不使用面具</option>
+          {personaMasks.map((mask) => <option key={mask.id} value={mask.id}>{mask.name}</option>)}
+        </select>
+      }
       sessions={sessions}
       activeSessionId={activeSessionId}
       onSelectSession={setActiveSessionId}

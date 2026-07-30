@@ -34,6 +34,9 @@ type ChatWorkspaceProps = {
   onInputChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onStop: () => void;
+  affinity?: { score: number; label: string } | null;
+  personaLabel?: string | null;
+  headerExtra?: React.ReactNode;
 };
 
 export function ChatWorkspace({
@@ -54,6 +57,9 @@ export function ChatWorkspace({
   onInputChange,
   onSend,
   onStop,
+  affinity,
+  personaLabel,
+  headerExtra,
 }: ChatWorkspaceProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -120,7 +126,7 @@ export function ChatWorkspace({
         <header className="flex shrink-0 items-center gap-3 border-b border-[#E6ECF5] bg-white px-4 py-3">
           <button
             type="button"
-            className="rounded-lg px-2 py-1 text-sm text-[#5B6B8C] hover:bg-[#F8FBFF]"
+            className="cursor-pointer rounded-lg px-2 py-1 text-sm text-[#5B6B8C] transition-colors hover:bg-[#EEF6FF] hover:text-[#3F86F5]"
             aria-label={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
             onClick={() => setSidebarOpen((v) => !v)}
           >
@@ -130,7 +136,23 @@ export function ChatWorkspace({
             ← {backLabel}
           </Link>
           <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#1F2A44]">{title}</h1>
+          {personaLabel && <span className="sf-tag shrink-0">面具：{personaLabel}</span>}
+          {headerExtra}
         </header>
+
+        {affinity && (
+          <div className="shrink-0 border-b border-[#E6ECF5] bg-white px-4 py-2">
+            <div className="flex items-center gap-3 text-xs text-[#5B6B8C]">
+              <span className="shrink-0">好感度 {affinity.score}/100 · {affinity.label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#EEF6FF]">
+                <div
+                  className="h-full rounded-full bg-[#5B9DFF] transition-[width]"
+                  style={{ width: `${Math.max(0, Math.min(100, affinity.score))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {!activeSessionId ? (
           <div className="flex flex-1 items-center justify-center p-6">

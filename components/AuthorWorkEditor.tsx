@@ -51,6 +51,13 @@ type AuthorWorkEditorProps = {
   tagsJson: string;
   personality?: string;
   settingNotes?: string;
+  greeting?: string;
+  appearance?: string;
+  background?: string;
+  speechStyle?: string;
+  likesDislikes?: string;
+  isDerivative?: boolean;
+  sourceWorkId?: string | null;
   coverUrl?: string | null;
   coverThumbnailUrl?: string | null;
   onCoverUploaded?: (coverUrl: string) => void;
@@ -70,6 +77,13 @@ export default function AuthorWorkEditor({
   tagsJson: initialTagsJson,
   personality: initialPersonality = "",
   settingNotes: initialSettingNotes = "",
+  greeting: initialGreeting = "",
+  appearance: initialAppearance = "",
+  background: initialBackground = "",
+  speechStyle: initialSpeechStyle = "",
+  likesDislikes: initialLikesDislikes = "",
+  isDerivative = false,
+  sourceWorkId,
   coverUrl,
   coverThumbnailUrl,
   onCoverUploaded,
@@ -81,6 +95,12 @@ export default function AuthorWorkEditor({
   const [summary, setSummary] = useState(initialSummary);
   const [personality, setPersonality] = useState(initialPersonality);
   const [settingNotes, setSettingNotes] = useState(initialSettingNotes);
+  const [greeting, setGreeting] = useState(initialGreeting);
+  const [appearance, setAppearance] = useState(initialAppearance);
+  const [background, setBackground] = useState(initialBackground);
+  const [speechStyle, setSpeechStyle] = useState(initialSpeechStyle);
+  const [likesDislikes, setLikesDislikes] = useState(initialLikesDislikes);
+  const [declareDerivative, setDeclareDerivative] = useState(isDerivative);
   const [tagsInput, setTagsInput] = useState(parseTagsInput(initialTagsJson));
   const [busy, setBusy] = useState(false);
   const { confirmUnpublish } = useWorkConfirm();
@@ -90,8 +110,13 @@ export default function AuthorWorkEditor({
     setSummary(initialSummary);
     setPersonality(initialPersonality);
     setSettingNotes(initialSettingNotes);
+    setGreeting(initialGreeting);
+    setAppearance(initialAppearance);
+    setBackground(initialBackground);
+    setSpeechStyle(initialSpeechStyle);
+    setLikesDislikes(initialLikesDislikes);
     setTagsInput(parseTagsInput(initialTagsJson));
-  }, [initialName, initialSummary, initialPersonality, initialSettingNotes, initialTagsJson]);
+  }, [initialName, initialSummary, initialPersonality, initialSettingNotes, initialGreeting, initialAppearance, initialBackground, initialSpeechStyle, initialLikesDislikes, initialTagsJson]);
 
   const apiBase = `/api/${kind === "story" ? "stories" : kind === "character" ? "characters" : "worlds"}/${id}`;
   const nameLabel = kind === "story" ? "标题" : "名称";
@@ -100,11 +125,15 @@ export default function AuthorWorkEditor({
     const tags = buildTagsArray(tagsInput);
     const base =
       kind === "story"
-        ? { title: name.trim(), summary, tags }
+        ? { title: name.trim(), summary, greeting, tags }
         : kind === "character"
-          ? { name: name.trim(), summary, personality, tags }
-          : { name: name.trim(), summary, setting_notes: settingNotes, tags };
-    return { ...base, sync_to_market: syncToMarket };
+          ? { name: name.trim(), summary, personality, appearance, background, speech_style: speechStyle, likes_dislikes: likesDislikes, greeting, tags }
+          : { name: name.trim(), summary, setting_notes: settingNotes, greeting, tags };
+    return {
+      ...base,
+      sync_to_market: syncToMarket,
+      ...(syncToMarket && declareDerivative ? { declare_derivative: true } : {}),
+    };
   }
 
   async function saveChanges(syncPublish = false) {
@@ -128,9 +157,16 @@ export default function AuthorWorkEditor({
       const patch: Record<string, unknown> = {
         ...(kind === "story" ? { title: name.trim() } : { name: name.trim() }),
         summary,
+        greeting,
         tags_json: JSON.stringify(buildTagsArray(tagsInput)),
       };
-      if (kind === "character") patch.personality = personality;
+      if (kind === "character") {
+        patch.personality = personality;
+        patch.appearance = appearance;
+        patch.background = background;
+        patch.speech_style = speechStyle;
+        patch.likes_dislikes = likesDislikes;
+      }
       if (kind === "world") patch.setting_notes = settingNotes;
 
       if (syncPublish) {
@@ -142,10 +178,10 @@ export default function AuthorWorkEditor({
           has_unsynced_draft: true,
           draft_json: JSON.stringify(
             kind === "story"
-              ? { title: name.trim(), summary, tags: buildTagsArray(tagsInput) }
+              ? { title: name.trim(), summary, greeting, tags: buildTagsArray(tagsInput) }
               : kind === "character"
-                ? { name: name.trim(), summary, personality, tags: buildTagsArray(tagsInput) }
-                : { name: name.trim(), summary, setting_notes: settingNotes, tags: buildTagsArray(tagsInput) },
+                ? { name: name.trim(), summary, personality, appearance, background, speech_style: speechStyle, likes_dislikes: likesDislikes, greeting, tags: buildTagsArray(tagsInput) }
+                : { name: name.trim(), summary, setting_notes: settingNotes, greeting, tags: buildTagsArray(tagsInput) },
           ),
         });
       } else {
@@ -158,7 +194,8 @@ export default function AuthorWorkEditor({
         } else {
           const pubRes = await fetch(`${apiBase}/publish`, {
             method: "POST",
-            headers: replayHeaders(),
+            headers: { ...replayHeaders(), "Content-Type": "application/json" },
+            body: JSON.stringify({ declare_derivative: declareDerivative }),
           });
           const pubJson = await pubRes.json();
           if (pubJson.code === 200) {
@@ -178,25 +215,6 @@ export default function AuthorWorkEditor({
     }
   }
 
-  async function publishOnly() {
-    setBusy(true);
-    try {
-      const res = await fetch(`${apiBase}/publish`, {
-        method: "POST",
-        headers: replayHeaders(),
-      });
-      const json = await res.json();
-      if (json.code === 200) {
-        onStatusChange("published", json.data?.publish_at ?? new Date().toISOString());
-        message.success(status === "published" ? "已刷新市场展示" : "已上架到市场");
-      } else {
-        message.error(json.msg ?? "上架失败");
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function unpublish() {
     setBusy(true);
     try {
@@ -204,7 +222,7 @@ export default function AuthorWorkEditor({
       const json = await res.json();
       if (json.code === 200) {
         onStatusChange("draft", null);
-        message.success("已下架，可继续编辑后再次上架");
+        message.success("已下架，可继续编辑后保存并上架");
       } else {
         message.error(json.msg ?? "下架失败");
       }
@@ -229,7 +247,7 @@ export default function AuthorWorkEditor({
       <p className="mb-4 text-xs text-[#5B6B8C]">
         {status === "published"
           ? "「保存修改」仅保存本地草稿，不会更新市场展示；确认无误后点击「保存并同步市场」。"
-          : "修改后点击「保存并上架」或先保存再单独上架，内容将出现在市场。"}
+          : "「保存修改」只存草稿；「保存并上架」会保存当前内容并发布到市场。"}
       </p>
 
       <div
@@ -257,6 +275,13 @@ export default function AuthorWorkEditor({
           </label>
           <input
             className="sf-input w-full"
+            placeholder={
+              kind === "story"
+                ? "如：赛博朋克2077-初次相遇"
+                : kind === "character"
+                  ? "如：林晓月"
+                  : "如：赛博朋克夜之城"
+            }
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={120}
@@ -267,21 +292,57 @@ export default function AuthorWorkEditor({
           <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
           <textarea
             className="sf-input w-full min-h-20 resize-y"
+            placeholder={
+              kind === "story"
+                ? "简要描述故事背景、核心冲突…"
+                : kind === "character"
+                  ? "简要描述角色的身份、特征…"
+                  : "简要描述世界的核心概念、时代背景…"
+            }
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
             maxLength={1000}
           />
         </div>
 
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">开场语</label>
+          <textarea
+            className="sf-input w-full min-h-24 resize-y"
+            placeholder="创建会话后由作品先说出的第一句话"
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            maxLength={2000}
+          />
+        </div>
+
         {kind === "character" && (
-          <div>
+          <div className="space-y-4">
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">性格与动机</label>
             <textarea
               className="sf-input w-full min-h-28 resize-y"
+              placeholder="描述角色的性格特质、说话风格、核心动机、内心冲突等…"
               value={personality}
               onChange={(e) => setPersonality(e.target.value)}
               maxLength={8000}
             />
+            {[
+              ["外貌", appearance, setAppearance, "描述角色的外貌特征：身高、体型、发色、穿着等…"],
+              ["背景经历", background, setBackground, "描述角色的过往经历、成长环境、关键记忆等…"],
+              ["说话风格", speechStyle, setSpeechStyle, "描述语气、口头禅、常用表达方式…"],
+              ["喜好与厌恶", likesDislikes, setLikesDislikes, "描述角色喜欢什么、讨厌什么…"],
+            ].map(([label, value, setter, ph]) => (
+              <div key={label as string}>
+                <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label as string}</label>
+                <textarea
+                  className="sf-input w-full min-h-24 resize-y"
+                  placeholder={ph as string}
+                  value={value as string}
+                  onChange={(e) => (setter as (value: string) => void)(e.target.value)}
+                  maxLength={8000}
+                />
+              </div>
+            ))}
           </div>
         )}
 
@@ -290,6 +351,7 @@ export default function AuthorWorkEditor({
             <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界设定</label>
             <textarea
               className="sf-input w-full min-h-36 resize-y"
+              placeholder="描述世界的核心规则、社会体系、科技水平、地理环境、历史大事件等…"
               value={settingNotes}
               onChange={(e) => setSettingNotes(e.target.value)}
               maxLength={8000}
@@ -301,13 +363,30 @@ export default function AuthorWorkEditor({
           <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
           <input
             className="sf-input w-full"
-            placeholder="逗号或空格分隔"
+            placeholder={
+              kind === "story"
+                ? "用逗号或空格分隔，如：赛博朋克, 悬疑, 长篇"
+                : kind === "character"
+                  ? "用逗号或空格分隔，如：剑客, 傲娇, 古风"
+                  : "用逗号或空格分隔，如：赛博朋克, 反乌托邦, 未来"
+            }
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
           />
         </div>
         </div>
       </div>
+
+      {(isDerivative || sourceWorkId) && (
+        <label className="mt-5 flex items-center gap-2 text-sm text-[#1F2A44]">
+          <input
+            type="checkbox"
+            checked={declareDerivative}
+            onChange={(e) => setDeclareDerivative(e.target.checked)}
+          />
+          声明为衍生作品
+        </label>
+      )}
 
       <div className="mt-5">
         <WorkImportPanel
@@ -359,16 +438,6 @@ export default function AuthorWorkEditor({
               下架
             </button>
           </>
-        )}
-        {status !== "published" && (
-          <button
-            type="button"
-            className="sf-btn-secondary"
-            disabled={busy}
-            onClick={() => void publishOnly()}
-          >
-            再次上架
-          </button>
         )}
         {kind === "story" && (
           <Link href={`/stories/${id}/edit`} className="sf-btn-secondary inline-flex items-center no-underline">

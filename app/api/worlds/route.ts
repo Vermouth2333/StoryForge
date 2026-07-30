@@ -7,6 +7,7 @@ const createSchema = z.object({
   name: z.string().min(1).max(120),
   summary: z.string().max(1000).optional().default(""),
   setting_notes: z.string().max(8000).optional().default(""),
+  greeting: z.string().max(2000).optional().default(""),
   cover_asset_id: z.string().max(120).optional().nullable(),
   tags: z.array(z.string().min(1).max(30)).max(10).default([]),
 });
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 
   const rows = mine
     ? await db.all(
-        `SELECT id, author_id, name, cover_asset_id, summary, setting_notes, tags_json, status, like_count, publish_at, updated_at
+        `SELECT id, author_id, name, cover_asset_id, summary, setting_notes, tags_json, status, like_count, publish_at, updated_at, source_work_id
          FROM worlds
          WHERE author_id = ?
          ORDER BY updated_at DESC
@@ -49,14 +50,15 @@ export async function POST(req: Request) {
   const now = nowIso();
   await db.run(
     `INSERT INTO worlds
-     (id, author_id, name, cover_asset_id, summary, setting_notes, tags_json, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
+     (id, author_id, name, cover_asset_id, summary, setting_notes, greeting, tags_json, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
     wid,
     userId,
     parsed.data.name,
     parsed.data.cover_asset_id ?? null,
     parsed.data.summary,
     parsed.data.setting_notes,
+    parsed.data.greeting,
     JSON.stringify(parsed.data.tags),
     now,
     now,

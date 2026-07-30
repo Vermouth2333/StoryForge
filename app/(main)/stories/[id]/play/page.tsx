@@ -12,12 +12,8 @@ type StoryDetail = {
   summary: string;
 };
 
-type CharacterItem = {
-  id: string;
-  name: string;
-  avatar_url: string | null;
-  summary: string;
-};
+type PersonaMask = { id: string; name: string; summary?: string };
+type StorySession = ChatSessionInfo & { persona_mask_id?: string | null };
 
 export default function StoryPlayPage() {
   const params = useParams<{ id: string }>();
@@ -25,8 +21,8 @@ export default function StoryPlayPage() {
   const searchParams = useSearchParams();
   const resumeSessionId = searchParams.get("session") ?? "";
   const [story, setStory] = useState<StoryDetail | null>(null);
-  const [characters, setCharacters] = useState<CharacterItem[]>([]);
-  const [selectedCharacter, setSelectedCharacter] = useState<CharacterItem | null>(null);
+  const [personaMasks, setPersonaMasks] = useState<PersonaMask[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -55,25 +51,16 @@ export default function StoryPlayPage() {
         return;
       }
 
-      const res = await fetch(`/api/stories/${id}`);
+      const [res, masksRes] = await Promise.all([
+        fetch(`/api/stories/${id}`),
+        fetch("/api/persona-masks"),
+      ]);
+      const masksJson = await masksRes.json();
+      const loadedMasks = (masksJson.code === 200 ? masksJson.data ?? [] : []) as PersonaMask[];
+      setPersonaMasks(loadedMasks);
       const json = await res.json();
-      let loadedCharacters: CharacterItem[] = [];
       if (json.code === 200) {
         setStory({ id: json.data.id, title: json.data.title, summary: json.data.summary ?? "" });
-        const [relRes, importsRes] = await Promise.all([
-          fetch(`/api/stories/${id}/relations`),
-          fetch(`/api/stories/${id}/imports`),
-        ]);
-        const importsJson = importsRes.ok ? await importsRes.json() : null;
-        const imported = (importsJson?.data?.characters ?? []) as CharacterItem[];
-        if (imported.length > 0) {
-          loadedCharacters = imported;
-          setCharacters(imported);
-        } else {
-          const relJson = await relRes.json();
-          void relJson;
-          setCharacters([]);
-        }
       } else {
         setError(json.msg ?? "加载失败");
       }
@@ -82,49 +69,37 @@ export default function StoryPlayPage() {
         const detailRes = await fetch(`/api/chat/sessions/${resumeSessionId}`);
         const detailJson = await detailRes.json();
         if (detailJson.code === 200 && detailJson.data?.story_id === id) {
-          const characterId = detailJson.data.character_id as string | null;
-          let character = loadedCharacters.find((c) => c.id === characterId) ?? null;
-          if (!character && characterId) {
-            const cRes = await fetch(`/api/characters/${characterId}`);
-            const cJson = await cRes.json();
-            if (cJson.code === 200) {
-              character = {
-                id: cJson.data.id,
-                name: cJson.data.name,
-                avatar_url: cJson.data.avatar_url,
-                summary: cJson.data.summary ?? "",
-              };
-            }
+          const personaId = detailJson.data.persona_mask_id as string | null;
+          if (personaId && loadedMasks.some((mask) => mask.id === personaId)) {
+            setSelectedPersonaId(personaId);
           }
-
-          if (character) {
-            setSelectedCharacter(character);
-            const sessRes = await fetch(
-              `/api/chat/sessions?session_type=story&story_id=${id}&character_id=${character.id}`,
-            );
-            const sessJson = await sessRes.json();
-            let items = (sessJson.code === 200 ? sessJson.data : []) as ChatSessionInfo[];
-            items.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-            if (!items.some((s) => s.id === resumeSessionId)) {
-              items = [
-                {
-                  id: detailJson.data.id,
-                  title: detailJson.data.title,
-                  created_at: detailJson.data.created_at,
-                },
-                ...items,
-              ];
-            }
-            setSessions(items);
-            setActiveSessionId(resumeSessionId);
-            setInChat(true);
+          const sessRes = await fetch(
+            `/api/chat/sessions?session_type=story&story_id=${id}${
+              personaId ? `&persona_mask_id=${encodeURIComponent(personaId)}` : ""
+            }`,
+          );
+          const sessJson = await sessRes.json();
+          let items = (sessJson.code === 200 ? sessJson.data : []) as StorySession[];
+          items.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+          if (!items.some((s) => s.id === resumeSessionId)) {
+            items = [
+              {
+                id: detailJson.data.id,
+                title: detailJson.data.title,
+                created_at: detailJson.data.created_at,
+              },
+              ...items,
+            ];
           }
+          setSessions(items);
+          setActiveSessionId(resumeSessionId);
+          setInChat(true);
         }
       }
 
       setLoading(false);
     })();
-  }, [params.id, resumeSessionId]);
+  }, [params.id, resumeSessionId, router]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -139,9 +114,9 @@ export default function StoryPlayPage() {
     })();
   }, [activeSessionId]);
 
-  async function loadSessions(characterId: string) {
+  async function loadSessions(personaId: string) {
     const res = await fetch(
-      `/api/chat/sessions?session_type=story&story_id=${params.id}&character_id=${characterId}`,
+      `/api/chat/sessions?session_type=story&story_id=${params.id}&persona_mask_id=${encodeURIComponent(personaId)}`,
     );
     const json = await res.json();
     if (json.code === 200) {
@@ -153,16 +128,18 @@ export default function StoryPlayPage() {
     return [];
   }
 
-  async function createSession(character = selectedCharacter) {
-    if (!character || !story) return;
+  async function createSession() {
+    const persona = personaMasks.find((mask) => mask.id === selectedPersonaId);
+    if (!story || !persona) return;
+    const title = `体验${story.title} · ${persona.name}`;
     const res = await fetch("/api/chat/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_type: "story",
         story_id: params.id,
-        character_id: character.id,
-        title: `体验${story.title} · ${character.name}`,
+        persona_mask_id: persona.id,
+        title,
       }),
     });
     const json = await res.json();
@@ -170,24 +147,26 @@ export default function StoryPlayPage() {
       const newSessionId = json.data.session_id as string;
       const session: ChatSessionInfo = {
         id: newSessionId,
-        title: `体验${story.title} · ${character.name}`,
+        title,
         created_at: new Date().toISOString(),
       };
       setSessions((prev) => [session, ...prev]);
       setActiveSessionId(newSessionId);
-      setMessages([]);
+      const messagesRes = await fetch(`/api/chat/sessions/${newSessionId}/messages`);
+      const messagesJson = await messagesRes.json();
+      setMessages(messagesJson.code === 200 ? messagesJson.data ?? [] : []);
       setInChat(true);
     }
   }
 
   async function startExperience() {
-    if (!selectedCharacter) return;
-    const list = await loadSessions(selectedCharacter.id);
+    if (!selectedPersonaId) return;
+    const list = await loadSessions(selectedPersonaId);
     if (list.length > 0) {
       setActiveSessionId(list[0].id);
       setInChat(true);
     } else {
-      await createSession(selectedCharacter);
+      await createSession();
     }
   }
 
@@ -234,10 +213,17 @@ export default function StoryPlayPage() {
         for (const ev of events) {
           const line = ev.trim();
           if (!line.startsWith("data:")) continue;
-          const payload = JSON.parse(line.slice(5).trim()) as { type?: string; content?: string };
-          if (payload.type === "content") {
-            acc += payload.content ?? "";
-            setStreamText(acc);
+          try {
+            const payload = JSON.parse(line.slice(5).trim()) as {
+              type?: string;
+              content?: string;
+            };
+            if (payload.type === "content" && payload.content) {
+              acc += payload.content;
+              setStreamText(acc);
+            }
+          } catch {
+            // ignore malformed sse
           }
         }
       }
@@ -290,15 +276,17 @@ export default function StoryPlayPage() {
     );
   }
 
-  if (inChat && selectedCharacter) {
+  if (inChat) {
+    const personaName = personaMasks.find((mask) => mask.id === selectedPersonaId)?.name;
     return (
       <ChatWorkspace
         backHref={`/stories/${story.id}`}
         backLabel="退出体验"
-        title={`${story.title} · ${selectedCharacter.name}`}
-        assistantName={selectedCharacter.name}
+        title={personaName ? `${story.title} · ${personaName}` : story.title}
+        assistantName={story.title}
         placeholder="输入你的行动指令…"
-        emptyHint={story.summary || `以 ${selectedCharacter.name} 的身份开始体验`}
+        emptyHint={story.summary || "以你的人设面具进入故事"}
+        personaLabel={personaName ?? null}
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={setActiveSessionId}
@@ -325,34 +313,38 @@ export default function StoryPlayPage() {
       </div>
 
       <div className="sf-card space-y-4 p-6">
-        <p className="text-sm text-[#5B6B8C]">{story.summary || "选择角色开始体验"}</p>
-        {characters.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {characters.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`rounded-xl border p-4 text-left transition ${
-                  selectedCharacter?.id === c.id
-                    ? "border-[#5B9DFF] bg-[#EEF6FF]"
-                    : "border-[#DCE9FF] bg-white hover:bg-[#F8FBFF]"
-                }`}
-                onClick={() => setSelectedCharacter(c)}
-              >
-                <p className="font-medium text-[#1F2A44]">{c.name}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-[#5B6B8C]">{c.summary}</p>
-              </button>
+        <p className="text-sm text-[#5B6B8C]">
+          {story.summary || "选择人设面具，直接进入故事体验（故事中的角色均为 NPC）"}
+        </p>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">
+            人设面具 <span className="text-red-500">*</span>
+          </label>
+          <select
+            className="sf-input w-full"
+            value={selectedPersonaId}
+            onChange={(e) => setSelectedPersonaId(e.target.value)}
+          >
+            <option value="">请选择你在故事中的身份</option>
+            {personaMasks.map((mask) => (
+              <option key={mask.id} value={mask.id}>
+                {mask.name}
+              </option>
             ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#5B6B8C]">
-            请先在大纲编辑页「引入角色卡」，再回来体验。
-          </p>
-        )}
+          </select>
+          {personaMasks.length === 0 && (
+            <p className="mt-2 text-xs text-[#5B6B8C]">
+              还没有人设面具，
+              <Link className="text-[#3F86F5]" href="/compose?tab=persona">
+                先去创建
+              </Link>
+            </p>
+          )}
+        </div>
         <button
           type="button"
           className="sf-btn-primary"
-          disabled={!selectedCharacter}
+          disabled={!selectedPersonaId}
           onClick={() => void startExperience()}
         >
           开始体验

@@ -20,12 +20,13 @@ export async function GET(
     story_id: string | null;
     character_id: string | null;
     world_id: string | null;
+    persona_mask_id: string | null;
     title: string | null;
     last_message_at: string | null;
     created_at: string;
     updated_at: string;
   }>(
-    `SELECT id, session_type, story_id, character_id, world_id, title, last_message_at, created_at, updated_at
+    `SELECT id, session_type, story_id, character_id, world_id, persona_mask_id, title, last_message_at, created_at, updated_at
      FROM chat_sessions
      WHERE id = ? AND user_id = ?`,
     id,

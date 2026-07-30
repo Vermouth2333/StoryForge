@@ -6,6 +6,7 @@ import { createNotification } from "@/lib/notifications";
 import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
 import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
+import { assertPublishAllowedForDerivative } from "@/lib/work-download";
 import { verifyReplayGuard } from "@/lib/anti-replay";
 
 export async function POST(
@@ -43,6 +44,21 @@ export async function POST(
   const replay = await verifyReplayGuard(req, userId);
   if (!replay.ok) {
     return NextResponse.json({ code: replay.status, msg: replay.msg }, { status: replay.status });
+  }
+
+  let declareDerivative = false;
+  try {
+    const body = await req.json();
+    declareDerivative = Boolean(body?.declare_derivative);
+  } catch {
+    // 无 body 亦可
+  }
+
+  const gate = await assertPublishAllowedForDerivative(db, "characters", id, {
+    declare_derivative: declareDerivative,
+  });
+  if (!gate.ok) {
+    return NextResponse.json({ code: 400, msg: gate.msg }, { status: 400 });
   }
 
   const row = await db.get<{ id: string; name: string; summary: string; personality: string }>(

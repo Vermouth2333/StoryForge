@@ -250,9 +250,12 @@ export default function MarketPage() {
                   )}
                 </div>
                 <div className="market-card-content">
-                  <span className={`market-card-kind ${kind}`}>
-                    {kind === "story" ? "故事" : kind === "character" ? "角色" : "世界"}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`market-card-kind ${kind}`}>
+                      {kind === "story" ? "故事" : kind === "character" ? "角色" : "世界"}
+                    </span>
+                    <span className="market-card-free">免费</span>
+                  </div>
                   <h3 className="market-card-title">{item.title}</h3>
                   <p className="market-card-summary">
                     {item.summary || "支持点赞、关注、通知与基础推荐排序。"}

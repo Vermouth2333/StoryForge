@@ -10,6 +10,7 @@ type WorldInfo = {
   id: string;
   name: string;
 };
+type PersonaMask = { id: string; name: string };
 
 export default function WorldChatPage() {
   const params = useParams<{ id: string }>();
@@ -25,6 +26,8 @@ export default function WorldChatPage() {
   const [streamText, setStreamText] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [personaMasks, setPersonaMasks] = useState<PersonaMask[]>([]);
+  const [selectedPersonaId, setSelectedPersonaId] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -43,10 +46,11 @@ export default function WorldChatPage() {
         return;
       }
 
-      const [worldRes, worldSessRes, exploreSessRes] = await Promise.all([
+      const [worldRes, worldSessRes, exploreSessRes, masksRes] = await Promise.all([
         fetch(`/api/worlds/${id}`),
         fetch(`/api/chat/sessions?session_type=world&world_id=${id}`),
         fetch(`/api/chat/sessions?session_type=explore&world_id=${id}`),
+        fetch("/api/persona-masks"),
       ]);
       const worldJson = await worldRes.json();
       if (worldJson.code === 200) {
@@ -56,6 +60,8 @@ export default function WorldChatPage() {
       }
       const worldSessJson = await worldSessRes.json();
       const exploreSessJson = await exploreSessRes.json();
+      const masksJson = await masksRes.json();
+      if (masksJson.code === 200) setPersonaMasks(masksJson.data ?? []);
       let list = [
         ...((worldSessJson.code === 200 ? worldSessJson.data : []) as ChatSessionInfo[]),
         ...((exploreSessJson.code === 200 ? exploreSessJson.data : []) as ChatSessionInfo[]),
@@ -85,7 +91,7 @@ export default function WorldChatPage() {
       }
       setLoading(false);
     })();
-  }, [params.id, resumeSessionId]);
+  }, [params.id, resumeSessionId, router]);
 
   useEffect(() => {
     if (!activeSessionId) {
@@ -108,6 +114,7 @@ export default function WorldChatPage() {
       body: JSON.stringify({
         session_type: "world",
         world_id: params.id,
+        persona_mask_id: selectedPersonaId || undefined,
         title: `探索${world.name}`,
       }),
     });
@@ -234,6 +241,18 @@ export default function WorldChatPage() {
       assistantName={world.name}
       placeholder="描述你想探索的情节或提问世界观…"
       emptyHint={`在 ${world.name} 中开始探索吧`}
+      personaLabel={personaMasks.find((mask) => mask.id === selectedPersonaId)?.name ?? null}
+      headerExtra={
+        <select
+          className="sf-input max-w-44 py-1 text-xs"
+          value={selectedPersonaId}
+          onChange={(e) => setSelectedPersonaId(e.target.value)}
+          aria-label="选择人设面具"
+        >
+          <option value="">不使用面具</option>
+          {personaMasks.map((mask) => <option key={mask.id} value={mask.id}>{mask.name}</option>)}
+        </select>
+      }
       sessions={sessions}
       activeSessionId={activeSessionId}
       onSelectSession={setActiveSessionId}

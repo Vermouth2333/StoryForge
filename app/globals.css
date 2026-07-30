@@ -783,6 +783,8 @@ select.sf-input {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  line-height: 1.4;
+  vertical-align: middle;
 }
 
 .market-card-kind.story {
@@ -798,6 +800,22 @@ select.sf-input {
 .market-card-kind.world {
   background: linear-gradient(135deg, #4aa8e8 0%, #2f7ec4 100%);
   color: #fff;
+}
+
+/* 与类型标签同尺寸的「免费」标识 */
+.market-card-free {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  line-height: 1.4;
+  vertical-align: middle;
+  background: #e8f8ef;
+  color: #27824b;
+  border: none;
 }
 
 .market-card-title {

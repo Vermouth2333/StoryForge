@@ -8,7 +8,7 @@ import { parseWorkImportWithAi, type WorkImportKind } from "@/lib/work-import-pa
 export const runtime = "nodejs";
 
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
-const kindSchema = z.enum(["story", "character", "world"]);
+const kindSchema = z.enum(["story", "character", "world", "persona"]);
 
 export async function POST(req: Request) {
   const userId = await getCurrentUserId();

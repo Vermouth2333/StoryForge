@@ -21,6 +21,11 @@ export function resolveCharacterEditorValues(row: {
   summary: string;
   personality: string;
   tags_json: string;
+  appearance?: string;
+  background?: string;
+  speech_style?: string;
+  likes_dislikes?: string;
+  greeting?: string;
   draft_json?: string | null;
 }) {
   const draft = parseDraftJson(row.draft_json);
@@ -29,6 +34,11 @@ export function resolveCharacterEditorValues(row: {
       name: row.name,
       summary: row.summary,
       personality: row.personality,
+      appearance: row.appearance ?? "",
+      background: row.background ?? "",
+      speechStyle: row.speech_style ?? "",
+      likesDislikes: row.likes_dislikes ?? "",
+      greeting: row.greeting ?? "",
       tagsJson: row.tags_json,
     };
   }
@@ -36,6 +46,12 @@ export function resolveCharacterEditorValues(row: {
     name: typeof draft.name === "string" ? draft.name : row.name,
     summary: typeof draft.summary === "string" ? draft.summary : row.summary,
     personality: typeof draft.personality === "string" ? draft.personality : row.personality,
+    appearance: typeof draft.appearance === "string" ? draft.appearance : (row.appearance ?? ""),
+    background: typeof draft.background === "string" ? draft.background : (row.background ?? ""),
+    speechStyle: typeof draft.speech_style === "string" ? draft.speech_style : (row.speech_style ?? ""),
+    likesDislikes:
+      typeof draft.likes_dislikes === "string" ? draft.likes_dislikes : (row.likes_dislikes ?? ""),
+    greeting: typeof draft.greeting === "string" ? draft.greeting : (row.greeting ?? ""),
     tagsJson: Array.isArray(draft.tags) ? tagsToJson(draft.tags) : row.tags_json,
   };
 }
@@ -45,6 +61,7 @@ export function resolveWorldEditorValues(row: {
   summary: string;
   setting_notes: string;
   tags_json: string;
+  greeting?: string;
   draft_json?: string | null;
 }) {
   const draft = parseDraftJson(row.draft_json);
@@ -53,6 +70,7 @@ export function resolveWorldEditorValues(row: {
       name: row.name,
       summary: row.summary,
       settingNotes: row.setting_notes,
+      greeting: row.greeting ?? "",
       tagsJson: row.tags_json,
     };
   }
@@ -61,6 +79,7 @@ export function resolveWorldEditorValues(row: {
     summary: typeof draft.summary === "string" ? draft.summary : row.summary,
     settingNotes:
       typeof draft.setting_notes === "string" ? draft.setting_notes : row.setting_notes,
+    greeting: typeof draft.greeting === "string" ? draft.greeting : (row.greeting ?? ""),
     tagsJson: Array.isArray(draft.tags) ? tagsToJson(draft.tags) : row.tags_json,
   };
 }
@@ -69,6 +88,7 @@ export function resolveStoryEditorValues(row: {
   title: string;
   summary: string;
   tags_json: string;
+  greeting?: string;
   draft_json?: string | null;
 }) {
   const draft = parseDraftJson(row.draft_json);
@@ -76,12 +96,14 @@ export function resolveStoryEditorValues(row: {
     return {
       name: row.title,
       summary: row.summary,
+      greeting: row.greeting ?? "",
       tagsJson: row.tags_json,
     };
   }
   return {
     name: typeof draft.title === "string" ? draft.title : row.title,
     summary: typeof draft.summary === "string" ? draft.summary : row.summary,
+    greeting: typeof draft.greeting === "string" ? draft.greeting : (row.greeting ?? ""),
     tagsJson: Array.isArray(draft.tags) ? tagsToJson(draft.tags) : row.tags_json,
   };
 }
@@ -90,6 +112,11 @@ type CharacterPatch = {
   name?: string;
   summary?: string;
   personality?: string;
+  appearance?: string;
+  background?: string;
+  speech_style?: string;
+  likes_dislikes?: string;
+  greeting?: string;
   tags?: string[];
 };
 
@@ -97,12 +124,14 @@ type WorldPatch = {
   name?: string;
   summary?: string;
   setting_notes?: string;
+  greeting?: string;
   tags?: string[];
 };
 
 type StoryPatch = {
   title?: string;
   summary?: string;
+  greeting?: string;
   tags?: string[];
 };
 
@@ -138,12 +167,33 @@ export async function patchCharacterWork(
     fields.push("personality = ?");
     values.push(patch.personality);
   }
+  if (patch.appearance !== undefined) {
+    fields.push("appearance = ?");
+    values.push(patch.appearance);
+  }
+  if (patch.background !== undefined) {
+    fields.push("background = ?");
+    values.push(patch.background);
+  }
+  if (patch.speech_style !== undefined) {
+    fields.push("speech_style = ?");
+    values.push(patch.speech_style);
+  }
+  if (patch.likes_dislikes !== undefined) {
+    fields.push("likes_dislikes = ?");
+    values.push(patch.likes_dislikes);
+  }
+  if (patch.greeting !== undefined) {
+    fields.push("greeting = ?");
+    values.push(patch.greeting);
+  }
   if (patch.tags !== undefined) {
     fields.push("tags_json = ?");
     values.push(JSON.stringify(patch.tags));
   }
   if (status === "published" && syncToMarket) {
     fields.push("draft_json = NULL");
+    fields.push("content_version = COALESCE(content_version, 1) + 1");
   }
   fields.push("updated_at = ?");
   values.push(now, id);
@@ -183,12 +233,17 @@ export async function patchWorldWork(
     fields.push("setting_notes = ?");
     values.push(patch.setting_notes);
   }
+  if (patch.greeting !== undefined) {
+    fields.push("greeting = ?");
+    values.push(patch.greeting);
+  }
   if (patch.tags !== undefined) {
     fields.push("tags_json = ?");
     values.push(JSON.stringify(patch.tags));
   }
   if (status === "published" && syncToMarket) {
     fields.push("draft_json = NULL");
+    fields.push("content_version = COALESCE(content_version, 1) + 1");
   }
   fields.push("updated_at = ?");
   values.push(now, id);
@@ -224,12 +279,17 @@ export async function patchStoryWork(
     fields.push("summary = ?");
     values.push(patch.summary);
   }
+  if (patch.greeting !== undefined) {
+    fields.push("greeting = ?");
+    values.push(patch.greeting);
+  }
   if (patch.tags !== undefined) {
     fields.push("tags_json = ?");
     values.push(JSON.stringify(patch.tags));
   }
   if (status === "published" && syncToMarket) {
     fields.push("draft_json = NULL");
+    fields.push("content_version = COALESCE(content_version, 1) + 1");
   }
   fields.push("updated_at = ?");
   values.push(now, id);
@@ -250,11 +310,18 @@ export async function applyCharacterDraftToMarket(db: Database, id: string, now:
   if (!draft) return;
   await db.run(
     `UPDATE characters SET
-      name = ?, summary = ?, personality = ?, tags_json = ?, draft_json = NULL, updated_at = ?
+      name = ?, summary = ?, personality = ?, appearance = ?, background = ?,
+      speech_style = ?, likes_dislikes = ?, greeting = ?, tags_json = ?, draft_json = NULL,
+      content_version = COALESCE(content_version, 1) + 1, updated_at = ?
      WHERE id = ?`,
     typeof draft.name === "string" ? draft.name : row.name,
     typeof draft.summary === "string" ? draft.summary : row.summary,
     typeof draft.personality === "string" ? draft.personality : row.personality,
+    typeof draft.appearance === "string" ? draft.appearance : "",
+    typeof draft.background === "string" ? draft.background : "",
+    typeof draft.speech_style === "string" ? draft.speech_style : "",
+    typeof draft.likes_dislikes === "string" ? draft.likes_dislikes : "",
+    typeof draft.greeting === "string" ? draft.greeting : "",
     Array.isArray(draft.tags) ? JSON.stringify(draft.tags) : row.tags_json,
     now,
     id,
@@ -274,11 +341,13 @@ export async function applyWorldDraftToMarket(db: Database, id: string, now: str
   if (!draft) return;
   await db.run(
     `UPDATE worlds SET
-      name = ?, summary = ?, setting_notes = ?, tags_json = ?, draft_json = NULL, updated_at = ?
+      name = ?, summary = ?, setting_notes = ?, greeting = ?, tags_json = ?, draft_json = NULL,
+      content_version = COALESCE(content_version, 1) + 1, updated_at = ?
      WHERE id = ?`,
     typeof draft.name === "string" ? draft.name : row.name,
     typeof draft.summary === "string" ? draft.summary : row.summary,
     typeof draft.setting_notes === "string" ? draft.setting_notes : row.setting_notes,
+    typeof draft.greeting === "string" ? draft.greeting : "",
     Array.isArray(draft.tags) ? JSON.stringify(draft.tags) : row.tags_json,
     now,
     id,
@@ -297,10 +366,12 @@ export async function applyStoryDraftToMarket(db: Database, id: string, now: str
   if (!draft) return;
   await db.run(
     `UPDATE stories SET
-      title = ?, summary = ?, tags_json = ?, draft_json = NULL, updated_at = ?
+      title = ?, summary = ?, greeting = ?, tags_json = ?, draft_json = NULL,
+      content_version = COALESCE(content_version, 1) + 1, updated_at = ?
      WHERE id = ?`,
     typeof draft.title === "string" ? draft.title : row.title,
     typeof draft.summary === "string" ? draft.summary : row.summary,
+    typeof draft.greeting === "string" ? draft.greeting : "",
     Array.isArray(draft.tags) ? JSON.stringify(draft.tags) : row.tags_json,
     now,
     id,

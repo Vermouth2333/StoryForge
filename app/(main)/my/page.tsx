@@ -27,6 +27,7 @@ type MyStoryItem = {
   title: string;
   status: "draft" | "published" | "archived";
   updated_at: string;
+  source_work_id?: string | null;
 };
 
 type MyCharacterItem = {
@@ -34,6 +35,7 @@ type MyCharacterItem = {
   name: string;
   status: string;
   updated_at: string;
+  source_work_id?: string | null;
 };
 
 type MyWorldItem = {
@@ -41,6 +43,7 @@ type MyWorldItem = {
   name: string;
   status: string;
   updated_at: string;
+  source_work_id?: string | null;
 };
 
 type FavoriteRow = {
@@ -53,14 +56,17 @@ type FavoriteRow = {
   author_id: string | null;
 };
 
+type PersonaMaskItem = { id: string; name: string; summary: string; updated_at: string };
+
 export default function MyPage() {
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const { confirmUnpublish, confirmDelete } = useWorkConfirm();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
   const [myCharacters, setMyCharacters] = useState<MyCharacterItem[]>([]);
   const [myWorlds, setMyWorlds] = useState<MyWorldItem[]>([]);
   const [myFavorites, setMyFavorites] = useState<FavoriteRow[]>([]);
+  const [personaMasks, setPersonaMasks] = useState<PersonaMaskItem[]>([]);
 
   function formatNotification(item: NotificationItem) {
     const payload = item.payload ?? {};
@@ -117,6 +123,30 @@ export default function MyPage() {
     const res = await fetch("/api/favorites?limit=50");
     const json = await res.json();
     setMyFavorites(json.data ?? []);
+  }
+
+  async function loadPersonaMasks() {
+    const res = await fetch("/api/persona-masks");
+    const json = await res.json();
+    setPersonaMasks(json.code === 200 ? json.data ?? [] : []);
+  }
+
+  function deletePersonaMask(mask: PersonaMaskItem) {
+    modal.confirm({
+      title: "删除人设面具",
+      content: `确定删除「${mask.name}」？`,
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(`/api/persona-masks/${mask.id}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.code === 200) {
+          message.success("已删除");
+          await loadPersonaMasks();
+        } else message.error(json.msg ?? "删除失败");
+      },
+    });
   }
 
   async function markAllRead() {
@@ -266,6 +296,7 @@ export default function MyPage() {
     void loadMyCharacters();
     void loadMyWorlds();
     void loadMyFavorites();
+    void loadPersonaMasks();
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
@@ -368,6 +399,31 @@ export default function MyPage() {
         </div>
       </div>
 
+      <div className="sf-card p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-[#1f2a44]">我的人设面具</h3>
+          <div className="flex gap-2">
+            <button className="sf-tag" onClick={loadPersonaMasks}>刷新</button>
+            <Link className="sf-tag" href="/compose?tab=persona">创建</Link>
+          </div>
+        </div>
+        <ul className="space-y-3">
+          {personaMasks.map((mask) => (
+            <li key={mask.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#f8fbff] p-4">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-[#1f2a44]">{mask.name}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-[#5b6b8c]">{mask.summary || "暂无简介"}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Link className="sf-tag text-xs" href={`/persona-masks/${mask.id}`}>编辑</Link>
+                <button className="sf-tag text-xs !text-[#8B2E2E]" onClick={() => deletePersonaMask(mask)}>删除</button>
+              </div>
+            </li>
+          ))}
+          {personaMasks.length === 0 && <li className="py-8 text-center text-[#5b6b8c]">暂无人设面具</li>}
+        </ul>
+      </div>
+
       {/* 我的内容 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 我的故事 */}
@@ -384,7 +440,12 @@ export default function MyPage() {
           </div>
           <ul className="space-y-3">
             {myStories.map((item) => (
-              <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+                {item.source_work_id ? (
+                  <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
+                    市场下载
+                  </span>
+                ) : null}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.title}</p>
@@ -441,7 +502,12 @@ export default function MyPage() {
           </div>
           <ul className="space-y-3">
             {myCharacters.map((item) => (
-              <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+                {item.source_work_id ? (
+                  <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
+                    市场下载
+                  </span>
+                ) : null}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
@@ -495,7 +561,12 @@ export default function MyPage() {
           </div>
           <ul className="space-y-3">
             {myWorlds.map((item) => (
-              <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+                {item.source_work_id ? (
+                  <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
+                    市场下载
+                  </span>
+                ) : null}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>

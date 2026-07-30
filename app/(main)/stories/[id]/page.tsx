@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
 import CoverDisplay from "@/components/CoverDisplay";
+import MarketDownloadButton from "@/components/MarketDownloadButton";
 import { BookOpen, Gamepad2, IconBadge } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
@@ -19,6 +20,9 @@ type StoryDetail = {
   author_display?: string;
   title: string;
   summary: string;
+  greeting?: string;
+  is_derivative?: boolean;
+  source_work_id?: string | null;
   status: string;
   tags_json: string;
   cover_asset_id?: string | null;
@@ -60,7 +64,7 @@ export default function StoryDetailPage() {
   const [error, setError] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [relations, setRelations] = useState<CharacterRelation[]>([]);
-  const { canEdit } = useWorkPageMode(story?.author_id, currentUserId || null);
+  const { canEdit, isAuthor } = useWorkPageMode(story?.author_id, currentUserId || null);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
@@ -208,10 +212,30 @@ export default function StoryDetailPage() {
     tags = [];
   }
 
+  const showDownload = Boolean(story && !isAuthor && story.status === "published");
+  const showPlay = Boolean(story && isAuthor);
+
   return (
     <main className="mx-auto max-w-4xl p-6">
-      {/* 操作入口 */}
-      <div className={`mb-6 grid grid-cols-1 gap-4${canEdit ? " sm:grid-cols-2" : ""}`}>
+      {/* 操作入口：市场访客先下载；本地/作者侧再互动体验 */}
+      <div
+        className={`mb-6 grid grid-cols-1 gap-4${
+          canEdit || (showDownload && showPlay) ? " sm:grid-cols-2" : ""
+        }`}
+      >
+        {showDownload && (
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4">
+            <div className="text-left">
+              <p className="font-medium text-[#1F2A44]">下载到本地</p>
+              <p className="text-xs text-[#5B6B8C]">下载后可在「我的」中体验与对话</p>
+            </div>
+            <MarketDownloadButton
+              workType="story"
+              workId={story.id}
+              currentUserId={currentUserId || undefined}
+            />
+          </div>
+        )}
         {canEdit && (
           <Link
             href={`/stories/${story.id}/edit`}
@@ -224,16 +248,18 @@ export default function StoryDetailPage() {
             </div>
           </Link>
         )}
-        <Link
-          href={`/stories/${story.id}/play`}
-          className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
-        >
-          <IconBadge icon={Gamepad2} tone="primary" size="md" />
-          <div className="text-left">
-            <p className="font-medium text-[#5B9DFF]">互动体验</p>
-            <p className="text-xs text-[#5B6B8C]">选择角色开始冒险</p>
-          </div>
-        </Link>
+        {showPlay && (
+          <Link
+            href={`/stories/${story.id}/play`}
+            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
+          >
+            <IconBadge icon={Gamepad2} tone="primary" size="md" />
+            <div className="text-left">
+              <p className="font-medium text-[#5B9DFF]">互动体验</p>
+              <p className="text-xs text-[#5B6B8C]">选择人设面具开始冒险</p>
+            </div>
+          </Link>
+        )}
       </div>
 
       {canEdit && story && (() => {
@@ -247,6 +273,9 @@ export default function StoryDetailPage() {
             name={editorValues.name}
             summary={editorValues.summary}
             tagsJson={editorValues.tagsJson}
+            greeting={editorValues.greeting}
+            isDerivative={Boolean(story.is_derivative)}
+            sourceWorkId={story.source_work_id}
             coverUrl={story.cover_url}
             coverThumbnailUrl={story.cover_thumbnail_url}
             onCoverUploaded={(url) => setStory((prev) => (prev ? { ...prev, cover_url: url } : prev))}

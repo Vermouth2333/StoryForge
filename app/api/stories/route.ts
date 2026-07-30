@@ -6,6 +6,7 @@ import { getDb, id, nowIso } from "@/lib/db";
 const schema = z.object({
   title: z.string().min(1).max(120),
   summary: z.string().max(1000).optional().default(""),
+  greeting: z.string().max(2000).optional().default(""),
   tags: z.array(z.string().min(1).max(30)).max(10).default([]),
 });
 
@@ -17,7 +18,7 @@ export async function GET(req: Request) {
 
   const rows = mine
     ? await db.all(
-        `SELECT id, title, summary, status, like_count, publish_at, updated_at
+        `SELECT id, title, summary, status, like_count, publish_at, updated_at, source_work_id
          FROM stories
          WHERE author_id = ?
          ORDER BY updated_at DESC
@@ -47,12 +48,13 @@ export async function POST(req: Request) {
   const now = nowIso();
   await db.run(
     `INSERT INTO stories
-     (id, author_id, title, summary, tags_json, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 'draft', ?, ?)`,
+     (id, author_id, title, summary, greeting, tags_json, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?)`,
     storyId,
     userId,
     parsed.data.title,
     parsed.data.summary,
+    parsed.data.greeting,
     JSON.stringify(parsed.data.tags),
     now,
     now,

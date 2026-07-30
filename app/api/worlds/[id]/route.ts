@@ -10,9 +10,11 @@ const patchSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   summary: z.string().max(1000).optional(),
   setting_notes: z.string().max(8000).optional(),
+  greeting: z.string().max(2000).optional(),
   cover_asset_id: z.string().max(120).nullable().optional(),
   tags: z.array(z.string().min(1).max(30)).max(10).optional(),
   sync_to_market: z.boolean().optional(),
+  declare_derivative: z.boolean().optional(),
 });
 
 export async function GET(
@@ -24,7 +26,8 @@ export async function GET(
   const row = await db.get<Record<string, unknown>>(
     `SELECT w.id, w.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      w.name, w.cover_asset_id, w.summary, w.setting_notes, w.tags_json, w.draft_json, w.status, w.like_count, w.favorite_count, w.publish_at, w.updated_at
+      w.name, w.cover_asset_id, w.summary, w.setting_notes, w.greeting, w.tags_json, w.draft_json, w.status, w.like_count, w.favorite_count, w.publish_at, w.updated_at,
+      w.source_work_id, w.is_derivative, w.derivative_declared, w.content_version, w.download_cost
      FROM worlds w
      LEFT JOIN users u ON u.id = w.author_id
      WHERE w.id = ?`,
@@ -102,7 +105,15 @@ export async function PATCH(
     return NextResponse.json({ code: 404, msg: "世界不存在" }, { status: 404 });
   }
 
-  const { sync_to_market: syncToMarket = false, cover_asset_id, ...patchData } = parsed.data;
+  const { sync_to_market: syncToMarket = false, cover_asset_id, declare_derivative, ...patchData } =
+    parsed.data;
+  if (declare_derivative) {
+    await db.run(
+      "UPDATE worlds SET is_derivative = 1, derivative_declared = 1, updated_at = ? WHERE id = ?",
+      nowIso(),
+      id,
+    );
+  }
   const now = nowIso();
   const { syncedToMarket } = await patchWorldWork(
     db,

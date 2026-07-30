@@ -458,6 +458,68 @@ async function migrateSchema(db: Database) {
   `);
 
   await migrateCharacterRelationsAllowMultiple(db);
+
+  // —— 角色互动整改：开场语、人设面具、好感度、下载副本 ——
+  for (const table of ["characters", "worlds", "stories"] as const) {
+    await addColumnIfMissing(db, table, "greeting", "greeting TEXT NOT NULL DEFAULT ''");
+    await addColumnIfMissing(db, table, "content_version", "content_version INTEGER NOT NULL DEFAULT 1");
+    await addColumnIfMissing(db, table, "download_cost", "download_cost INTEGER NOT NULL DEFAULT 0");
+    await addColumnIfMissing(db, table, "source_work_id", "source_work_id TEXT");
+    await addColumnIfMissing(db, table, "source_version", "source_version INTEGER");
+    await addColumnIfMissing(db, table, "is_derivative", "is_derivative INTEGER NOT NULL DEFAULT 0");
+    await addColumnIfMissing(db, table, "derivative_declared", "derivative_declared INTEGER NOT NULL DEFAULT 0");
+  }
+  await addColumnIfMissing(db, "characters", "appearance", "appearance TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing(db, "characters", "background", "background TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing(db, "characters", "speech_style", "speech_style TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing(db, "characters", "likes_dislikes", "likes_dislikes TEXT NOT NULL DEFAULT ''");
+
+  await addColumnIfMissing(db, "chat_sessions", "persona_mask_id", "persona_mask_id TEXT");
+
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS persona_masks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      appearance TEXT NOT NULL DEFAULT '',
+      personality TEXT NOT NULL DEFAULT '',
+      background TEXT NOT NULL DEFAULT '',
+      speech_style TEXT NOT NULL DEFAULT '',
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      avatar_url TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_persona_masks_user
+      ON persona_masks(user_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS affinity_scores (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      character_id TEXT NOT NULL,
+      story_id TEXT NOT NULL DEFAULT '',
+      score INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, character_id, story_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_affinity_user_char
+      ON affinity_scores(user_id, character_id);
+
+    CREATE TABLE IF NOT EXISTS work_downloads (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      work_type TEXT NOT NULL,
+      source_work_id TEXT NOT NULL,
+      local_work_id TEXT NOT NULL,
+      source_version INTEGER NOT NULL DEFAULT 1,
+      cost INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id, work_type, source_work_id, source_version)
+    );
+    CREATE INDEX IF NOT EXISTS idx_work_downloads_user
+      ON work_downloads(user_id, created_at DESC);
+  `);
 }
 
 

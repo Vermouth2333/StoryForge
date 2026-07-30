@@ -6,7 +6,7 @@ import CoverDisplay from "@/components/CoverDisplay";
 import CoverFieldLabel from "@/components/CoverFieldLabel";
 
 const COVER_HINT =
-  "JPG/PNG/WebP，≤10MB。点击封面图上传或更换，预览效果与市场展示一致。";
+  "JPG/PNG/WebP，≤10MB。上传后自动转为 WebP，宽度约 740px（保持比例）。";
 
 interface CoverUploaderProps {
   /** 上传接口地址，例如 /api/characters/char_xxx/cover */

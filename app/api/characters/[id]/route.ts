@@ -10,9 +10,15 @@ const patchSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   summary: z.string().max(1000).optional(),
   personality: z.string().max(8000).optional(),
+  appearance: z.string().max(2000).optional(),
+  background: z.string().max(4000).optional(),
+  speech_style: z.string().max(2000).optional(),
+  likes_dislikes: z.string().max(2000).optional(),
+  greeting: z.string().max(2000).optional(),
   avatar_url: z.string().max(2000).nullable().optional(),
   tags: z.array(z.string().min(1).max(30)).max(10).optional(),
   sync_to_market: z.boolean().optional(),
+  declare_derivative: z.boolean().optional(),
 });
 
 export async function GET(
@@ -24,7 +30,10 @@ export async function GET(
   const row = await db.get<Record<string, unknown>>(
     `SELECT c.id, c.author_id,
       CASE WHEN u.status = 'deleted' THEN '已注销用户' ELSE COALESCE(u.username, u.id) END AS author_display,
-      c.name, c.avatar_url, c.cover_asset_id, c.summary, c.personality, c.tags_json, c.draft_json, c.status, c.like_count, c.favorite_count, c.publish_at, c.updated_at
+      c.name, c.avatar_url, c.cover_asset_id, c.summary, c.personality,
+      c.appearance, c.background, c.speech_style, c.likes_dislikes, c.greeting,
+      c.tags_json, c.draft_json, c.status, c.like_count, c.favorite_count, c.publish_at, c.updated_at,
+      c.source_work_id, c.is_derivative, c.derivative_declared, c.content_version, c.download_cost
      FROM characters c
      LEFT JOIN users u ON u.id = c.author_id
      WHERE c.id = ?`,
@@ -102,7 +111,15 @@ export async function PATCH(
     return NextResponse.json({ code: 404, msg: "角色不存在" }, { status: 404 });
   }
 
-  const { sync_to_market: syncToMarket = false, avatar_url, ...patchData } = parsed.data;
+  const { sync_to_market: syncToMarket = false, avatar_url, declare_derivative, ...patchData } =
+    parsed.data;
+  if (declare_derivative) {
+    await db.run(
+      "UPDATE characters SET is_derivative = 1, derivative_declared = 1, updated_at = ? WHERE id = ?",
+      nowIso(),
+      id,
+    );
+  }
   const now = nowIso();
   const { syncedToMarket } = await patchCharacterWork(
     db,

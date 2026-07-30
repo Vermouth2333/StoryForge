@@ -39,7 +39,13 @@ export default function WorkImportPanel({ kind, onParsed }: WorkImportPanelProps
   const [dragging, setDragging] = useState(false);
 
   const kindLabel =
-    kind === "story" ? "故事" : kind === "character" ? "角色卡" : "世界卡";
+    kind === "story"
+      ? "故事"
+      : kind === "character"
+        ? "角色卡"
+        : kind === "world"
+          ? "世界卡"
+          : "人设面具";
 
   function pickFile(next: File | null) {
     if (!next) {
@@ -184,7 +190,7 @@ export default function WorkImportPanel({ kind, onParsed }: WorkImportPanelProps
           <label className="mb-1.5 block text-xs font-medium text-[#5B6B8C]">或粘贴文本</label>
           <textarea
             className="sf-input min-h-24 w-full resize-y text-sm"
-            placeholder="粘贴角色设定、世界观说明、故事大纲等…"
+            placeholder="粘贴角色设定、人设面具、世界观说明、故事大纲等…"
             value={text}
             disabled={busy}
             onChange={(e) => setText(e.target.value)}

@@ -26,6 +26,7 @@ interface SessionContextRow {
   story_id: string | null;
   character_id: string | null;
   world_id: string | null;
+  persona_mask_id?: string | null;
 }
 
 /**
@@ -101,22 +102,100 @@ export async function buildChatContext(
     }
   }
 
-  if (session.character_id) {
-    const character = await db.get<{ name: string; summary: string; personality: string }>(
-      "SELECT name, summary, personality FROM characters WHERE id = ?",
-      session.character_id,
+  if (session.persona_mask_id) {
+    const mask = await db.get<{
+      name: string;
+      summary: string;
+      appearance: string;
+      personality: string;
+      background: string;
+      speech_style: string;
+    }>(
+      `SELECT name, summary, appearance, personality, background, speech_style
+       FROM persona_masks WHERE id = ?`,
+      session.persona_mask_id,
     );
-    if (character) {
+    if (mask) {
       messages.push({
         role: "system",
         content: [
-          `# 角色设定`,
-          `角色名称：${character.name}`,
-          character.summary ? `简介：${character.summary}` : "",
-          character.personality ? `性格与说话风格：${character.personality}` : "",
+          `# 用户扮演身份（人设面具）`,
+          `用户以「${mask.name}」的身份行动与发言。`,
+          mask.summary ? `简介：${mask.summary}` : "",
+          mask.appearance ? `外观：${mask.appearance}` : "",
+          mask.personality ? `性格：${mask.personality}` : "",
+          mask.background ? `背景：${mask.background}` : "",
+          mask.speech_style ? `说话风格：${mask.speech_style}` : "",
+          `请始终将「用户」视为该身份，不要把用户写成其他 NPC。`,
         ]
           .filter(Boolean)
           .join("\n"),
+      });
+    }
+  }
+
+  if (session.character_id) {
+    const character = await db.get<{
+      name: string;
+      summary: string;
+      personality: string;
+      appearance: string;
+      background: string;
+      speech_style: string;
+      likes_dislikes: string;
+    }>(
+      `SELECT name, summary, personality, appearance, background, speech_style, likes_dislikes
+       FROM characters WHERE id = ?`,
+      session.character_id,
+    );
+    if (character) {
+      const npcNote =
+        session.session_type === "story"
+          ? "该角色是故事中的 NPC，不是用户扮演的身份。"
+          : "你正在扮演该角色与用户对话。";
+      messages.push({
+        role: "system",
+        content: [
+          `# 角色设定（NPC）`,
+          npcNote,
+          `角色名称：${character.name}`,
+          character.summary ? `简介：${character.summary}` : "",
+          character.appearance ? `外观：${character.appearance}` : "",
+          character.personality ? `性格与说话风格：${character.personality}` : "",
+          character.speech_style ? `用语习惯：${character.speech_style}` : "",
+          character.background ? `背景：${character.background}` : "",
+          character.likes_dislikes ? `喜好与雷点：${character.likes_dislikes}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
+    }
+  } else if (session.session_type === "story" && session.story_id) {
+    // 故事体验不指定焦点 NPC：注入全部已引入角色作为可出场 NPC
+    const npcs = await db.all<
+      Array<{ name: string; summary: string; personality: string }>
+    >(
+      `SELECT c.name, c.summary, c.personality
+       FROM characters c
+       INNER JOIN story_characters sc ON sc.character_id = c.id
+       WHERE sc.story_id = ?
+       ORDER BY sc.created_at ASC
+       LIMIT 20`,
+      session.story_id,
+    );
+    if (npcs.length > 0) {
+      messages.push({
+        role: "system",
+        content: [
+          `# 故事中的 NPC（用户不扮演他们）`,
+          `请按剧情需要让以下角色出场与互动，保持人设一致：`,
+          ...npcs.map(
+            (n, i) =>
+              `${i + 1}. ${n.name}${n.summary ? ` — ${n.summary}` : ""}${
+                n.personality ? `（性格：${n.personality.slice(0, 200)}）` : ""
+              }`,
+          ),
+        ].join("\n"),
       });
     }
   }

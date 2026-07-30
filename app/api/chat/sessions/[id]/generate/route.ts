@@ -8,6 +8,7 @@ import { getDb, id, nowIso } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { ModelManager, type ModelConfig } from "@/lib/model-manager";
 import { resolveProvider, streamChat, type ChatMessage, type ResolvedProvider } from "@/lib/ai-provider";
+import { adjustAffinity, estimateAffinityDelta, getAffinity } from "@/lib/affinity";
 import { buildChatContext } from "@/lib/prompt-context";
 import { conflictDetector } from "@/lib/conflict-detector";
 
@@ -85,13 +86,20 @@ export async function POST(
     story_id: string | null;
     character_id: string | null;
     world_id: string | null;
+    persona_mask_id: string | null;
   }>(
-    "SELECT id, session_type, story_id, character_id, world_id FROM chat_sessions WHERE id = ? AND user_id = ?",
+    "SELECT id, session_type, story_id, character_id, world_id, persona_mask_id FROM chat_sessions WHERE id = ? AND user_id = ?",
     sessionId,
     userId,
   );
   if (!session) {
     return NextResponse.json({ code: 404, msg: "会话不存在" }, { status: 404 });
+  }
+
+  let affinityInfo: { score: number; label: string } | null = null;
+  if (session.character_id) {
+    const aff = await getAffinity(db, userId, session.character_id, session.story_id);
+    affinityInfo = { score: aff.score, label: aff.label };
   }
 
   // 在写入本轮用户消息之前组装上下文（系统/世界/角色/文风/历史 + 当前指令）
@@ -109,6 +117,12 @@ export async function POST(
   let contextMessages: ChatMessage[] = [];
   try {
     contextMessages = await buildChatContext(db, sessionId, session, parsed.data.content);
+    if (affinityInfo && session.character_id) {
+      contextMessages.splice(1, 0, {
+        role: "system",
+        content: `# 当前好感度\n与该角色的好感度为 ${affinityInfo.score}/100（${affinityInfo.label}）。请据此调整语气与亲密度，不要突然越级亲密或冷漠。`,
+      });
+    }
   } catch {
     contextMessages = [{ role: "user", content: parsed.data.content }];
   }
@@ -283,6 +297,24 @@ export async function POST(
           sessionId,
         );
 
+        // 角色/故事 NPC 好感记账
+        let affinityPayload: { score: number; label: string; key: string } | null = null;
+        if (session.character_id && fullText.trim().length > 0) {
+          try {
+            const delta = estimateAffinityDelta(parsed.data.content);
+            const next = await adjustAffinity(
+              db,
+              userId,
+              session.character_id,
+              session.story_id,
+              delta,
+            );
+            affinityPayload = { score: next.score, label: next.label, key: next.key };
+          } catch {
+            // 好感更新失败不影响主流程
+          }
+        }
+
         // 生成主循环集成：对生成内容自动触发冲突检测（P0/P1 拦截提示）
         // 非阻塞——失败不影响本轮生成结果，仅在流中追加一个 conflict 事件
         if (fullText.trim().length > 0) {
@@ -326,7 +358,12 @@ export async function POST(
         }
 
         controller.enqueue(
-          sseData({ type: "done", message_id: assistantMessageId, seq }),
+          sseData({
+            type: "done",
+            message_id: assistantMessageId,
+            seq,
+            affinity: affinityPayload,
+          }),
         );
         closed = true;
         stopHeartbeat();

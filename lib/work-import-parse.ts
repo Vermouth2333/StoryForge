@@ -1,7 +1,7 @@
 import { completeChat, resolveProvider, type ChatMessage } from "@/lib/ai-provider";
 import type { ModelConfig } from "@/lib/model-manager";
 
-export type WorkImportKind = "story" | "character" | "world";
+export type WorkImportKind = "story" | "character" | "world" | "persona";
 
 export type WorkImportResult = {
   title: string;
@@ -9,9 +9,24 @@ export type WorkImportResult = {
   tags: string[];
   personality?: string;
   setting_notes?: string;
+  appearance?: string;
+  background?: string;
+  speech_style?: string;
 };
 
 function buildSystemPrompt(kind: WorkImportKind): string {
+  if (kind === "persona") {
+    return `你是创作助手。请从用户提供的文本中提炼「人设面具」（用户扮演身份）字段，只输出一个 JSON 对象，不要 Markdown 代码块，不要解释。
+字段要求：
+- title: 面具/身份名称，字符串，不超过 120 字
+- summary: 简介，字符串，不超过 1000 字
+- appearance: 外貌与穿着气质，字符串，不超过 2000 字
+- personality: 性格特质，字符串，不超过 8000 字
+- background: 出身与经历背景，字符串，不超过 4000 字
+- speech_style: 说话方式与口吻，字符串，不超过 2000 字
+- tags: 字符串数组，最多 10 个，每个不超过 30 字
+若原文信息不足，可合理概括，但不要编造与原文矛盾的内容。`;
+  }
   if (kind === "character") {
     return `你是创作助手。请从用户提供的文本中提炼角色卡字段，只输出一个 JSON 对象，不要 Markdown 代码块，不要解释。
 字段要求：
@@ -69,6 +84,15 @@ export function normalizeImportResult(kind: WorkImportKind, data: Record<string,
     result.setting_notes = clamp(
       String(data.setting_notes ?? data.settingNotes ?? "").trim(),
       8000,
+    );
+  }
+  if (kind === "persona") {
+    result.appearance = clamp(String(data.appearance ?? "").trim(), 2000);
+    result.personality = clamp(String(data.personality ?? "").trim(), 8000);
+    result.background = clamp(String(data.background ?? "").trim(), 4000);
+    result.speech_style = clamp(
+      String(data.speech_style ?? data.speechStyle ?? "").trim(),
+      2000,
     );
   }
   return result;

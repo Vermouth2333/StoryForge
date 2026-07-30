@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
+import {
+  COVER_ALLOWED_TYPES,
+  COVER_MAX_UPLOAD_BYTES,
+  processAndSaveCover,
+} from "@/lib/cover-processing";
 import { getDb, id, nowIso } from "@/lib/db";
 import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
-import sharp from "sharp";
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 export async function POST(
   req: Request,
@@ -36,51 +35,44 @@ export async function POST(
   if (!file) {
     return NextResponse.json({ code: 400, msg: "没有上传文件" }, { status: 400 });
   }
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > COVER_MAX_UPLOAD_BYTES) {
     return NextResponse.json({ code: 400, msg: "文件大小超过 10MB 限制" }, { status: 400 });
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!(COVER_ALLOWED_TYPES as readonly string[]).includes(file.type)) {
     return NextResponse.json({ code: 400, msg: "仅支持 JPG/PNG/WebP 格式" }, { status: 400 });
   }
 
   const assetId = id("asset");
-  const ext = file.name.split(".").pop() || "jpg";
-  const baseDir = path.join(process.cwd(), "storage", "users", userId, "assets", assetId);
-  const originalDir = path.join(baseDir, "original");
-  const thumbnailDir = path.join(baseDir, "thumbnails");
-  await mkdir(originalDir, { recursive: true });
-  await mkdir(thumbnailDir, { recursive: true });
-
-  const fileName = `cover_${assetId}.${ext}`;
-  const originalPath = path.join(originalDir, fileName);
-  const thumbnailPath = path.join(thumbnailDir, "thumb_200x200.jpg");
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  await writeFile(originalPath, buffer);
-
+  const buffer = Buffer.from(await file.arrayBuffer());
+  let processed;
   try {
-    await sharp(buffer)
-      .resize(200, 200, { fit: "cover" })
-      .jpeg({ quality: 85 })
-      .toFile(thumbnailPath);
+    processed = await processAndSaveCover({ userId, assetId, input: buffer });
   } catch (e) {
-    console.error("封面缩略图生成失败:", e);
+    console.error("封面处理失败:", e);
+    return NextResponse.json({ code: 400, msg: "封面图片无法处理，请换一张图重试" }, { status: 400 });
   }
 
-  const relativePath = path.relative(path.join(process.cwd(), "storage"), originalPath).replace(/\\/g, "/");
-  const relativeThumbPath = path.relative(path.join(process.cwd(), "storage"), thumbnailPath).replace(/\\/g, "/");
   const now = nowIso();
 
   await db.run(
     `INSERT INTO assets (id, user_id, asset_type, target_type, target_id, file_name, file_path, thumbnail_path, file_size_bytes, mime_type, created_at)
      VALUES (?, ?, 'cover', 'character', ?, ?, ?, ?, ?, ?, ?)`,
-    assetId, userId, characterId, file.name, relativePath, relativeThumbPath, file.size, file.type, now,
+    assetId,
+    userId,
+    characterId,
+    processed.fileName,
+    processed.relativePath,
+    processed.relativeThumbPath,
+    processed.fileSize,
+    processed.mimeType,
+    now,
   );
 
   await db.run(
     "UPDATE characters SET cover_asset_id = ?, updated_at = ? WHERE id = ?",
-    assetId, now, characterId,
+    assetId,
+    now,
+    characterId,
   );
 
   if (character.status === "published") {
@@ -94,6 +86,9 @@ export async function POST(
       asset_id: assetId,
       cover_url: `/api/assets/${assetId}/file`,
       thumbnail_url: `/api/assets/${assetId}/thumbnail`,
+      width: processed.width,
+      height: processed.height,
+      mime_type: processed.mimeType,
     },
   });
 }

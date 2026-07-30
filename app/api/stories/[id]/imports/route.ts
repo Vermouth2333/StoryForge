@@ -130,10 +130,16 @@ export async function GET(
   const { id: storyId } = await params;
   const userId = await getCurrentUserId();
   const db = await getDb();
-  const gate = await assertStoryOwner(db, storyId, userId);
-  if (!gate.ok) {
-    const status = gate.reason === "not_found" ? 404 : 403;
-    return NextResponse.json({ code: status, msg: gate.reason === "not_found" ? "故事不存在" : "无权查看" }, { status });
+  const story = await db.get<{ author_id: string; status: string }>(
+    "SELECT author_id, status FROM stories WHERE id = ?",
+    storyId,
+  );
+  if (!story) {
+    return NextResponse.json({ code: 404, msg: "故事不存在" }, { status: 404 });
+  }
+  const isOwner = Boolean(userId && story.author_id === userId);
+  if (!isOwner && story.status !== "published") {
+    return NextResponse.json({ code: 403, msg: "无权查看" }, { status: 403 });
   }
 
   const characters = await db.all<{ id: string; name: string; summary: string; avatar_url: string | null; is_custom: number }[]>(

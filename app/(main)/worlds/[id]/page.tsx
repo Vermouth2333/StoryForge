@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { App } from "antd";
 import CoverDisplay from "@/components/CoverDisplay";
 import AuthorWorkEditor from "@/components/AuthorWorkEditor";
+import MarketDownloadButton from "@/components/MarketDownloadButton";
 import { BookOpen, Globe2, IconBadge, Library } from "@/components/icons";
 import TargetReviewSection from "@/components/TargetReviewSection";
 import { useWorkPageMode } from "@/hooks/use-work-page-mode";
@@ -29,6 +30,9 @@ type WorldDetail = {
   cover_thumbnail_url?: string | null;
   summary: string;
   setting_notes: string;
+  greeting?: string;
+  is_derivative?: boolean;
+  source_work_id?: string | null;
   tags_json: string;
   status: string;
   like_count: number;
@@ -66,7 +70,7 @@ export default function WorldDetailPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
-  const { canEdit } = useWorkPageMode(row?.author_id, meId);
+  const { canEdit, isAuthor } = useWorkPageMode(row?.author_id, meId);
   const { confirmDelete } = useWorkConfirm();
 
   useEffect(() => {
@@ -273,20 +277,38 @@ export default function WorldDetailPage() {
 
   return (
     <main className="mx-auto max-w-4xl p-6">
-      {/* 对话入口 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-1">
-              <IconBadge icon={Globe2} tone="world" size="sm" /> 探索 {row.name}
-            </h3>
-            <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
-          </div>
-          <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
-            进入对话 →
-          </Link>
+      {(Boolean(row && !isAuthor && row.status === "published") || Boolean(row && isAuthor)) && (
+        <div className="mb-6 space-y-4">
+          {row && !isAuthor && row.status === "published" && (
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-6">
+              <div>
+                <h3 className="mb-1 text-base font-semibold text-[#1F2A44]">下载到本地</h3>
+                <p className="text-xs text-[#5B6B8C]">下载后可在「我的世界」中开启探索对话</p>
+              </div>
+              <MarketDownloadButton
+                workType="world"
+                workId={row.id}
+                currentUserId={meId || undefined}
+              />
+            </div>
+          )}
+          {row && isAuthor && (
+            <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="mb-1 flex items-center gap-2 text-base font-semibold text-[#1F2A44]">
+                    <IconBadge icon={Globe2} tone="world" size="sm" /> 探索 {row.name}
+                  </h3>
+                  <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
+                </div>
+                <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
+                  进入对话 →
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {canEdit && row && (() => {
         const editorValues = resolveWorldEditorValues(row);
@@ -300,6 +322,9 @@ export default function WorldDetailPage() {
             summary={editorValues.summary}
             tagsJson={editorValues.tagsJson}
             settingNotes={editorValues.settingNotes}
+            greeting={editorValues.greeting}
+            isDerivative={Boolean(row.is_derivative)}
+            sourceWorkId={row.source_work_id}
             coverUrl={row.cover_url}
             coverThumbnailUrl={row.cover_thumbnail_url}
             onCoverUploaded={(url) => setRow((prev) => (prev ? { ...prev, cover_url: url } : prev))}
