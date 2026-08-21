@@ -87,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("sf:profile-updated", onProfileUpdated);
   }, [refreshSidebar]);
 
-  const marketActive = pathname.startsWith("/market") || pathname === "/";
+  const marketActive = pathname.startsWith("/market");
   const composeActive = pathname.startsWith("/compose");
   const myActive = pathname.startsWith("/my");
   const historyActive = pathname.startsWith("/history");
@@ -118,7 +118,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         >
           菜单
         </button>
-        <Link href="/" className="no-underline" aria-label="StoryForge 首页">
+        <Link href={profile ? "/market" : "/"} className="no-underline" aria-label="StoryForge 首页">
           <BrandLogo size={28} />
         </Link>
         <span className="w-10 text-right text-xs text-[var(--text-secondary)]">{unread > 0 ? unread : ""}</span>
@@ -155,7 +155,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
             <Link
-              href="/"
+              href={profile ? "/market" : "/"}
               className="block no-underline"
               onClick={closeMobile}
               aria-label="StoryForge 首页"
@@ -298,7 +298,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="sf-btn-secondary block w-full text-sm"
                   onClick={async () => {
                     await fetch("/api/auth/logout", { method: "POST" });
-                    window.location.reload();
+                    window.location.href = "/";
                   }}
                 >
                   退出登录

@@ -191,7 +191,7 @@ export default function SettingsPage() {
         title="账号设置"
         subtitle="管理你的个人信息和账号安全"
         actions={
-          <Link href="/" className="sf-tag">
+          <Link href="/market" className="sf-tag">
             返回首页
           </Link>
         }

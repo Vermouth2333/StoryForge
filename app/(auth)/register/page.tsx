@@ -31,7 +31,7 @@ export default function RegisterPage() {
         setError(json.msg || "注册失败");
         return;
       }
-      router.replace("/");
+      router.replace("/market");
       router.refresh();
     } catch {
       setError("网络错误，请稍后重试");

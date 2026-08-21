@@ -2,8 +2,13 @@
  * 构建登录页地址；登录成功后回到 nextPath（须为本站相对路径）。
  */
 export function loginHref(nextPath?: string | null): string {
-  if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
-    return "/login";
+  if (
+    !nextPath ||
+    !nextPath.startsWith("/") ||
+    nextPath.startsWith("//") ||
+    nextPath === "/"
+  ) {
+    return "/login?next=/market";
   }
   return `/login?next=${encodeURIComponent(nextPath)}`;
 }

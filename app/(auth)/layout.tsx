@@ -25,7 +25,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         >
           <BrandLogo size={48} className="justify-center" />
         </Link>
-        <p className="mt-3 text-sm text-[#5B6B8C]">互动小说创作平台</p>
+        <p className="mt-3 text-sm text-[#5B6B8C]">AI 角色互动平台</p>
       </div>
 
       <div className="relative z-10 w-full max-w-md">{children}</div>

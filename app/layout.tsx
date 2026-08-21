@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "StoryForge",
-  description: "StoryForge interactive novel creation platform",
+  description: "AI 角色互动平台：用人设面具走进故事、角色与世界。",
   icons: {
     icon: [{ url: "/brand/logo.svg", type: "image/svg+xml" }],
     apple: [{ url: "/brand/logo.svg" }],

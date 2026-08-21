@@ -7,7 +7,7 @@ import { FormEvent, Suspense, useState } from "react";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/";
+  const next = searchParams.get("next") || "/market";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +28,8 @@ function LoginForm() {
         setError(json.msg || "登录失败");
         return;
       }
-      router.replace(next.startsWith("/") ? next : "/");
+      const target = next.startsWith("/") && !next.startsWith("//") ? next : "/market";
+      router.replace(target === "/" ? "/market" : target);
       router.refresh();
     } catch {
       setError("网络错误，请稍后重试");
