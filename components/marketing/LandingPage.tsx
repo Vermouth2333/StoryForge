@@ -8,9 +8,9 @@ import { Gamepad2, Sparkles, Store } from "@/components/icons";
 import { ShowcaseStage, type ShowcaseItem } from "@/components/marketing/ShowcaseStage";
 
 const NAV = [
+  { href: "#assets", label: "内容类型" },
   { href: "#features", label: "能做什么" },
   { href: "#flow", label: "如何开始" },
-  { href: "#assets", label: "内容类型" },
 ];
 
 const FEATURES: ShowcaseItem[] = [
@@ -203,6 +203,11 @@ export function LandingPage() {
           <HeroPreview />
         </section>
 
+        <section id="assets" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
+          <SectionHead kicker="内容模型" title="三种可上架，一种只属于你" />
+          <ShowcaseStage items={ASSETS} />
+        </section>
+
         <section id="features" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
           <SectionHead
             kicker="产品能力"
@@ -219,11 +224,6 @@ export function LandingPage() {
             desc="未登录也能先逛市场；登录后，下载、创作、对话全部打开。"
           />
           <ShowcaseStage items={STEPS} />
-        </section>
-
-        <section id="assets" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
-          <SectionHead kicker="内容模型" title="三种可上架，一种只属于你" />
-          <ShowcaseStage items={ASSETS} />
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-20 pt-6">
@@ -278,7 +278,6 @@ function HeroPreview() {
         <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4B4]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#FFE08A]" />
         <span className="h-2.5 w-2.5 rounded-full bg-[#9BD3B0]" />
-        <span className="ml-2 text-xs text-[#5B6B8C]">storyforge.fun / play</span>
       </div>
       <div className="overflow-hidden rounded-2xl border border-[#DCE9FF] bg-[#F8FBFF]">
         <div className="flex items-center justify-between border-b border-[#DCE9FF] bg-white px-4 py-3">
