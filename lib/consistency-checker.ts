@@ -44,10 +44,12 @@ export class ConsistencyChecker {
       [storyId]
     );
     
-    // 3. 获取角色信息
+    // 3. 获取角色信息（仅本故事引入的角色，而非作者的全部角色）
     const characters = await db.all(
-      "SELECT * FROM characters WHERE author_id = ?",
-      [story.author_id]
+      `SELECT c.* FROM characters c
+       INNER JOIN story_characters sc ON sc.character_id = c.id
+       WHERE sc.story_id = ?`,
+      [storyId]
     );
     
     // 4. 获取世界信息

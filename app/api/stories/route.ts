@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
 import { getDb, id, nowIso } from "@/lib/db";
+import { likeContains, parseMineListParams } from "@/lib/mine-list-query";
 
 const schema = z.object({
   title: z.string().min(1).max(120),
@@ -14,24 +15,43 @@ export async function GET(req: Request) {
   const userId = await getCurrentUserId();
   const url = new URL(req.url);
   const mine = url.searchParams.get("mine") === "1";
+  const { q, page, pageSize, offset } = parseMineListParams(url);
   const db = await getDb();
 
-  const rows = mine
-    ? await db.all(
-        `SELECT id, title, summary, status, like_count, publish_at, updated_at, source_work_id, cover_asset_id
+  if (mine && !userId) {
+    return NextResponse.json({ code: 200, data: [], total: 0, page, page_size: pageSize, msg: "ok" });
+  }
+
+  const where = mine ? "author_id = ?" : "status = 'published'";
+  const params: Array<string | number> = mine ? [userId as string] : [];
+  const searchSql = q ? " AND (title LIKE ? OR IFNULL(summary,'') LIKE ?)" : "";
+  if (q) {
+    const like = likeContains(q);
+    params.push(like, like);
+  }
+
+  const countRow = await db.get<{ c: number }>(
+    `SELECT COUNT(*) as c FROM stories WHERE ${where}${searchSql}`,
+    ...params,
+  );
+  const total = Number(countRow?.c ?? 0);
+
+  const rows = await db.all(
+    mine
+      ? `SELECT id, title, summary, status, like_count, publish_at, updated_at, source_work_id, cover_asset_id
          FROM stories
-         WHERE author_id = ?
+         WHERE ${where}${searchSql}
          ORDER BY updated_at DESC
-         LIMIT 100`,
-        userId,
-      )
-    : await db.all(
-        `SELECT id, title, summary, status, like_count, publish_at, updated_at, cover_asset_id
+         LIMIT ? OFFSET ?`
+      : `SELECT id, title, summary, status, like_count, publish_at, updated_at, cover_asset_id
          FROM stories
-         WHERE status = 'published'
+         WHERE ${where}${searchSql}
          ORDER BY publish_at DESC
-         LIMIT 100`,
-      );
+         LIMIT ? OFFSET ?`,
+    ...params,
+    pageSize,
+    offset,
+  );
 
   const data = (rows as Array<Record<string, unknown>>).map((row) => {
     const coverAssetId = row.cover_asset_id ? String(row.cover_asset_id) : null;
@@ -42,7 +62,7 @@ export async function GET(req: Request) {
     };
   });
 
-  return NextResponse.json({ code: 200, data, msg: "ok" });
+  return NextResponse.json({ code: 200, data, total, page, page_size: pageSize, msg: "ok" });
 }
 
 export async function POST(req: Request) {

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { BookOpen, Bell, Globe2, IconBadge, Star, UserRound } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
 import { replayHeaders } from "@/lib/replay-headers";
+import { MINE_PAGE_SIZE } from "@/lib/mine-list-query";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -71,6 +72,18 @@ export default function MyPage() {
   const [myStories, setMyStories] = useState<MyStoryItem[]>([]);
   const [myCharacters, setMyCharacters] = useState<MyCharacterItem[]>([]);
   const [myWorlds, setMyWorlds] = useState<MyWorldItem[]>([]);
+  const [storyQ, setStoryQ] = useState("");
+  const [storyQDebounced, setStoryQDebounced] = useState("");
+  const [storyPage, setStoryPage] = useState(1);
+  const [storyTotal, setStoryTotal] = useState(0);
+  const [characterQ, setCharacterQ] = useState("");
+  const [characterQDebounced, setCharacterQDebounced] = useState("");
+  const [characterPage, setCharacterPage] = useState(1);
+  const [characterTotal, setCharacterTotal] = useState(0);
+  const [worldQ, setWorldQ] = useState("");
+  const [worldQDebounced, setWorldQDebounced] = useState("");
+  const [worldPage, setWorldPage] = useState(1);
+  const [worldTotal, setWorldTotal] = useState(0);
   const [myFavorites, setMyFavorites] = useState<FavoriteRow[]>([]);
   const [personaMasks, setPersonaMasks] = useState<PersonaMaskItem[]>([]);
 
@@ -107,22 +120,61 @@ export default function MyPage() {
     setNotifications(listJson.data ?? []);
   }
 
-  async function loadMyStories() {
-    const res = await fetch("/api/stories?mine=1");
+  async function loadMyStories(page = storyPage, q = storyQDebounced) {
+    const params = new URLSearchParams({
+      mine: "1",
+      page: String(page),
+      page_size: String(MINE_PAGE_SIZE),
+    });
+    if (q) params.set("q", q);
+    const res = await fetch(`/api/stories?${params}`);
     const json = await res.json();
-    setMyStories(json.data ?? []);
+    const rows = json.data ?? [];
+    const total = Number(json.total) || 0;
+    if (page > 1 && rows.length === 0 && total > 0) {
+      setStoryPage(page - 1);
+      return;
+    }
+    setMyStories(rows);
+    setStoryTotal(total);
   }
 
-  async function loadMyCharacters() {
-    const res = await fetch("/api/characters?mine=1");
+  async function loadMyCharacters(page = characterPage, q = characterQDebounced) {
+    const params = new URLSearchParams({
+      mine: "1",
+      page: String(page),
+      page_size: String(MINE_PAGE_SIZE),
+    });
+    if (q) params.set("q", q);
+    const res = await fetch(`/api/characters?${params}`);
     const json = await res.json();
-    setMyCharacters(json.data ?? []);
+    const rows = json.data ?? [];
+    const total = Number(json.total) || 0;
+    if (page > 1 && rows.length === 0 && total > 0) {
+      setCharacterPage(page - 1);
+      return;
+    }
+    setMyCharacters(rows);
+    setCharacterTotal(total);
   }
 
-  async function loadMyWorlds() {
-    const res = await fetch("/api/worlds?mine=1");
+  async function loadMyWorlds(page = worldPage, q = worldQDebounced) {
+    const params = new URLSearchParams({
+      mine: "1",
+      page: String(page),
+      page_size: String(MINE_PAGE_SIZE),
+    });
+    if (q) params.set("q", q);
+    const res = await fetch(`/api/worlds?${params}`);
     const json = await res.json();
-    setMyWorlds(json.data ?? []);
+    const rows = json.data ?? [];
+    const total = Number(json.total) || 0;
+    if (page > 1 && rows.length === 0 && total > 0) {
+      setWorldPage(page - 1);
+      return;
+    }
+    setMyWorlds(rows);
+    setWorldTotal(total);
   }
 
   async function loadMyFavorites() {
@@ -295,15 +347,48 @@ export default function MyPage() {
   }
 
   useEffect(() => {
-    // 挂载时加载数据，属于与外部系统（服务端）同步，刻意为之
-    /* eslint-disable react-hooks/set-state-in-effect */
+    const t = setTimeout(() => {
+      setStoryQDebounced(storyQ);
+      setStoryPage(1);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [storyQ]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setCharacterQDebounced(characterQ);
+      setCharacterPage(1);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [characterQ]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setWorldQDebounced(worldQ);
+      setWorldPage(1);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [worldQ]);
+
+  useEffect(() => {
+    void loadMyStories(storyPage, storyQDebounced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyPage, storyQDebounced]);
+
+  useEffect(() => {
+    void loadMyCharacters(characterPage, characterQDebounced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [characterPage, characterQDebounced]);
+
+  useEffect(() => {
+    void loadMyWorlds(worldPage, worldQDebounced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [worldPage, worldQDebounced]);
+
+  useEffect(() => {
     void loadNotifications();
-    void loadMyStories();
-    void loadMyCharacters();
-    void loadMyWorlds();
     void loadMyFavorites();
     void loadPersonaMasks();
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   return (
@@ -434,13 +519,18 @@ export default function MyPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 我的故事 */}
         <div className="sf-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span className="inline-flex items-center gap-2">
-                <IconBadge icon={BookOpen} tone="story" size="md" /> 我的故事
-              </span>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+              <IconBadge icon={BookOpen} tone="story" size="md" /> 我的故事
             </h3>
-            <button className="sf-tag" onClick={loadMyStories}>
+            <input
+              className="sf-input !rounded-lg !px-3 !py-1.5 min-w-0 flex-1 text-sm"
+              value={storyQ}
+              onChange={(e) => setStoryQ(e.target.value)}
+              placeholder="搜索标题或简介"
+              aria-label="搜索我的故事"
+            />
+            <button className="sf-tag shrink-0" onClick={() => void loadMyStories()}>
               刷新
             </button>
           </div>
@@ -497,21 +587,33 @@ export default function MyPage() {
               );
             })}
             {myStories.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">暂无我的故事</li>
+              <li className="text-center py-8 text-[#5b6b8c]">
+                {storyQDebounced ? "没有匹配的故事" : "暂无我的故事"}
+              </li>
             )}
           </ul>
+          <MinePager
+            page={storyPage}
+            total={storyTotal}
+            onPage={setStoryPage}
+          />
         </div>
 
         {/* 我的角色 */}
         <div className="sf-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span className="inline-flex items-center gap-2">
-                <IconBadge icon={UserRound} tone="character" size="md" /> 我的角色
-              </span>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+              <IconBadge icon={UserRound} tone="character" size="md" /> 我的角色
             </h3>
-            <div className="flex gap-2">
-              <button className="sf-tag" onClick={loadMyCharacters}>
+            <input
+              className="sf-input !rounded-lg !px-3 !py-1.5 min-w-0 flex-1 text-sm"
+              value={characterQ}
+              onChange={(e) => setCharacterQ(e.target.value)}
+              placeholder="搜索名称或简介"
+              aria-label="搜索我的角色"
+            />
+            <div className="flex shrink-0 gap-2">
+              <button className="sf-tag" onClick={() => void loadMyCharacters()}>
                 刷新
               </button>
               <Link className="sf-tag" href="/compose?tab=character">创建</Link>
@@ -567,21 +669,33 @@ export default function MyPage() {
               );
             })}
             {myCharacters.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">暂无角色卡</li>
+              <li className="text-center py-8 text-[#5b6b8c]">
+                {characterQDebounced ? "没有匹配的角色" : "暂无角色卡"}
+              </li>
             )}
           </ul>
+          <MinePager
+            page={characterPage}
+            total={characterTotal}
+            onPage={setCharacterPage}
+          />
         </div>
 
         {/* 我的世界 */}
         <div className="sf-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
-              <span className="inline-flex items-center gap-2">
-                <IconBadge icon={Globe2} tone="world" size="md" /> 我的世界
-              </span>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+              <IconBadge icon={Globe2} tone="world" size="md" /> 我的世界
             </h3>
-            <div className="flex gap-2">
-              <button className="sf-tag" onClick={loadMyWorlds}>
+            <input
+              className="sf-input !rounded-lg !px-3 !py-1.5 min-w-0 flex-1 text-sm"
+              value={worldQ}
+              onChange={(e) => setWorldQ(e.target.value)}
+              placeholder="搜索名称或简介"
+              aria-label="搜索我的世界"
+            />
+            <div className="flex shrink-0 gap-2">
+              <button className="sf-tag" onClick={() => void loadMyWorlds()}>
                 刷新
               </button>
               <Link className="sf-tag" href="/compose?tab=world">创建</Link>
@@ -637,11 +751,54 @@ export default function MyPage() {
               );
             })}
             {myWorlds.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">暂无世界卡</li>
+              <li className="text-center py-8 text-[#5b6b8c]">
+                {worldQDebounced ? "没有匹配的世界" : "暂无世界卡"}
+              </li>
             )}
           </ul>
+          <MinePager
+            page={worldPage}
+            total={worldTotal}
+            onPage={setWorldPage}
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+function MinePager({
+  page,
+  total,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / MINE_PAGE_SIZE));
+  if (total <= MINE_PAGE_SIZE) return null;
+  return (
+    <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[#5B6B8C]">
+      <button
+        type="button"
+        className="sf-tag text-xs disabled:opacity-40"
+        disabled={page <= 1}
+        onClick={() => onPage(page - 1)}
+      >
+        上一页
+      </button>
+      <span>
+        {page} / {totalPages}
+      </span>
+      <button
+        type="button"
+        className="sf-tag text-xs disabled:opacity-40"
+        disabled={page >= totalPages}
+        onClick={() => onPage(page + 1)}
+      >
+        下一页
+      </button>
     </div>
   );
 }

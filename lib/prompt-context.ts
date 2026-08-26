@@ -82,6 +82,15 @@ export async function buildChatContext(
 ): Promise<ChatMessage[]> {
   const messages: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
 
+  // 故事体验会话：要求输出较长的小说正文（约 1200 字），而非简短对话
+  if (session.session_type === "story") {
+    messages.push({
+      role: "system",
+      content:
+        "你正在为「故事体验」续写小说正文。请围绕用户指令，输出约 1200 字的完整情节段落：包含场景与氛围描写、角色动作与神态、人物对话，以及剧情推进。不要只输出一两句简短对话，不要输出大纲、要点列表或分点说明。保持设定一致，延续上文文风。",
+    });
+  }
+
   if (session.world_id) {
     const world = await db.get<{ name: string; summary: string; setting_notes: string }>(
       "SELECT name, summary, setting_notes FROM worlds WHERE id = ?",
