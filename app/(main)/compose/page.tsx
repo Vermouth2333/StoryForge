@@ -57,6 +57,7 @@ export default function ComposePage() {
     if (kind === "story") {
       setStoryTitle(data.title);
       setStorySummary(data.summary);
+      setStoryGreeting(data.greeting ?? "");
       setStoryTags(tags);
       return;
     }
@@ -64,6 +65,11 @@ export default function ComposePage() {
       setCharName(data.title);
       setCharSummary(data.summary);
       setCharPersonality(data.personality ?? "");
+      setCharAppearance(data.appearance ?? "");
+      setCharBackground(data.background ?? "");
+      setCharSpeechStyle(data.speech_style ?? "");
+      setCharLikesDislikes(data.likes_dislikes ?? "");
+      setCharGreeting(data.greeting ?? "");
       setCharTags(tags);
       return;
     }
@@ -80,6 +86,7 @@ export default function ComposePage() {
     setWorldName(data.title);
     setWorldSummary(data.summary);
     setWorldSetting(data.setting_notes ?? "");
+    setWorldGreeting(data.greeting ?? "");
     setWorldTags(tags);
   }
 
