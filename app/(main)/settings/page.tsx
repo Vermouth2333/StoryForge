@@ -362,7 +362,7 @@ export default function SettingsPage() {
           <IconBadge icon={Bot} tone="ai" size="sm" /> AI 模型管理
         </h3>
         <p className="text-sm text-[#5B6B8C] mb-6">
-          添加和管理你的 AI 模型，配置 API Key 后即可在创作中使用。支持 DeepSeek、OpenAI、Anthropic、Ollama 及 OpenAI 兼容接口。
+          添加和管理你的 DeepSeek 模型，配置 API Key 后即可在创作中使用。
         </p>
 
         {/* 模型列表 */}
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                       setEditingModel(m);
                       setModelForm({
                         name: m.name,
-                        provider: m.provider,
+                        provider: "deepseek",
                         modelName: m.modelName,
                         baseUrl: m.baseUrl ?? "",
                         apiKey: "",
@@ -480,7 +480,7 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">显示名称 *</label>
                 <input
                   className="sf-input"
-                  placeholder="如：GPT-4o"
+                  placeholder="如：DeepSeek Chat"
                   value={modelForm.name}
                   onChange={(e) => setModelForm((f) => ({ ...f, name: e.target.value }))}
                 />
@@ -490,38 +490,16 @@ export default function SettingsPage() {
                 <select
                   className="sf-input"
                   value={modelForm.provider}
-                  onChange={(e) => {
-                    const provider = e.target.value;
-                    setModelForm((f) => {
-                      const next = { ...f, provider };
-                      if (provider === "deepseek") {
-                        return {
-                          ...next,
-                          name: f.name || "DeepSeek Chat",
-                          modelName: f.modelName || "deepseek-chat",
-                          baseUrl: f.baseUrl || "https://api.deepseek.com/v1",
-                        };
-                      }
-                      return next;
-                    });
-                  }}
+                  onChange={() => setModelForm((f) => ({ ...f, provider: "deepseek" }))}
                 >
                   <option value="deepseek">DeepSeek</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="ollama">Ollama (本地)</option>
-                  <option value="custom">自定义 (OpenAI 兼容)</option>
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">模型 ID *</label>
                 <input
                   className="sf-input"
-                  placeholder={
-                    modelForm.provider === "deepseek"
-                      ? "如：deepseek-chat / deepseek-reasoner"
-                      : "如：gpt-4o, claude-3-opus-20240229"
-                  }
+                  placeholder="如：deepseek-chat / deepseek-reasoner"
                   value={modelForm.modelName}
                   onChange={(e) => setModelForm((f) => ({ ...f, modelName: e.target.value }))}
                 />
@@ -530,11 +508,7 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">API Base URL</label>
                 <input
                   className="sf-input"
-                  placeholder={
-                    modelForm.provider === "deepseek"
-                      ? "默认 https://api.deepseek.com/v1"
-                      : "留空使用默认地址"
-                  }
+                  placeholder="默认 https://api.deepseek.com/v1"
                   value={modelForm.baseUrl}
                   onChange={(e) => setModelForm((f) => ({ ...f, baseUrl: e.target.value }))}
                 />
@@ -548,19 +522,17 @@ export default function SettingsPage() {
                   value={modelForm.apiKey}
                   onChange={(e) => setModelForm((f) => ({ ...f, apiKey: e.target.value }))}
                 />
-                {modelForm.provider === "deepseek" ? (
-                  <p className="mt-1.5 text-xs text-[#5B6B8C]">
-                    还没有 Key？前往{" "}
-                    <a
-                      href="https://platform.deepseek.com/api_keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#5B9DFF] hover:underline"
-                    >
-                      DeepSeek 开放平台申请 API Key
-                    </a>
-                  </p>
-                ) : null}
+                <p className="mt-1.5 text-xs text-[#5B6B8C]">
+                  还没有 Key？前往{" "}
+                  <a
+                    href="https://platform.deepseek.com/api_keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#5B9DFF] hover:underline"
+                  >
+                    DeepSeek 开放平台申请 API Key
+                  </a>
+                </p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#1F2A44] mb-1">Temperature</label>
@@ -611,7 +583,7 @@ export default function SettingsPage() {
                   try {
                     const payload: Record<string, unknown> = {
                       name: modelForm.name.trim(),
-                      provider: modelForm.provider,
+                      provider: "deepseek",
                       modelName: modelForm.modelName.trim(),
                       defaultTemperature: modelForm.defaultTemperature,
                       maxTokens: modelForm.maxTokens,
