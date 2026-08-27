@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { logBasicSafe } from "@/lib/basic-logs";
 import { getCurrentUserId } from "@/lib/auth";
-import { scanTextBundle } from "@/lib/content-filter";
-import { getDb, id, nowIso } from "@/lib/db";
+import { getDb, nowIso } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import type { ChatMessage } from "@/lib/ai-provider";
 import { produceChatText, resolveSessionProviderChain } from "@/lib/chat-produce-text";
-import { adjustAffinity, estimateAffinityDelta, getAffinity } from "@/lib/affinity";
+import { getAffinity } from "@/lib/affinity";
 import { buildChatContext } from "@/lib/prompt-context";
 import { conflictDetector } from "@/lib/conflict-detector";
 
-const schema = z.object({
-  content: z.string().min(1).max(5000),
-});
-
 const HEARTBEAT_MS = 15_000;
+
+const REGENERATE_USER_TURN =
+  "请重新生成对用户上一句的回复：保持人设、设定与当前剧情方向，但更换措辞、细节与展开，不要复述上一版。只输出正文。";
+const REGENERATE_GREETING =
+  "请根据当前设定重新写一段开场白：保持人设与世界观，但更换措辞与细节，不要复述上一版。只输出开场正文。";
 
 function sseData(payload: object) {
   return `data: ${JSON.stringify(payload)}\n\n`;
@@ -26,28 +25,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: sessionId } = await params;
-  const body = await req.json();
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ code: 400, msg: "参数错误" }, { status: 400 });
-  }
-
-  const promptScan = scanTextBundle([parsed.data.content], 50_000);
-  if (!promptScan.ok) {
-    return NextResponse.json({ code: 400, msg: promptScan.msg }, { status: 400 });
-  }
 
   const userId = await getCurrentUserId();
   if (!userId) {
     return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
   }
 
-  const rlUser = rateLimitAllow(`chat_gen:${userId}`, 45, 60_000);
+  const rlUser = rateLimitAllow(`chat_regen:${userId}`, 30, 60_000);
   if (!rlUser.ok) {
     return NextResponse.json(
       {
         code: 429,
-        msg: `生成请求过于频繁，请约 ${Math.ceil(rlUser.retryAfterMs / 1000)} 秒后再试`,
+        msg: `重新生成过于频繁，请约 ${Math.ceil(rlUser.retryAfterMs / 1000)} 秒后再试`,
       },
       {
         status: 429,
@@ -55,7 +44,7 @@ export async function POST(
       },
     );
   }
-  const rlIp = rateLimitAllow(`chat_gen_ip:${getRequestIp(req)}`, 120, 60_000);
+  const rlIp = rateLimitAllow(`chat_regen_ip:${getRequestIp(req)}`, 80, 60_000);
   if (!rlIp.ok) {
     return NextResponse.json(
       {
@@ -86,38 +75,49 @@ export async function POST(
     return NextResponse.json({ code: 404, msg: "会话不存在" }, { status: 404 });
   }
 
+  const lastRows = await db.all<{ id: string; role: string; content: string }[]>(
+    `SELECT id, role, content FROM chat_messages
+     WHERE session_id = ? AND role IN ('user','assistant')
+     ORDER BY datetime(created_at) DESC, rowid DESC
+     LIMIT 2`,
+    sessionId,
+  );
+  const last = lastRows[0];
+  if (!last || last.role !== "assistant") {
+    return NextResponse.json(
+      { code: 400, msg: "当前没有可重新生成的回复" },
+      { status: 400 },
+    );
+  }
+  const precedingUser = lastRows[1]?.role === "user" ? lastRows[1] : undefined;
+
   let affinityInfo: { score: number; label: string } | null = null;
   if (session.character_id) {
     const aff = await getAffinity(db, userId, session.character_id, session.story_id);
     affinityInfo = { score: aff.score, label: aff.label };
   }
 
-  // 在写入本轮用户消息之前组装上下文（系统/世界/角色/文风/历史 + 当前指令）
-  // 构建多模型降级链：主模型在前，已启用且已配置凭据的备用模型在后（见文档 5.8.5）
   const providerChain = await resolveSessionProviderChain(sessionId, userId);
+  const ragQuery = precedingUser?.content ?? REGENERATE_GREETING;
   let contextMessages: ChatMessage[] = [];
   try {
-    contextMessages = await buildChatContext(db, sessionId, session, parsed.data.content);
+    contextMessages = await buildChatContext(db, sessionId, session, ragQuery, {
+      omitMessageId: last.id,
+      skipAppendingUser: true,
+    });
     if (affinityInfo && session.character_id) {
       contextMessages.splice(1, 0, {
         role: "system",
         content: `# 当前好感度\n与该角色的好感度为 ${affinityInfo.score}/100（${affinityInfo.label}）。请据此调整语气与亲密度，不要突然越级亲密或冷漠。`,
       });
     }
+    contextMessages.push({
+      role: "user",
+      content: precedingUser ? REGENERATE_USER_TURN : REGENERATE_GREETING,
+    });
   } catch {
-    contextMessages = [{ role: "user", content: parsed.data.content }];
+    contextMessages = [{ role: "user", content: ragQuery }];
   }
-
-  const userMessageId = id("msg");
-  const now = nowIso();
-  await db.run(
-    `INSERT INTO chat_messages (id, session_id, role, content, created_at)
-     VALUES (?, ?, 'user', ?, ?)`,
-    userMessageId,
-    sessionId,
-    parsed.data.content,
-    now,
-  );
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -161,10 +161,11 @@ export async function POST(
           providerChain,
           streamStarted,
           emit,
-          logCategory: "chat_generate",
+          logCategory: "chat_regenerate",
         });
 
         if (stopped) {
+          // 取消重新生成时保留原文，不落库
           controller.enqueue(
             sseData({ type: "done", reason: "stopped", seq, incomplete: true }),
           );
@@ -181,19 +182,17 @@ export async function POST(
           return;
         }
 
-        const assistantMessageId = id("msg");
         await db.run(
-          `INSERT INTO chat_messages
-        (id, session_id, role, content, token_input, token_output, latency_ms, model_name, created_at)
-         VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, ?)`,
-          assistantMessageId,
-          sessionId,
+          `UPDATE chat_messages
+           SET content = ?, token_input = ?, token_output = ?, latency_ms = ?, model_name = ?
+           WHERE id = ? AND session_id = ?`,
           fullText,
-          Math.ceil(parsed.data.content.length / 4),
+          Math.ceil(ragQuery.length / 4),
           Math.ceil(fullText.length / 4),
           Date.now() - streamStarted,
           usedModelName,
-          nowIso(),
+          last.id,
+          sessionId,
         );
 
         await db.run(
@@ -203,26 +202,6 @@ export async function POST(
           sessionId,
         );
 
-        // 角色/故事 NPC 好感记账
-        let affinityPayload: { score: number; label: string; key: string } | null = null;
-        if (session.character_id && fullText.trim().length > 0) {
-          try {
-            const delta = estimateAffinityDelta(parsed.data.content);
-            const next = await adjustAffinity(
-              db,
-              userId,
-              session.character_id,
-              session.story_id,
-              delta,
-            );
-            affinityPayload = { score: next.score, label: next.label, key: next.key };
-          } catch {
-            // 好感更新失败不影响主流程
-          }
-        }
-
-        // 生成主循环集成：对生成内容自动触发冲突检测（P0/P1 拦截提示）
-        // 非阻塞——失败不影响本轮生成结果，仅在流中追加一个 conflict 事件
         if (fullText.trim().length > 0) {
           try {
             const characterIds = session.character_id ? [session.character_id] : [];
@@ -250,7 +229,7 @@ export async function POST(
             }
           } catch (conflictErr) {
             await logBasicSafe("warn", "conflict detection failed", {
-              category: "chat_generate",
+              category: "chat_regenerate",
               meta: {
                 sessionId,
                 message:
@@ -266,17 +245,16 @@ export async function POST(
         controller.enqueue(
           sseData({
             type: "done",
-            message_id: assistantMessageId,
+            message_id: last.id,
             seq,
-            affinity: affinityPayload,
           }),
         );
         closed = true;
         stopHeartbeat();
         controller.close();
       } catch (err) {
-        await logBasicSafe("error", "generate stream failed", {
-          category: "chat_generate",
+        await logBasicSafe("error", "regenerate stream failed", {
+          category: "chat_regenerate",
           meta: {
             sessionId,
             message: err instanceof Error ? err.message : String(err),
@@ -286,7 +264,7 @@ export async function POST(
         controller.enqueue(
           sseData({
             type: "error",
-            msg: err instanceof Error ? err.message : "生成失败",
+            msg: err instanceof Error ? err.message : "重新生成失败",
           }),
         );
         closed = true;

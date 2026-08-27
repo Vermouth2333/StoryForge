@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export type ChatSessionInfo = {
@@ -34,6 +35,7 @@ type ChatWorkspaceProps = {
   onInputChange: (value: string) => void;
   onSend: () => void | Promise<void>;
   onStop: () => void;
+  onRegenerate?: () => void | Promise<void>;
   affinity?: { score: number; label: string } | null;
   personaLabel?: string | null;
   headerExtra?: React.ReactNode;
@@ -96,6 +98,7 @@ export function ChatWorkspace({
   onInputChange,
   onSend,
   onStop,
+  onRegenerate,
   affinity,
   personaLabel,
   headerExtra,
@@ -215,23 +218,42 @@ export function ChatWorkspace({
                 </p>
               ) : null}
 
-              {visibleMessages.map((msg) => {
+              {visibleMessages.map((msg, idx) => {
                 const isUser = msg.role === "user";
+                const canRegenerate =
+                  Boolean(onRegenerate) &&
+                  !isUser &&
+                  !busy &&
+                  !streamText &&
+                  idx === visibleMessages.length - 1;
                 return (
                   <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[min(720px,92%)] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
                       {!isUser ? (
                         <p className="px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
                       ) : null}
-                      <div
-                        className={[
-                          "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                          isUser
-                            ? "bg-[#5B9DFF] text-white rounded-br-md"
-                            : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
-                        ].join(" ")}
-                      >
-                        <MessageText text={msg.content} />
+                      <div className="flex items-end gap-1.5">
+                        <div
+                          className={[
+                            "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                            isUser
+                              ? "bg-[#5B9DFF] text-white rounded-br-md"
+                              : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
+                          ].join(" ")}
+                        >
+                          <MessageText text={msg.content} />
+                        </div>
+                        {canRegenerate ? (
+                          <button
+                            type="button"
+                            className="mb-0.5 shrink-0 cursor-pointer rounded-lg p-1.5 text-[#8A97B3] transition-colors hover:bg-[#EEF6FF] hover:text-[#3F86F5]"
+                            aria-label="重新生成"
+                            title="重新生成"
+                            onClick={() => void onRegenerate?.()}
+                          >
+                            <RefreshCw className="h-4 w-4" strokeWidth={2.15} aria-hidden />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>

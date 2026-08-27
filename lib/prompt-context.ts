@@ -74,11 +74,19 @@ async function retrieveWorldKnowledge(
   return retrieved.map((r) => r.content);
 }
 
+export type BuildChatContextOptions = {
+  /** 组装历史时跳过该条（重新生成时排除待替换的助手消息） */
+  omitMessageId?: string;
+  /** 历史中已含本轮用户消息时不再追加一份 */
+  skipAppendingUser?: boolean;
+};
+
 export async function buildChatContext(
   db: Database,
   sessionId: string,
   session: SessionContextRow,
   userContent: string,
+  opts?: BuildChatContextOptions,
 ): Promise<ChatMessage[]> {
   const messages: ChatMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
 
@@ -242,22 +250,25 @@ export async function buildChatContext(
     }
   }
 
-  const history = await db.all<{ role: string; content: string }[]>(
-    `SELECT role, content FROM chat_messages
+  const history = await db.all<{ id: string; role: string; content: string }[]>(
+    `SELECT id, role, content FROM chat_messages
      WHERE session_id = ? AND role IN ('user','assistant')
      ORDER BY datetime(created_at) DESC, rowid DESC
      LIMIT ?`,
     sessionId,
-    MAX_HISTORY_MESSAGES,
+    MAX_HISTORY_MESSAGES + (opts?.omitMessageId ? 1 : 0),
   );
   history.reverse();
   for (const h of history) {
+    if (opts?.omitMessageId && h.id === opts.omitMessageId) continue;
     messages.push({
       role: h.role === "assistant" ? "assistant" : "user",
       content: h.content,
     });
   }
 
-  messages.push({ role: "user", content: userContent });
+  if (!opts?.skipAppendingUser) {
+    messages.push({ role: "user", content: userContent });
+  }
   return messages;
 }

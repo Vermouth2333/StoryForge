@@ -5,6 +5,12 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChatWorkspace, type ChatMessageItem, type ChatSessionInfo } from "@/components/ChatWorkspace";
 import { currentPathForLogin, loginHref } from "@/lib/login-redirect";
+import {
+  findLastAssistant,
+  readChatSse,
+  regenerateLastReply,
+  requestChatStop,
+} from "@/lib/chat-sse-client";
 
 type StoryDetail = {
   id: string;
@@ -196,44 +202,14 @@ export default function StoryPlayPage() {
         body: JSON.stringify({ content: sending }),
         signal: controller.signal,
       });
-      if (!res.body) {
-        setBusy(false);
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
-      let acc = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const events = buffer.split("\n\n");
-        buffer = events.pop() || "";
-        for (const ev of events) {
-          const line = ev.trim();
-          if (!line.startsWith("data:")) continue;
-          try {
-            const payload = JSON.parse(line.slice(5).trim()) as {
-              type?: string;
-              content?: string;
-            };
-            if (payload.type === "content" && payload.content) {
-              acc += payload.content;
-              setStreamText(acc);
-            }
-          } catch {
-            // ignore malformed sse
-          }
-        }
-      }
-      if (acc) {
+      const { text } = await readChatSse(res, setStreamText);
+      if (text) {
         setMessages((prev) => [
           ...prev,
           {
             id: "assistant_" + Date.now(),
             role: "assistant",
-            content: acc,
+            content: text,
             created_at: new Date().toISOString(),
           },
         ]);
@@ -262,6 +238,19 @@ export default function StoryPlayPage() {
       abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  async function regenerateMessage() {
+    const last = findLastAssistant(messages);
+    if (!last || !activeSessionId || busy) return;
+    await regenerateLastReply({
+      sessionId: activeSessionId,
+      last,
+      setMessages,
+      setStreamText,
+      setBusy,
+      abortRef,
+    });
   }
 
   if (loading) return <main className="sf-loading" />;
@@ -297,7 +286,8 @@ export default function StoryPlayPage() {
         inputMessage={inputMessage}
         onInputChange={setInputMessage}
         onSend={sendMessage}
-        onStop={() => abortRef.current?.abort()}
+        onStop={() => requestChatStop(activeSessionId, abortRef.current)}
+        onRegenerate={regenerateMessage}
       />
     );
   }
