@@ -10,17 +10,34 @@ export type ShowcaseItem = {
   sticker?: "paper" | "blue" | "soft" | "sky";
 };
 
-export function ShowcaseStage({ items }: { items: ShowcaseItem[] }) {
+export type ShowcaseVariant = "assets" | "features" | "flow";
+
+export function ShowcaseStage({
+  items,
+  variant = "assets",
+}: {
+  items: ShowcaseItem[];
+  variant?: ShowcaseVariant;
+}) {
   const [active, setActive] = useState(0);
 
   return (
-    <div className="sf-stage">
-      <div className="sf-stage-sky" aria-hidden>
-        <span className="sf-cloud sf-cloud-a" />
-        <span className="sf-cloud sf-cloud-b" />
-        <span className="sf-cloud sf-cloud-c" />
-      </div>
-      <div className="sf-stage-line" aria-hidden />
+    <div className={`sf-stage sf-stage-${variant}`}>
+      {variant === "assets" ? (
+        <div className="sf-stage-sky" aria-hidden>
+          <span className="sf-cloud sf-cloud-a" />
+          <span className="sf-cloud sf-cloud-b" />
+          <span className="sf-cloud sf-cloud-c" />
+        </div>
+      ) : null}
+      {variant === "features" ? (
+        <div className="sf-stage-spark" aria-hidden>
+          <span className="sf-spark sf-spark-a" />
+          <span className="sf-spark sf-spark-b" />
+          <span className="sf-spark sf-spark-c" />
+        </div>
+      ) : null}
+      {variant !== "features" ? <div className="sf-stage-line" aria-hidden /> : null}
       <div className="sf-stage-row">
         {items.map((item, index) => {
           const isActive = active === index;
@@ -34,12 +51,14 @@ export function ShowcaseStage({ items }: { items: ShowcaseItem[] }) {
               onFocus={() => setActive(index)}
               onClick={() => setActive(index)}
             >
-              <span
-                className={`sf-sticker sf-sticker-${item.sticker ?? "paper"} sf-sticker-${item.tilt ?? (index % 2 === 0 ? "left" : "right")}`}
-              >
-                {item.kicker ? <small>{item.kicker}</small> : null}
-                <strong>{item.title}</strong>
-              </span>
+              {variant === "assets" ? (
+                <span
+                  className={`sf-sticker sf-sticker-${item.sticker ?? "paper"} sf-sticker-${item.tilt ?? (index % 2 === 0 ? "left" : "right")}`}
+                >
+                  {item.kicker ? <small>{item.kicker}</small> : null}
+                  <strong>{item.title}</strong>
+                </span>
+              ) : null}
               <span className="sf-portal-frame" style={{ animationDelay: `${index * 0.45}s` }}>
                 {item.kicker ? <small className="sf-portal-kicker">{item.kicker}</small> : null}
                 <strong className="sf-portal-title">{item.title}</strong>

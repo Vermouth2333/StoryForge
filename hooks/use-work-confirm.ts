@@ -18,6 +18,7 @@ export function useWorkConfirm() {
     onOk: () => void | Promise<void>,
   ) {
     modal.confirm({
+      centered: true,
       title: `下架${KIND_LABEL[kind]}`,
       content: `下架后「${name}」将不再在市场展示，确定要下架吗？`,
       okText: "下架",
@@ -33,6 +34,7 @@ export function useWorkConfirm() {
     onOk: () => void | Promise<void>,
   ) {
     modal.confirm({
+      centered: true,
       title: `删除${KIND_LABEL[kind]}`,
       content: `确定永久删除「${name}」？此操作不可恢复。`,
       okText: "删除",

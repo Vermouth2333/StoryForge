@@ -191,6 +191,7 @@ export default function MyPage() {
 
   function deletePersonaMask(mask: PersonaMaskItem) {
     modal.confirm({
+      centered: true,
       title: "删除人设面具",
       content: `确定删除「${mask.name}」？`,
       okText: "删除",

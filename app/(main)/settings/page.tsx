@@ -437,6 +437,7 @@ export default function SettingsPage() {
                     className="text-xs text-red-400 hover:text-red-600"
                     onClick={() => {
                       modal.confirm({
+                        centered: true,
                         title: "删除模型",
                         content: `确定删除「${m.name}」？此操作不可恢复。`,
                         okText: "删除",

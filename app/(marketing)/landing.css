@@ -23,6 +23,35 @@
   box-shadow: 0 10px 40px rgba(63, 134, 245, 0.12);
 }
 
+.sf-landing-nav-link {
+  position: relative;
+  color: #5b6b8c;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.sf-landing-nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7fb4ff, #3f86f5);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sf-landing-nav-link:hover {
+  color: #3f86f5;
+}
+
+.sf-landing-nav-link:hover::after {
+  transform: scaleX(1);
+}
+
 .sf-landing-hero-title {
   background: linear-gradient(120deg, #1f2a44 10%, #3f86f5 48%, #5b9dff 78%, #1f2a44 100%);
   background-size: 180% 100%;
@@ -233,11 +262,14 @@
   border-radius: 1.5rem;
   background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%);
   box-shadow: 0 10px 28px rgba(63, 134, 245, 0.08);
-  animation: sf-portal-bob 4.6s ease-in-out infinite;
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease,
     border-color 0.35s ease;
+}
+
+.sf-stage-assets .sf-portal-frame {
+  animation: sf-portal-bob 4.6s ease-in-out infinite;
 }
 
 .sf-portal-kicker {
@@ -279,9 +311,194 @@
 
 .sf-portal.is-active .sf-portal-frame,
 .sf-portal:hover .sf-portal-frame {
-  transform: translateY(-10px) scale(1.03);
   border-color: #5b9dff;
+}
+
+.sf-stage-assets .sf-portal.is-active .sf-portal-frame,
+.sf-stage-assets .sf-portal:hover .sf-portal-frame {
+  transform: translateY(-10px) scale(1.03);
   box-shadow: 0 18px 36px rgba(63, 134, 245, 0.2);
+}
+
+.sf-stage-features .sf-portal {
+  padding-top: 0;
+}
+
+.sf-stage-features .sf-portal-frame {
+  border-radius: 1.1rem;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(232, 243, 255, 0.92));
+  animation: sf-portal-sway 5.4s ease-in-out infinite;
+}
+
+.sf-stage-features .sf-portal-title {
+  transition: font-size 0.25s ease, letter-spacing 0.25s ease;
+}
+
+.sf-stage-features .sf-portal.is-active .sf-portal-frame,
+.sf-stage-features .sf-portal:hover .sf-portal-frame {
+  animation-play-state: paused;
+  transform: translateX(6px) rotate(-1.4deg);
+  box-shadow: 0 16px 32px rgba(47, 143, 255, 0.22);
+}
+
+.sf-stage-features .sf-portal.is-active .sf-portal-title,
+.sf-stage-features .sf-portal:hover .sf-portal-title {
+  font-size: 1.48rem;
+  letter-spacing: 0.02em;
+}
+
+.sf-stage-features .sf-sticker {
+  display: none;
+}
+
+.sf-stage-spark {
+  pointer-events: none;
+  position: absolute;
+  inset: 8% 6% 50%;
+}
+
+.sf-spark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #5b9dff;
+  opacity: 0.45;
+  animation: sf-spark-twinkle 2.8s ease-in-out infinite;
+}
+
+.sf-spark-a { left: 12%; top: 20%; }
+.sf-spark-b { left: 48%; top: 0; animation-delay: -0.9s; background: #7fb4ff; }
+.sf-spark-c { right: 14%; top: 28%; animation-delay: -1.6s; background: #3f86f5; }
+
+.sf-stage-flow {
+  padding-top: 0.25rem;
+}
+
+.sf-stage-flow .sf-stage-line {
+  bottom: 52%;
+  border-top: 3px dotted rgba(63, 134, 245, 0.38);
+}
+
+.sf-stage-flow .sf-portal {
+  padding-top: 1.25rem;
+}
+
+.sf-stage-flow .sf-portal-frame {
+  border-radius: 1.15rem 1.15rem 1.15rem 0.4rem;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(21, 112, 224, 0.08);
+  animation: sf-portal-pulse 3.8s ease-in-out infinite;
+}
+
+.sf-stage-flow .sf-portal-frame::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 0 0 1.15rem 0.4rem;
+  background: linear-gradient(90deg, #5b9dff, #3f86f5);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sf-stage-flow .sf-portal-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 68%
+  );
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+.sf-stage-flow .sf-portal-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7fb4ff, #3f86f5);
+  color: #fff;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+  transition: transform 0.35s cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.sf-stage-flow .sf-portal.is-active .sf-portal-frame,
+.sf-stage-flow .sf-portal:hover .sf-portal-frame {
+  animation: none;
+  transform: perspective(900px) rotateX(8deg) translateY(-2px);
+  border-color: #3f86f5;
+  box-shadow:
+    0 22px 36px rgba(63, 134, 245, 0.2),
+    0 0 0 1px rgba(91, 157, 255, 0.25) inset;
+}
+
+.sf-stage-flow .sf-portal.is-active .sf-portal-frame::before,
+.sf-stage-flow .sf-portal:hover .sf-portal-frame::before {
+  transform: scaleX(1);
+}
+
+.sf-stage-flow .sf-portal.is-active .sf-portal-frame::after,
+.sf-stage-flow .sf-portal:hover .sf-portal-frame::after {
+  animation: sf-flow-shine 0.7s ease forwards;
+}
+
+.sf-stage-flow .sf-portal.is-active .sf-portal-kicker,
+.sf-stage-flow .sf-portal:hover .sf-portal-kicker {
+  transform: scale(1.14) rotate(-10deg);
+}
+
+@keyframes sf-flow-shine {
+  from {
+    transform: translateX(-130%);
+  }
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@keyframes sf-portal-sway {
+  0%,
+  100% {
+    transform: rotate(-1.2deg) translateY(0);
+  }
+  50% {
+    transform: rotate(1.2deg) translateY(-4px);
+  }
+}
+
+@keyframes sf-portal-pulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 22px rgba(21, 112, 224, 0.08);
+  }
+  50% {
+    box-shadow: 0 10px 26px rgba(63, 134, 245, 0.16);
+  }
+}
+
+@keyframes sf-spark-twinkle {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.7) rotate(0deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.25) rotate(45deg);
+  }
 }
 
 .sf-sticker {
@@ -413,6 +630,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sf-cloud,
+  .sf-spark,
   .sf-portal-frame,
   .sf-sticker {
     animation: none;

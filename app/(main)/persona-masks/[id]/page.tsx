@@ -75,6 +75,7 @@ export default function PersonaMaskDetailPage() {
   function remove() {
     if (!mask) return;
     modal.confirm({
+      centered: true,
       title: "删除人设面具",
       content: `确定删除「${mask.name}」？此操作不可恢复。`,
       okText: "删除",

@@ -124,11 +124,11 @@ export function LandingPage() {
           </Link>
           <nav className="hidden items-center gap-7 text-sm font-medium text-[#5B6B8C] md:flex">
             {NAV.map((item) => (
-              <a key={item.href} href={item.href} className="hover:text-[#3F86F5]">
+              <a key={item.href} href={item.href} className="sf-landing-nav-link">
                 {item.label}
               </a>
             ))}
-            <Link href="/market" className="hover:text-[#3F86F5]">
+            <Link href="/market" className="sf-landing-nav-link">
               逛市场
             </Link>
           </nav>
@@ -205,7 +205,7 @@ export function LandingPage() {
 
         <section id="assets" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
           <SectionHead kicker="内容模型" title="三种可上架，一种只属于你" />
-          <ShowcaseStage items={ASSETS} />
+          <ShowcaseStage items={ASSETS} variant="assets" />
         </section>
 
         <section id="features" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
@@ -214,7 +214,7 @@ export function LandingPage() {
             title="从发现到相遇，一整条互动链路"
             desc="从发现、下载，到戴上面具登场，每一步都清晰可控。"
           />
-          <ShowcaseStage items={FEATURES} />
+          <ShowcaseStage items={FEATURES} variant="features" />
         </section>
 
         <section id="flow" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
@@ -223,7 +223,7 @@ export function LandingPage() {
             title="四步进入故事"
             desc="未登录也能先逛市场；登录后，下载、创作、对话全部打开。"
           />
-          <ShowcaseStage items={STEPS} />
+          <ShowcaseStage items={STEPS} variant="flow" />
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-20 pt-6">

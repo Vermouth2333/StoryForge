@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { App as AntdApp } from "antd";
+import { App as AntdApp, ConfigProvider } from "antd";
 import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
@@ -21,7 +21,9 @@ export default function RootLayout({
     <html lang="zh-CN" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <AntdRegistry>
-          <AntdApp>{children}</AntdApp>
+          <ConfigProvider modal={{ centered: true }}>
+            <AntdApp>{children}</AntdApp>
+          </ConfigProvider>
         </AntdRegistry>
       </body>
     </html>

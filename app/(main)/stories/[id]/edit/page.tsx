@@ -563,6 +563,7 @@ export default function StoryOutlineEditPage() {
   function removeNode(nodeId: string) {
     const node = nodes.find((n) => n.id === nodeId);
     modal.confirm({
+      centered: true,
       title: "删除章节",
       content: `确定删除「${node?.title ?? "该章节"}」及其所有子章节？此操作不可恢复。`,
       okText: "删除",
@@ -639,6 +640,7 @@ export default function StoryOutlineEditPage() {
 
   function deleteRelation(relationId: string) {
     modal.confirm({
+      centered: true,
       title: "删除人物关系",
       content: "确定删除该人物关系？",
       okText: "删除",
@@ -788,6 +790,7 @@ export default function StoryOutlineEditPage() {
           </ul>
 
           <Modal
+            centered
             open={addModalOpen}
             title={
               addDraft?.mode === "child"
@@ -849,6 +852,7 @@ export default function StoryOutlineEditPage() {
           </Modal>
 
           <Modal
+            centered
             open={positionPickerId !== null}
             title={positionNode ? `调整位置 · ${positionNode.title}` : "调整位置"}
             footer={null}

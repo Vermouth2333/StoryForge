@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { App } from "antd";
+import { App, Modal, Radio } from "antd";
 import { EmptyState } from "@/components/EmptyState";
 import { IconBadge, Inbox, MessagesSquare, MessageSquareText, MousePointerClick } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
@@ -29,7 +29,12 @@ type SessionSnapshotItem = {
   id: string;
   session_id: string;
   label: string;
-  payload: { last_message_id?: string; last_message_at?: string };
+  payload: {
+    last_message_id?: string;
+    last_message_at?: string;
+    last_assistant_id?: string;
+    last_assistant_preview?: string;
+  };
   created_at: string;
 };
 
@@ -44,6 +49,13 @@ export default function HistoryPage() {
   const [sessionKeyword, setSessionKeyword] = useState("");
   const [sessionSnapshots, setSessionSnapshots] = useState<SessionSnapshotItem[]>([]);
   const [snapshotLabel, setSnapshotLabel] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"markdown" | "txt" | "pdf" | "epub" | null>(null);
+  const [exportScope, setExportScope] = useState<"ai" | "all">("all");
+  const [exportBusy, setExportBusy] = useState(false);
+  const [editingSnapshotId, setEditingSnapshotId] = useState("");
+  const [editingSnapshotLabel, setEditingSnapshotLabel] = useState("");
+  const [savingSnapshot, setSavingSnapshot] = useState(false);
 
   async function loadSessions() {
     const params = new URLSearchParams();
@@ -93,9 +105,88 @@ export default function HistoryPage() {
     }
   }
 
+  async function saveSnapshotLabel(snapshotId: string) {
+    if (!selectedSessionForHistory) return;
+    setSavingSnapshot(true);
+    try {
+      const res = await fetch(
+        `/api/chat/sessions/${selectedSessionForHistory}/snapshots/${snapshotId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: editingSnapshotLabel.trim() }),
+        },
+      );
+      const json = await res.json();
+      if (json.code === 200) {
+        setSessionSnapshots((prev) =>
+          prev.map((sn) => (sn.id === snapshotId ? { ...sn, label: editingSnapshotLabel.trim() } : sn)),
+        );
+        setEditingSnapshotId("");
+        message.success("备注已更新");
+      } else {
+        message.error(json.msg ?? "保存失败");
+      }
+    } finally {
+      setSavingSnapshot(false);
+    }
+  }
+
+  async function downloadSessionExport() {
+    if (!selectedSessionForHistory || !exportFormat) return;
+    setExportBusy(true);
+    try {
+      const res = await fetch(`/api/chat/sessions/${selectedSessionForHistory}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format: exportFormat, scope: exportScope }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        message.error(err?.msg ?? "导出失败");
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+      const plain = /filename="([^"]+)"/i.exec(cd);
+      const filename = star
+        ? decodeURIComponent(star[1])
+        : plain?.[1] ?? `session-export.${exportFormat === "markdown" ? "md" : exportFormat}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportFormat(null);
+      message.success("已开始下载");
+    } catch {
+      message.error("导出失败");
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  function jumpToHistoryMessage(messageId?: string) {
+    if (!messageId) {
+      message.info("该检查点没有关联的对话节点");
+      return;
+    }
+    const el = document.getElementById(`history-msg-${messageId}`);
+    if (!el) {
+      message.info("对应消息不在当前页，可翻页后再试");
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   function restoreSessionSnapshot(snapshotId: string) {
     if (!selectedSessionForHistory) return;
     modal.confirm({
+      centered: true,
       title: "恢复检查点",
       content: "将删除该快照时间点之后的所有消息，确定恢复到此检查点吗？",
       okText: "恢复",
@@ -118,9 +209,36 @@ export default function HistoryPage() {
     });
   }
 
+  function deleteSessionSnapshot(snapshotId: string) {
+    if (!selectedSessionForHistory) return;
+    modal.confirm({
+      centered: true,
+      title: "删除检查点",
+      content: "确定删除该检查点？此操作不可恢复。",
+      okText: "删除",
+      okButtonProps: { danger: true },
+      cancelText: "取消",
+      onOk: async () => {
+        const res = await fetch(
+          `/api/chat/sessions/${selectedSessionForHistory}/snapshots/${snapshotId}`,
+          { method: "DELETE" },
+        );
+        const json = await res.json();
+        if (json.code === 200) {
+          setSessionSnapshots((prev) => prev.filter((sn) => sn.id !== snapshotId));
+          if (editingSnapshotId === snapshotId) setEditingSnapshotId("");
+          message.success("已删除检查点");
+        } else {
+          message.error(json.msg ?? "删除失败");
+        }
+      },
+    });
+  }
+
   function deleteSession(sessionId: string) {
     const target = sessions.find((s) => s.id === sessionId);
     modal.confirm({
+      centered: true,
       title: "删除会话",
       content: `确定删除会话「${target?.title ?? "未命名"}」？此操作不可恢复。`,
       okText: "删除",
@@ -157,6 +275,8 @@ export default function HistoryPage() {
 
   useEffect(() => {
     if (!selectedSessionForHistory) return;
+    setExportOpen(false);
+    setEditingSnapshotId("");
     /* eslint-disable react-hooks/set-state-in-effect */
     void loadMessages(selectedSessionForHistory, 1);
     void loadSessionSnapshots(selectedSessionForHistory);
@@ -273,11 +393,47 @@ export default function HistoryPage() {
                   {(() => {
                     const selected = sessions.find((s) => s.id === selectedSessionForHistory);
                     const href = selected ? getContinueSessionHref(selected) : null;
-                    if (!href) return null;
                     return (
-                      <Link href={href} className="sf-tag !text-[#3F86F5]">
-                        继续会话
-                      </Link>
+                      <>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            className="sf-tag cursor-pointer"
+                            onClick={() => setExportOpen((v) => !v)}
+                          >
+                            导出
+                          </button>
+                          {exportOpen ? (
+                            <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-xl border border-[#dce9ff] bg-white py-1 shadow-[0_8px_24px_rgba(63,134,245,0.14)]">
+                              {(
+                                [
+                                  ["markdown", "MD"],
+                                  ["txt", "TXT"],
+                                  ["epub", "EPUB"],
+                                  ["pdf", "PDF"],
+                                ] as const
+                              ).map(([fmt, label]) => (
+                                <button
+                                  key={fmt}
+                                  type="button"
+                                  className="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-[#1f2a44] hover:bg-[#eef6ff]"
+                                  onClick={() => {
+                                    setExportFormat(fmt);
+                                    setExportOpen(false);
+                                  }}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                        {href ? (
+                          <Link href={href} className="sf-tag !text-[#3F86F5]">
+                            继续会话
+                          </Link>
+                        ) : null}
+                      </>
                     );
                   })()}
                   <button
@@ -292,9 +448,16 @@ export default function HistoryPage() {
 
               {/* 消息列表 */}
               <div className="mb-4 min-h-0 flex-1 space-y-3 overflow-y-auto">
-                {messages.map((m) => (
+                {messages.map((m) => {
+                  const msgCheckpoints = sessionSnapshots.filter(
+                    (sn) =>
+                      sn.payload?.last_assistant_id === m.id ||
+                      sn.payload?.last_message_id === m.id,
+                  );
+                  return (
                   <div
                     key={m.id}
+                    id={`history-msg-${m.id}`}
                     className={`rounded-xl p-4 ${
                       m.role === "user"
                         ? "bg-[#eef6ff] border-l-4 border-[#5b9dff]"
@@ -320,8 +483,21 @@ export default function HistoryPage() {
                       </span>
                     </div>
                     <p className="text-sm leading-relaxed text-[#1f2a44]">{m.content}</p>
+                    {msgCheckpoints.length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {msgCheckpoints.map((sn) => (
+                          <span
+                            key={sn.id}
+                            className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] text-[#3F86F5]"
+                          >
+                            {sn.label?.trim() || "检查点"}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                ))}
+                  );
+                })}
                 {messages.length === 0 && (
                   <EmptyState
                     icon={MessageSquareText}
@@ -371,31 +547,90 @@ export default function HistoryPage() {
 
                 {/* 检查点列表 */}
                 {sessionSnapshots.length > 0 && (
-                  <div className="mt-4 max-h-36 overflow-y-auto">
+                  <div className="mt-4 max-h-64 overflow-y-auto">
                     <p className="mb-2 text-xs font-medium text-[#1f2a44]">检查点记录</p>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {sessionSnapshots.map((sn) => (
                         <div
                           key={sn.id}
-                          className="flex items-center justify-between gap-3 rounded-xl bg-[#f0f6ff] p-3"
+                          className="flex cursor-pointer flex-col rounded-xl border border-[#dce9ff] bg-[#f0f6ff] p-3"
+                          onClick={() =>
+                            jumpToHistoryMessage(sn.payload?.last_assistant_id || sn.payload?.last_message_id)
+                          }
                         >
-                          <div className="min-w-0">
-                            {sn.label ? (
-                              <span className="text-sm font-medium text-[#1f2a44]">{sn.label}</span>
-                            ) : (
-                              <span className="text-sm text-[#5b6b8c]">（无备注）</span>
-                            )}
-                            <span className="ml-2 text-xs text-[#5b6b8c]">
-                              · {new Date(sn.created_at).toLocaleString()}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            className="sf-tag shrink-0 text-xs"
-                            onClick={() => restoreSessionSnapshot(sn.id)}
+                          {editingSnapshotId === sn.id ? (
+                            <div className="flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+                              <textarea
+                                className="sf-input min-h-[72px] py-1.5 text-sm"
+                                value={editingSnapshotLabel}
+                                maxLength={120}
+                                placeholder="检查点备注（可留空）"
+                                onChange={(e) => setEditingSnapshotLabel(e.target.value)}
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className="sf-tag text-xs"
+                                  disabled={savingSnapshot}
+                                  onClick={() => void saveSnapshotLabel(sn.id)}
+                                >
+                                  保存
+                                </button>
+                                <button
+                                  type="button"
+                                  className="sf-tag text-xs"
+                                  onClick={() => setEditingSnapshotId("")}
+                                >
+                                  取消
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="truncate text-sm font-medium text-[#1f2a44]">
+                                {sn.label?.trim() || "（无备注）"}
+                              </p>
+                              <p className="mt-1 line-clamp-3 text-xs leading-5 text-[#5b6b8c]">
+                                {sn.payload?.last_assistant_preview
+                                  ? `AI：${sn.payload.last_assistant_preview}`
+                                  : "未关联到 AI 生成内容"}
+                              </p>
+                              <p className="mt-1 text-[11px] text-[#8a97b3]">
+                                {new Date(sn.created_at).toLocaleString()}
+                              </p>
+                            </>
+                          )}
+                          <div
+                            className="mt-2 flex flex-wrap gap-2"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            恢复
-                          </button>
+                            {editingSnapshotId !== sn.id ? (
+                              <button
+                                type="button"
+                                className="sf-tag shrink-0 text-xs"
+                                onClick={() => {
+                                  setEditingSnapshotId(sn.id);
+                                  setEditingSnapshotLabel(sn.label ?? "");
+                                }}
+                              >
+                                编辑
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="sf-tag shrink-0 text-xs"
+                              onClick={() => restoreSessionSnapshot(sn.id)}
+                            >
+                              恢复
+                            </button>
+                            <button
+                              type="button"
+                              className="sf-tag shrink-0 text-xs text-red-500 hover:text-red-600"
+                              onClick={() => deleteSessionSnapshot(sn.id)}
+                            >
+                              删除
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -413,6 +648,33 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        centered
+        title={`导出会话${exportFormat ? ` · ${exportFormat.toUpperCase()}` : ""}`}
+        open={Boolean(exportFormat)}
+        okText="导出"
+        cancelText="取消"
+        confirmLoading={exportBusy}
+        onOk={() => void downloadSessionExport()}
+        onCancel={() => {
+          if (exportBusy) return;
+          setExportFormat(null);
+        }}
+      >
+        <p className="mb-3 text-sm text-[#5B6B8C]">选择要写入文件的内容范围。</p>
+        <Radio.Group
+          value={exportScope}
+          onChange={(e) => setExportScope(e.target.value)}
+          className="flex flex-col gap-2"
+        >
+          <Radio value="ai" className="!cursor-pointer">只导出 AI 生成的内容</Radio>
+          <Radio value="all" className="!cursor-pointer">导出用户提问和 AI 生成的内容</Radio>
+        </Radio.Group>
+        {sessions.find((s) => s.id === selectedSessionForHistory)?.session_type === "story" ? (
+          <p className="mt-3 text-xs text-[#8A97B3]">故事会话将按大纲分章导出。</p>
+        ) : null}
+      </Modal>
     </div>
   );
 }

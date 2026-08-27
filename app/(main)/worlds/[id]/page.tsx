@@ -241,6 +241,7 @@ export default function WorldDetailPage() {
 
   function deleteEntry(entryId: string) {
     modal.confirm({
+      centered: true,
       title: "删除词条",
       content: "确定删除该词条？此操作不可恢复。",
       okText: "删除",

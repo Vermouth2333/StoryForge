@@ -1046,3 +1046,22 @@ a:hover .sf-nav-label--settings:not(.is-active) {
   border-color: var(--primary);
   color: var(--primary-active);
 }
+
+.ant-radio-wrapper {
+  cursor: pointer !important;
+}
+
+/* 关闭后必须保持 display:none，避免遮罩层锁死点击/滚动 */
+.ant-modal-wrap[style*="display: none"],
+.ant-image-preview-wrap[style*="display: none"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+.ant-modal-wrap.ant-modal-centered .ant-modal,
+.ant-modal-confirm {
+  top: 0 !important;
+  padding-bottom: 0;
+  margin: 0 auto;
+  max-width: calc(100vw - 32px);
+}

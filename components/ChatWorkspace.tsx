@@ -1,8 +1,9 @@
 "use client";
 
+import { App, Input, Modal } from "antd";
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Flag, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type ChatSessionInfo = {
   id: string;
@@ -15,6 +16,25 @@ export type ChatMessageItem = {
   role: "system" | "user" | "assistant";
   content: string;
   created_at: string;
+};
+
+type SnapshotLite = {
+  id: string;
+  label: string;
+  created_at: string;
+  last_message_id?: string;
+  last_assistant_preview?: string;
+};
+
+type SnapshotApi = {
+  id: string;
+  label: string;
+  created_at: string;
+  payload?: {
+    last_message_id?: string;
+    last_assistant_id?: string;
+    last_assistant_preview?: string;
+  };
 };
 
 type ChatWorkspaceProps = {
@@ -40,6 +60,22 @@ type ChatWorkspaceProps = {
   personaLabel?: string | null;
   headerExtra?: React.ReactNode;
 };
+
+function normalizeSnapshot(raw: SnapshotApi): SnapshotLite {
+  return {
+    id: raw.id,
+    label: raw.label,
+    created_at: raw.created_at,
+    last_message_id: raw.payload?.last_assistant_id || raw.payload?.last_message_id,
+    last_assistant_preview: raw.payload?.last_assistant_preview ?? "",
+  };
+}
+
+function unlockPageAfterModal() {
+  document.body.style.removeProperty("overflow");
+  document.body.style.removeProperty("width");
+  document.body.classList.remove("ant-scrolling-effect");
+}
 
 /** 将文本中的 [文案](/path#hash) 渲染为可点击链接 */
 function MessageText({ text }: { text: string }) {
@@ -103,14 +139,136 @@ export function ChatWorkspace({
   personaLabel,
   headerExtra,
 }: ChatWorkspaceProps) {
+  const { message } = App.useApp();
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const pendingScrollMsgId = useRef<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [checkpointOpen, setCheckpointOpen] = useState(false);
+  const [checkpointNote, setCheckpointNote] = useState("");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
+  const [snapshotsBySession, setSnapshotsBySession] = useState<Record<string, SnapshotLite[]>>({});
+  const [highlightMsgId, setHighlightMsgId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (pendingScrollMsgId.current) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, streamText]);
 
+  useEffect(() => {
+    if (sessions.length === 0) {
+      setSnapshotsBySession({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        sessions.map(async (s) => {
+          const res = await fetch(`/api/chat/sessions/${s.id}/snapshots`);
+          const json = await res.json().catch(() => null);
+          const list = (json?.code === 200 ? json.data?.snapshots ?? [] : []) as SnapshotApi[];
+          return [s.id, list.map(normalizeSnapshot)] as const;
+        }),
+      );
+      if (!cancelled) setSnapshotsBySession(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessions]);
+
   const visibleMessages = messages.filter((m) => m.role === "user" || m.role === "assistant");
+  const lastVisible = visibleMessages[visibleMessages.length - 1];
+  const lastAssistant = [...visibleMessages].reverse().find((m) => m.role === "assistant");
+  const canRegenerate =
+    Boolean(onRegenerate) &&
+    lastVisible?.role === "assistant" &&
+    !busy &&
+    !streamText;
+  const canCheckpoint = Boolean(activeSessionId) && visibleMessages.length > 0 && !busy && !streamText;
+
+  const checkpointsByMessage = useMemo(() => {
+    const map = new Map<string, SnapshotLite[]>();
+    for (const sn of snapshotsBySession[activeSessionId] ?? []) {
+      const msgId = sn.last_message_id;
+      if (!msgId) continue;
+      const list = map.get(msgId) ?? [];
+      list.push(sn);
+      map.set(msgId, list);
+    }
+    return map;
+  }, [snapshotsBySession, activeSessionId]);
+
+  function scrollToMessage(messageId: string) {
+    const el = document.getElementById(`chat-msg-${messageId}`);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightMsgId(messageId);
+    window.setTimeout(() => {
+      setHighlightMsgId((cur) => (cur === messageId ? null : cur));
+    }, 1800);
+    return true;
+  }
+
+  function jumpToCheckpoint(sessionId: string, sn: SnapshotLite) {
+    const targetId = sn.last_message_id;
+    if (!targetId) {
+      message.info("该检查点没有关联的对话节点");
+      return;
+    }
+    if (sessionId !== activeSessionId) {
+      pendingScrollMsgId.current = targetId;
+      onSelectSession(sessionId);
+      return;
+    }
+    if (!scrollToMessage(targetId)) {
+      message.info("未找到对应的对话节点，可能已不在当前记录中");
+    }
+  }
+
+  useEffect(() => {
+    const targetId = pendingScrollMsgId.current;
+    if (!targetId || visibleMessages.length === 0) return;
+    const exists = visibleMessages.some((m) => m.id === targetId);
+    if (!exists) return;
+    pendingScrollMsgId.current = null;
+    requestAnimationFrame(() => {
+      scrollToMessage(targetId);
+    });
+  }, [activeSessionId, messages, visibleMessages]);
+
+  async function submitCheckpoint() {
+    if (!activeSessionId) return;
+    setCheckpointBusy(true);
+    try {
+      const res = await fetch(`/api/chat/sessions/${activeSessionId}/snapshots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: checkpointNote.trim() }),
+      });
+      const json = await res.json();
+      if (json.code === 200) {
+        message.success("已生成检查点");
+        const created = json.data?.snapshot as SnapshotApi | undefined;
+        if (created) {
+          setSnapshotsBySession((prev) => ({
+            ...prev,
+            [activeSessionId]: [normalizeSnapshot(created), ...(prev[activeSessionId] ?? [])],
+          }));
+        }
+        setCheckpointOpen(false);
+        setCheckpointNote("");
+      } else {
+        message.error(json.msg ?? "生成检查点失败");
+      }
+    } catch {
+      message.error("生成检查点失败");
+    } finally {
+      setCheckpointBusy(false);
+    }
+  }
+
+  const bubbleActionClass =
+    "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#DCE9FF] bg-white px-3 py-1.5 text-xs font-medium text-[#5B6B8C] hover:border-[#5B9DFF] hover:text-[#3F86F5]";
 
   return (
     <main className="flex h-full min-h-0 flex-1 overflow-hidden bg-[#F5F7FB]">
@@ -125,7 +283,7 @@ export function ChatWorkspace({
           <p className="text-sm font-semibold text-[#1F2A44]">会话</p>
           <button
             type="button"
-            className="rounded-lg bg-[#EEF6FF] px-2.5 py-1 text-xs font-medium text-[#3F86F5] hover:bg-[#DCE9FF]"
+            className="cursor-pointer rounded-lg bg-[#EEF6FF] px-2.5 py-1 text-xs font-medium text-[#3F86F5] hover:bg-[#DCE9FF]"
             onClick={() => void onCreateSession()}
           >
             + 新会话
@@ -138,23 +296,51 @@ export function ChatWorkspace({
             <ul className="space-y-1">
               {sessions.map((s) => {
                 const active = s.id === activeSessionId;
+                const snaps = snapshotsBySession[s.id] ?? [];
                 return (
                   <li key={s.id}>
-                    <button
-                      type="button"
+                    <div
                       className={[
-                        "w-full rounded-xl px-3 py-2.5 text-left transition-colors",
+                        "rounded-xl px-3 py-2.5 transition-colors",
                         active ? "bg-[#EEF6FF] text-[#1F2A44]" : "text-[#5B6B8C] hover:bg-[#F8FBFF]",
                       ].join(" ")}
-                      onClick={() => onSelectSession(s.id)}
                     >
-                      <p className={`truncate text-sm ${active ? "font-semibold" : "font-medium"}`}>
-                        {s.title || "未命名会话"}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-[#8A97B3]">
-                        {new Date(s.created_at).toLocaleString()}
-                      </p>
-                    </button>
+                      <button
+                        type="button"
+                        className="w-full cursor-pointer text-left"
+                        onClick={() => onSelectSession(s.id)}
+                      >
+                        <p className={`truncate text-sm ${active ? "font-semibold" : "font-medium"}`}>
+                          {s.title || "未命名会话"}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-[#8A97B3]">
+                          {new Date(s.created_at).toLocaleString()}
+                        </p>
+                      </button>
+                      {snaps.length > 0 ? (
+                        <div className="mt-1.5 grid grid-cols-2 gap-1.5 border-t border-[#E6ECF5] pt-1.5">
+                          {snaps.map((sn) => (
+                            <button
+                              key={sn.id}
+                              type="button"
+                              className="cursor-pointer rounded-lg border border-[#DCE9FF] bg-white px-1.5 py-1.5 text-left hover:border-[#5B9DFF]"
+                              title={sn.last_assistant_preview || sn.label || "检查点"}
+                              onClick={() => jumpToCheckpoint(s.id, sn)}
+                            >
+                              <p className="truncate text-[11px] font-medium text-[#3F86F5]">
+                                {sn.label?.trim() || "检查点"}
+                              </p>
+                              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-[#5B6B8C]">
+                                {sn.last_assistant_preview || "AI 内容"}
+                              </p>
+                              <p className="mt-0.5 text-[10px] text-[#8A97B3]">
+                                {new Date(sn.created_at).toLocaleString()}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
@@ -211,50 +397,80 @@ export function ChatWorkspace({
           </div>
         ) : (
           <>
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-8">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+              <div className="mx-auto w-full max-w-[1080px] space-y-5">
               {visibleMessages.length === 0 && !streamText ? (
                 <p className="py-16 text-center text-sm text-[#8A97B3]">
                   {emptyHint || `输入消息，开始与 ${assistantName} 对话`}
                 </p>
               ) : null}
 
-              {visibleMessages.map((msg, idx) => {
+              {visibleMessages.map((msg) => {
                 const isUser = msg.role === "user";
-                const canRegenerate =
-                  Boolean(onRegenerate) &&
-                  !isUser &&
-                  !busy &&
-                  !streamText &&
-                  idx === visibleMessages.length - 1;
+                const isLast = msg.id === lastVisible?.id;
+                const isLastAssistant = msg.id === lastAssistant?.id;
+                const showCheckpoint = canCheckpoint && isLast;
+                const showRegenerate = canRegenerate && isLastAssistant;
+                const msgCheckpoints = checkpointsByMessage.get(msg.id) ?? [];
+                const highlighted = highlightMsgId === msg.id;
                 return (
-                  <div key={msg.id} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[min(720px,92%)] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
+                  <div
+                    key={msg.id}
+                    id={`chat-msg-${msg.id}`}
+                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                  >
+                    <div className={`max-w-[88%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
                       {!isUser ? (
                         <p className="px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
                       ) : null}
-                      <div className="flex items-end gap-1.5">
-                        <div
-                          className={[
-                            "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
-                            isUser
-                              ? "bg-[#5B9DFF] text-white rounded-br-md"
-                              : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
-                          ].join(" ")}
-                        >
-                          <MessageText text={msg.content} />
-                        </div>
-                        {canRegenerate ? (
-                          <button
-                            type="button"
-                            className="mb-0.5 shrink-0 cursor-pointer rounded-lg p-1.5 text-[#8A97B3] transition-colors hover:bg-[#EEF6FF] hover:text-[#3F86F5]"
-                            aria-label="重新生成"
-                            title="重新生成"
-                            onClick={() => void onRegenerate?.()}
-                          >
-                            <RefreshCw className="h-4 w-4" strokeWidth={2.15} aria-hidden />
-                          </button>
-                        ) : null}
+                      <div
+                        className={[
+                          "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap transition-shadow",
+                          isUser
+                            ? "bg-[#5B9DFF] text-white rounded-br-md"
+                            : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
+                          highlighted ? "ring-2 ring-[#5B9DFF] ring-offset-2" : "",
+                        ].join(" ")}
+                      >
+                        <MessageText text={msg.content} />
                       </div>
+                      {msgCheckpoints.length > 0 ? (
+                        <div className={`flex flex-wrap gap-1 ${isUser ? "justify-end" : "justify-start"}`}>
+                          {msgCheckpoints.map((sn) => (
+                            <span
+                              key={sn.id}
+                              className="inline-flex items-center gap-1 rounded-full bg-[#EEF6FF] px-2 py-0.5 text-[11px] text-[#3F86F5]"
+                            >
+                              <Flag className="h-3 w-3" aria-hidden />
+                              {sn.label?.trim() || "检查点"}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      {showCheckpoint || showRegenerate ? (
+                        <div className="flex w-full flex-wrap items-center justify-end gap-2">
+                          {showCheckpoint ? (
+                            <button
+                              type="button"
+                              className={bubbleActionClass}
+                              onClick={() => setCheckpointOpen(true)}
+                            >
+                              <Flag className="h-3.5 w-3.5" aria-hidden />
+                              生成检查点
+                            </button>
+                          ) : null}
+                          {showRegenerate ? (
+                            <button
+                              type="button"
+                              className={bubbleActionClass}
+                              onClick={() => void onRegenerate?.()}
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                              重新生成
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -262,7 +478,7 @@ export function ChatWorkspace({
 
               {streamText ? (
                 <div className="flex justify-start">
-                  <div className="max-w-[min(720px,92%)]">
+                  <div className="max-w-[88%]">
                     <p className="mb-1.5 px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
                     <div className="rounded-2xl rounded-bl-md border border-[#E6ECF5] bg-white px-4 py-3 text-sm leading-relaxed text-[#1F2A44] shadow-sm whitespace-pre-wrap">
                       <MessageText text={streamText} />
@@ -271,12 +487,14 @@ export function ChatWorkspace({
                   </div>
                 </div>
               ) : null}
+
               <div ref={bottomRef} />
+              </div>
             </div>
 
             {/* 底部输入卡片 */}
-            <div className="shrink-0 border-t border-[#E6ECF5] bg-[#F5F7FB] px-4 py-4 sm:px-8">
-              <div className="mx-auto max-w-3xl rounded-2xl border border-[#E6ECF5] bg-white p-3 shadow-[0_8px_30px_rgba(66,133,244,0.08)]">
+            <div className="shrink-0 border-t border-[#E6ECF5] bg-[#F5F7FB] px-4 py-4">
+              <div className="mx-auto max-w-[1080px] rounded-2xl border border-[#E6ECF5] bg-white p-3 shadow-[0_8px_30px_rgba(66,133,244,0.08)]">
                 <textarea
                   className="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm text-[#1F2A44] outline-none placeholder:text-[#8A97B3]"
                   value={inputMessage}
@@ -297,7 +515,7 @@ export function ChatWorkspace({
                     {busy ? (
                       <button
                         type="button"
-                        className="rounded-full border border-[#DCE9FF] px-3 py-1.5 text-xs text-[#5B6B8C] hover:bg-[#F8FBFF]"
+                        className="cursor-pointer rounded-full border border-[#DCE9FF] px-3 py-1.5 text-xs text-[#5B6B8C] hover:bg-[#F8FBFF]"
                         onClick={onStop}
                       >
                         停止
@@ -306,7 +524,7 @@ export function ChatWorkspace({
                     <button
                       type="button"
                       disabled={busy || !inputMessage.trim()}
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-[#5B9DFF] text-white shadow-sm transition enabled:hover:bg-[#7FB4FF] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#5B9DFF] text-white shadow-sm transition enabled:hover:bg-[#7FB4FF] disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="发送"
                       onClick={() => void onSend()}
                     >
@@ -323,6 +541,36 @@ export function ChatWorkspace({
           </>
         )}
       </section>
+
+      <Modal
+        centered
+        title="生成检查点"
+        open={checkpointOpen}
+        okText="确定"
+        cancelText="取消"
+        confirmLoading={checkpointBusy}
+        destroyOnHidden
+        styles={{ footer: { marginTop: 32 } }}
+        afterOpenChange={(opened) => {
+          if (!opened) unlockPageAfterModal();
+        }}
+        onOk={() => void submitCheckpoint()}
+        onCancel={() => {
+          if (checkpointBusy) return;
+          setCheckpointOpen(false);
+          setCheckpointNote("");
+        }}
+      >
+        <p className="mb-2 text-sm text-[#5B6B8C]">可为检查点填写备注，也可以留空。</p>
+        <Input.TextArea
+          placeholder="检查点备注（可选）"
+          maxLength={120}
+          rows={4}
+          showCount
+          value={checkpointNote}
+          onChange={(e) => setCheckpointNote(e.target.value)}
+        />
+      </Modal>
     </main>
   );
 }
