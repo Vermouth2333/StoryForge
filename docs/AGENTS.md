@@ -43,7 +43,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 通过 `getCurrentUserId()`（`lib/auth.ts`）获取用户身份；不要自行解析 Cookie/JWT。
 - 数据库通过 `getDb()` 获取，ID 用 `id(prefix)` 生成，时间用 `nowIso()`（均来自 `lib/db.ts`）。
 - SQL 一律使用参数化查询（`?` 占位），禁止字符串拼接 SQL。
-- 写接口（POST/PUT/DELETE）依赖 `middleware.ts` 的跨站变更防护，保持从本站发起。
+- 写接口（POST/PUT/DELETE）依赖 `proxy.ts` 的跨站变更防护，保持从本站发起。
 
 ## 4. 数据库约定
 
@@ -103,7 +103,7 @@ npm run lint    # 代码检查
 ## 10. 禁止事项
 
 - 不提交/修改 `storage/**` 运行时数据。
-- 不绕过 `zod` 校验、`middleware` 防护或鉴权。
+- 不绕过 `zod` 校验、`proxy` 防护或鉴权。
 - 不在 API 路由内直接拼接 SQL 或硬编码用户身份。
 - 不擅自升级/替换核心框架与依赖版本。
 - 不引入与技术文档冲突的接口契约或数据结构。

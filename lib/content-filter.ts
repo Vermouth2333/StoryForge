@@ -36,7 +36,7 @@ export function scanTextBundle(
 export async function storyPublishTextParts(
   db: Database,
   storyId: string,
-): Promise<string[]> {
+): Promise<Array<string | null | undefined>> {
   const row = await db.get<{
     title: string;
     summary: string;
@@ -45,9 +45,9 @@ export async function storyPublishTextParts(
   }>("SELECT title, summary, greeting, tags_json FROM stories WHERE id = ?", storyId);
   if (!row) return [];
   const nodes = await db.all<
-    { title: string; content: string }[]
+    { title: string | null; content: string | null }[]
   >("SELECT title, content FROM story_outline_nodes WHERE story_id = ?", storyId);
-  const parts: string[] = [row.title, row.summary, row.greeting, row.tags_json];
+  const parts: Array<string | null | undefined> = [row.title, row.summary, row.greeting, row.tags_json];
   for (const n of nodes) {
     parts.push(n.title, n.content);
   }
@@ -57,7 +57,7 @@ export async function storyPublishTextParts(
 export async function characterPublishTextParts(
   db: Database,
   characterId: string,
-): Promise<string[]> {
+): Promise<Array<string | null | undefined>> {
   const row = await db.get<Record<string, string | null>>(
     `SELECT name, summary, personality, appearance, background, speech_style, likes_dislikes, greeting, tags_json
      FROM characters WHERE id = ?`,
@@ -70,7 +70,7 @@ export async function characterPublishTextParts(
 export async function worldPublishTextParts(
   db: Database,
   worldId: string,
-): Promise<string[]> {
+): Promise<Array<string | null | undefined>> {
   const row = await db.get<Record<string, string | null>>(
     "SELECT name, summary, setting_notes, greeting, tags_json FROM worlds WHERE id = ?",
     worldId,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isCrossSiteMutationBlocked } from "@/lib/origin-check";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   if (!isCrossSiteMutationBlocked(req)) {
     return NextResponse.next();
   }
