@@ -1,3 +1,4 @@
+import { serverEnv } from "@/lib/server-env";
 import type { ModelConfig } from "./model-manager";
 
 /**
@@ -42,11 +43,11 @@ function normalizeDeepseekBaseUrl(raw: string): string {
  * 未配置（缺少 Key 或端点）时返回 null，调用方应回退到占位输出。
  */
 export function resolvePlatformChatProvider(): ResolvedProvider | null {
-  const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+  const apiKey = serverEnv("DEEPSEEK_API_KEY");
   if (!apiKey) return null;
-  const baseUrlRaw = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1";
+  const baseUrlRaw = serverEnv("DEEPSEEK_BASE_URL") || "https://api.deepseek.com/v1";
   const baseUrl = normalizeDeepseekBaseUrl(sanitizeBaseUrl(baseUrlRaw) || baseUrlRaw);
-  const modelName = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim() || "deepseek-chat";
+  const modelName = (serverEnv("DEEPSEEK_MODEL") || "deepseek-chat").trim() || "deepseek-chat";
   return { baseUrl, apiKey, modelName };
 }
 

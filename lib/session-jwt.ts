@@ -1,7 +1,8 @@
 import { SignJWT, jwtVerify } from "jose";
+import { serverEnv } from "@/lib/server-env";
 
 function getJwtSecretKey(): Uint8Array {
-  const raw = process.env.JWT_SECRET;
+  const raw = serverEnv("JWT_SECRET");
   if (!raw || raw.length < 16) {
     throw new Error("JWT_SECRET 未配置或过短（建议 ≥32 字符）");
   }
@@ -18,7 +19,8 @@ export async function signSessionJwt(userId: string): Promise<string> {
 }
 
 export async function verifySessionJwt(token: string): Promise<string | null> {
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+  const raw = serverEnv("JWT_SECRET");
+  if (!raw || raw.length < 16) {
     return null;
   }
   try {

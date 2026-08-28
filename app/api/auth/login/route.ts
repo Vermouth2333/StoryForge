@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { attachSessionCookie } from "@/lib/session-cookie";
+import { serverEnv } from "@/lib/server-env";
 
 const bodySchema = z.object({
   username: z.string().trim().min(1, "请输入用户名").max(32),
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 429, msg: "登录尝试过多，请稍后再试" }, { status: 429 });
   }
 
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+  if (!serverEnv("JWT_SECRET") || serverEnv("JWT_SECRET").length < 16) {
     return NextResponse.json({ code: 503, msg: "服务器未配置 JWT_SECRET" }, { status: 503 });
   }
 

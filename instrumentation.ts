@@ -1,3 +1,5 @@
+import { serverEnv } from "@/lib/server-env";
+
 /**
  * Next.js Instrumentation Hook
  * 在服务启动时配置全局代理，使所有 server-side fetch 自动走代理。
@@ -5,11 +7,11 @@
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
-    const proxy = process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+    const proxy = serverEnv("HTTPS_PROXY") || serverEnv("HTTP_PROXY");
     if (proxy) {
       const { ProxyAgent, setGlobalDispatcher } = await import("undici");
       setGlobalDispatcher(new ProxyAgent(proxy));
-      console.log(`[instrumentation] Global proxy set: ${proxy}`);
+      console.log("[instrumentation] Global proxy set");
     }
   }
 }

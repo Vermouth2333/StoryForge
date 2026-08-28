@@ -16,6 +16,17 @@ services:
       HOSTNAME: "0.0.0.0"
       # 纯 HTTP 访问时设为 false，避免 Cookie 因 Secure 标志无法写入
       COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      JWT_SECRET: "${JWT_SECRET}"
+      DEEPSEEK_API_KEY: "${DEEPSEEK_API_KEY:-}"
+      DEEPSEEK_BASE_URL: "${DEEPSEEK_BASE_URL:-}"
+      DEEPSEEK_MODEL: "${DEEPSEEK_MODEL:-}"
+      SILICONFLOW_API_KEY: "${SILICONFLOW_API_KEY:-}"
+      SILICONFLOW_BASE_URL: "${SILICONFLOW_BASE_URL:-}"
+      SILICONFLOW_IMAGE_MODEL: "${SILICONFLOW_IMAGE_MODEL:-}"
+      SILICONFLOW_VIDEO_MODEL: "${SILICONFLOW_VIDEO_MODEL:-}"
+      SILICONFLOW_VIDEO_I2V_MODEL: "${SILICONFLOW_VIDEO_I2V_MODEL:-}"
+      HTTPS_PROXY: "${HTTPS_PROXY:-}"
+      HTTP_PROXY: "${HTTP_PROXY:-}"
     volumes:
       - storyforge_storage:/app/storage
     networks:

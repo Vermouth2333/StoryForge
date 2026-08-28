@@ -6,6 +6,7 @@ import { ensureDefaultPersonaMask } from "@/lib/default-persona-mask";
 import { hashPassword } from "@/lib/password";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { attachSessionCookie } from "@/lib/session-cookie";
+import { serverEnv } from "@/lib/server-env";
 
 const bodySchema = z.object({
   username: z
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ code: 429, msg: "注册过于频繁，请稍后再试" }, { status: 429 });
   }
 
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+  if (!serverEnv("JWT_SECRET") || serverEnv("JWT_SECRET").length < 16) {
     return NextResponse.json({ code: 503, msg: "服务器未配置 JWT_SECRET" }, { status: 503 });
   }
 
