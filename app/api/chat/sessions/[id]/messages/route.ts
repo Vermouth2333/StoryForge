@@ -52,8 +52,8 @@ export async function GET(
     for (const row of rows) {
       if (row.video_status === "generating") {
         await recoverStaleVideoJob(row.id, userId);
-        const fresh = await db.get<{ video_status: string | null }>(
-          "SELECT video_status FROM chat_messages WHERE id = ?",
+        const fresh = await db.get<{ video_status: string | null; video_request_id: string | null }>(
+          "SELECT video_status, video_request_id FROM chat_messages WHERE id = ?",
           row.id,
         );
         if (fresh?.video_status === "generating") {
@@ -61,7 +61,7 @@ export async function GET(
             userId,
             messageId: row.id,
             replyContent: row.content,
-            existingRequestId: row.video_request_id,
+            existingRequestId: fresh.video_request_id ?? row.video_request_id,
           });
         }
       }

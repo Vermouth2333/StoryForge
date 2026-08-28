@@ -5,7 +5,7 @@ import { deleteOwnedChatAsset } from "@/lib/chat-media";
 import { getDb, id, nowIso } from "@/lib/db";
 import type { ImageModelConfig } from "@/lib/image-model";
 import { saveRawMediaFile } from "@/lib/media-storage";
-import { concatMp4Clips } from "@/lib/video-concat";
+import { concatMp4Clips, extractLastFrameJpeg } from "@/lib/video-concat";
 import {
   VIDEO_NEGATIVE_PROMPT,
   buildIllustrationI2vPrompt,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/scene-style";
 
 const POLL_MS = 8_000;
-const MAX_POLLS = 210;
+const MAX_POLLS_PER_CLIP = 90;
 
 function resolveUnderStorage(rel: string): string | null {
   const storageRoot = path.resolve(process.cwd(), "storage");
@@ -33,9 +33,33 @@ function imageSizeForAspect(width: number, height: number): "1280x720" | "720x12
   return "960x960";
 }
 
-async function assetIdToJpegDataUrl(
-  assetId: string,
-): Promise<{ dataUrl: string; imageSize: "1280x720" | "720x1280" | "960x960" } | null> {
+type JpegRef = {
+  dataUrl: string;
+  imageSize: "1280x720" | "720x1280" | "960x960";
+};
+
+class VideoJobDiscardedError extends Error {
+  constructor() {
+    super("video job discarded");
+    this.name = "VideoJobDiscardedError";
+  }
+}
+
+async function bufferToJpegRef(buf: Buffer, maxEdge = 960): Promise<JpegRef> {
+  const jpeg = await sharp(buf)
+    .resize(maxEdge, maxEdge, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  const meta = await sharp(jpeg).metadata();
+  const width = meta.width ?? 960;
+  const height = meta.height ?? 960;
+  return {
+    dataUrl: `data:image/jpeg;base64,${jpeg.toString("base64")}`,
+    imageSize: imageSizeForAspect(width, height),
+  };
+}
+
+async function assetIdToJpegDataUrl(assetId: string): Promise<JpegRef | null> {
   const db = await getDb();
   const asset = await db.get<{ file_path: string; mime_type: string | null }>(
     "SELECT file_path, mime_type FROM assets WHERE id = ?",
@@ -54,17 +78,11 @@ async function assetIdToJpegDataUrl(
     return null;
   }
 
-  const jpeg = await sharp(buf)
-    .resize(960, 960, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toBuffer();
-  const meta = await sharp(jpeg).metadata();
-  const width = meta.width ?? 960;
-  const height = meta.height ?? 960;
-  return {
-    dataUrl: `data:image/jpeg;base64,${jpeg.toString("base64")}`,
-    imageSize: imageSizeForAspect(width, height),
-  };
+  try {
+    return await bufferToJpegRef(buf);
+  } catch {
+    return null;
+  }
 }
 
 async function resolveVideoReferenceImage(messageId: string) {
@@ -143,65 +161,25 @@ function parseRequestIds(raw: string): string[] {
     .filter(Boolean);
 }
 
-async function submitVideoJob(args: {
-  config: ImageModelConfig;
-  replyContent: string;
-  messageId: string;
-}): Promise<string[]> {
-  const trySubmit = async (body: Record<string, unknown>) => {
-    const submitRes = await fetch(`${args.config.baseUrl}/video/submit`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${args.config.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!submitRes.ok) {
-      const detail = await submitRes.text().catch(() => "");
-      throw new Error(`视频提交失败 ${submitRes.status}${detail ? `：${detail.slice(0, 240)}` : ""}`);
-    }
-    const submitted = (await submitRes.json()) as { requestId?: string; request_id?: string };
-    const requestId = submitted.requestId ?? submitted.request_id ?? "";
-    if (!requestId) throw new Error("视频服务未返回 requestId");
-    return requestId;
-  };
-
-  const beats = splitSceneBeats(args.replyContent);
-  const ref = await resolveVideoReferenceImage(args.messageId);
-
-  const submitBeat = async (beat: string, index: number) => {
-    if (ref) {
-      try {
-        return await trySubmit({
-          model: args.config.videoI2vModelName,
-          prompt: buildIllustrationI2vPrompt(beat, index, beats.length),
-          image_size: ref.imageSize,
-          image: ref.dataUrl,
-          negative_prompt: VIDEO_NEGATIVE_PROMPT,
-        });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error("[video] I2V 提交失败，回退文生视频", msg);
-      }
-    }
-    return trySubmit({
-      model: args.config.videoModelName,
-      prompt: buildIllustrationT2vPrompt(beat, index, beats.length),
-      image_size: ref?.imageSize ?? "960x960",
-      negative_prompt: VIDEO_NEGATIVE_PROMPT,
-    });
-  };
-
-  const settled = await Promise.allSettled(beats.map((beat, index) => submitBeat(beat, index)));
-  const ids = settled
-    .filter((item): item is PromiseFulfilledResult<string> => item.status === "fulfilled")
-    .map((item) => item.value);
-  if (ids.length === 0) {
-    const firstErr = settled.find((item): item is PromiseRejectedResult => item.status === "rejected");
-    throw firstErr?.reason instanceof Error ? firstErr.reason : new Error("视频提交失败");
+function seedFromMessageId(messageId: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < messageId.length; i++) {
+    h ^= messageId.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return ids;
+  return (h >>> 0) % 2147483647;
+}
+
+async function persistRequestIds(messageId: string, ids: string[]): Promise<string | null> {
+  const key = joinRequestIds(ids);
+  const db = await getDb();
+  const result = await db.run(
+    "UPDATE chat_messages SET video_request_id = ? WHERE id = ? AND video_status = 'generating'",
+    key,
+    messageId,
+  );
+  if ((result.changes ?? 0) === 0) return null;
+  return key;
 }
 
 type VideoStatusPayload = {
@@ -243,13 +221,109 @@ async function sleep(ms: number) {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-async function videoJobStillActive(messageId: string, requestId: string): Promise<boolean> {
+async function videoJobStillActive(messageId: string): Promise<boolean> {
   const db = await getDb();
-  const row = await db.get<{ video_status: string | null; video_request_id: string | null }>(
-    "SELECT video_status, video_request_id FROM chat_messages WHERE id = ?",
+  const row = await db.get<{ video_status: string | null }>(
+    "SELECT video_status FROM chat_messages WHERE id = ?",
     messageId,
   );
-  return row?.video_status === "generating" && row?.video_request_id === requestId;
+  return row?.video_status === "generating";
+}
+
+async function assertVideoJobActive(messageId: string) {
+  if (!(await videoJobStillActive(messageId))) {
+    throw new VideoJobDiscardedError();
+  }
+}
+
+async function submitVideoClip(args: {
+  config: ImageModelConfig;
+  promptI2v: string;
+  promptT2v: string;
+  imageSize: JpegRef["imageSize"];
+  ref: JpegRef | null;
+  seed: number;
+}): Promise<string> {
+  const trySubmit = async (body: Record<string, unknown>) => {
+    const submitRes = await fetch(`${args.config.baseUrl}/video/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${args.config.apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!submitRes.ok) {
+      const detail = await submitRes.text().catch(() => "");
+      throw new Error(`视频提交失败 ${submitRes.status}${detail ? `：${detail.slice(0, 240)}` : ""}`);
+    }
+    const submitted = (await submitRes.json()) as { requestId?: string; request_id?: string };
+    const requestId = submitted.requestId ?? submitted.request_id ?? "";
+    if (!requestId) throw new Error("视频服务未返回 requestId");
+    return requestId;
+  };
+
+  if (args.ref) {
+    try {
+      return await trySubmit({
+        model: args.config.videoI2vModelName,
+        prompt: args.promptI2v,
+        image_size: args.imageSize,
+        image: args.ref.dataUrl,
+        negative_prompt: VIDEO_NEGATIVE_PROMPT,
+        seed: args.seed,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[video] I2V 提交失败，回退文生视频", msg);
+    }
+  }
+
+  return trySubmit({
+    model: args.config.videoModelName,
+    prompt: args.promptT2v,
+    image_size: args.imageSize,
+    negative_prompt: VIDEO_NEGATIVE_PROMPT,
+    seed: args.seed,
+  });
+}
+
+async function pollClipUntilReady(args: {
+  config: ImageModelConfig;
+  requestId: string;
+  messageId: string;
+}): Promise<string | null> {
+  let lastStatus = "InQueue";
+  for (let i = 0; i < MAX_POLLS_PER_CLIP; i++) {
+    await sleep(POLL_MS);
+    await assertVideoJobActive(args.messageId);
+    const result = await fetchVideoStatus({ config: args.config, requestId: args.requestId });
+    lastStatus = result.status || lastStatus;
+    const status = result.status.toLowerCase();
+    if (status === "failed") {
+      console.error("[video] 片段失败", args.requestId, result.reason);
+      return null;
+    }
+    if (status === "succeed" && result.url) return result.url;
+  }
+  throw new Error(`视频生成超时（最后状态：${lastStatus || "未知"}），请稍后重试`);
+}
+
+async function downloadClip(videoUrl: string): Promise<Buffer> {
+  const fileRes = await fetch(videoUrl);
+  if (!fileRes.ok) throw new Error(`下载视频失败（${fileRes.status}）`);
+  return Buffer.from(await fileRes.arrayBuffer());
+}
+
+async function lastFrameRef(clip: Buffer): Promise<JpegRef | null> {
+  const frame = await extractLastFrameJpeg(clip);
+  if (!frame) return null;
+  try {
+    return await bufferToJpegRef(frame, 1280);
+  } catch (err) {
+    console.error("[video] 末帧转 JPEG 失败", err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 export async function generateSceneVideo(args: {
@@ -259,68 +333,89 @@ export async function generateSceneVideo(args: {
   config: ImageModelConfig;
   existingRequestId?: string | null;
 }): Promise<{ assetId: string; videoUrl: string } | { discarded: true }> {
+  try {
+    return await generateSceneVideoInner(args);
+  } catch (err) {
+    if (err instanceof VideoJobDiscardedError) return { discarded: true };
+    throw err;
+  }
+}
+
+async function generateSceneVideoInner(args: {
+  userId: string;
+  messageId: string;
+  replyContent: string;
+  config: ImageModelConfig;
+  existingRequestId?: string | null;
+}): Promise<{ assetId: string; videoUrl: string } | { discarded: true }> {
   const db = await getDb();
-  let requestKey = (args.existingRequestId ?? "").trim();
-  if (!requestKey) {
-    const ids = await submitVideoJob({
+  const beats = splitSceneBeats(args.replyContent);
+  const storyArc = args.replyContent.replace(/\s+/g, " ").trim().slice(0, 180);
+  const seed = seedFromMessageId(args.messageId);
+  const openingRef = await resolveVideoReferenceImage(args.messageId);
+  const imageSize = openingRef?.imageSize ?? "960x960";
+
+  const stored = await db.get<{ video_request_id: string | null }>(
+    "SELECT video_request_id FROM chat_messages WHERE id = ?",
+    args.messageId,
+  );
+  const fromDb = parseRequestIds(stored?.video_request_id ?? "");
+  const fromArg = parseRequestIds(args.existingRequestId ?? "");
+  let requestIds = fromDb.length >= fromArg.length ? fromDb : fromArg;
+  let requestKey = joinRequestIds(requestIds);
+  const clips: Buffer[] = [];
+  let currentRef: JpegRef | null = openingRef;
+
+  const adoptClip = async (buf: Buffer) => {
+    clips.push(buf);
+    const next = await lastFrameRef(buf);
+    if (next) {
+      currentRef = { dataUrl: next.dataUrl, imageSize };
+    }
+  };
+
+  for (const clipId of requestIds) {
+    await assertVideoJobActive(args.messageId);
+    const url = await pollClipUntilReady({
       config: args.config,
-      replyContent: args.replyContent,
+      requestId: clipId,
       messageId: args.messageId,
     });
-    requestKey = joinRequestIds(ids);
-    await db.run(
-      "UPDATE chat_messages SET video_request_id = ? WHERE id = ? AND video_status = 'generating'",
-      requestKey,
-      args.messageId,
-    );
+    if (!url) continue;
+    await adoptClip(await downloadClip(url));
   }
 
-  const requestIds = parseRequestIds(requestKey);
-  const urls = new Array<string>(requestIds.length).fill("");
-  let lastStatus = "InQueue";
-  for (let i = 0; i < MAX_POLLS; i++) {
-    await sleep(POLL_MS);
-    if (!(await videoJobStillActive(args.messageId, requestKey))) {
-      return { discarded: true };
-    }
-    await Promise.all(
-      requestIds.map(async (clipId, index) => {
-        if (urls[index]) return;
-        const result = await fetchVideoStatus({ config: args.config, requestId: clipId });
-        lastStatus = result.status || lastStatus;
-        if (result.status.toLowerCase() === "failed") {
-          console.error("[video] 片段失败", clipId, result.reason);
-          urls[index] = "__failed__";
-          return;
-        }
-        if (result.status.toLowerCase() === "succeed" && result.url) {
-          urls[index] = result.url;
-        }
-      }),
-    );
-    if (urls.every((u) => u === "__failed__")) {
-      throw new Error("视频生成失败");
-    }
-    if (urls.every((u) => Boolean(u))) break;
-  }
-  const readyUrls = urls.filter((u) => u && u !== "__failed__");
-  if (readyUrls.length === 0) {
-    if (!(await videoJobStillActive(args.messageId, requestKey))) {
-      return { discarded: true };
-    }
-    throw new Error(`视频生成超时（最后状态：${lastStatus || "未知"}），请稍后重试`);
+  for (let i = requestIds.length; i < beats.length; i++) {
+    await assertVideoJobActive(args.messageId);
+    const clipId = await submitVideoClip({
+      config: args.config,
+      promptI2v: buildIllustrationI2vPrompt(beats[i], i, beats.length, storyArc),
+      promptT2v: buildIllustrationT2vPrompt(beats[i], i, beats.length, storyArc),
+      imageSize,
+      ref: currentRef,
+      seed,
+    });
+    requestIds = [...requestIds, clipId];
+    const persisted = await persistRequestIds(args.messageId, requestIds);
+    if (!persisted) throw new VideoJobDiscardedError();
+    requestKey = persisted;
+
+    const url = await pollClipUntilReady({
+      config: args.config,
+      requestId: clipId,
+      messageId: args.messageId,
+    });
+    if (!url) continue;
+    await adoptClip(await downloadClip(url));
   }
 
-  if (!(await videoJobStillActive(args.messageId, requestKey))) {
-    return { discarded: true };
+  if (clips.length === 0) {
+    await assertVideoJobActive(args.messageId);
+    throw new Error("视频生成失败");
   }
 
-  const clips: Buffer[] = [];
-  for (const videoUrl of readyUrls) {
-    const fileRes = await fetch(videoUrl);
-    if (!fileRes.ok) throw new Error(`下载视频失败（${fileRes.status}）`);
-    clips.push(Buffer.from(await fileRes.arrayBuffer()));
-  }
+  await assertVideoJobActive(args.messageId);
+
   const buffer = await concatMp4Clips(clips);
   const assetId = id("asset");
   const saved = await saveRawMediaFile({

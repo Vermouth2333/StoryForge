@@ -71,6 +71,29 @@ function concatListPath(filePath: string): string {
   return filePath.replace(/\\/g, "/").replace(/'/g, "'\\''");
 }
 
+/** Grab the last video frame as JPEG for image-to-video continuation. */
+export async function extractLastFrameJpeg(clip: Buffer): Promise<Buffer | null> {
+  const bin = resolveFfmpegBin();
+  if (!bin) return null;
+  const dir = await mkdtemp(path.join(tmpdir(), "sf-frame-"));
+  const inFile = path.join(dir, "in.mp4");
+  const outFile = path.join(dir, "last.jpg");
+  try {
+    await writeFile(inFile, clip);
+    try {
+      await runFfmpeg(bin, ["-y", "-sseof", "-0.12", "-i", inFile, "-frames:v", "1", "-q:v", "2", outFile]);
+    } catch {
+      await runFfmpeg(bin, ["-y", "-i", inFile, "-update", "1", "-q:v", "2", outFile]);
+    }
+    return await readFile(outFile);
+  } catch (err) {
+    console.error("[video] 抽取末帧失败", err instanceof Error ? err.message : err);
+    return null;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 /** Concatenate same-size MP4 clips into one file. Falls back to the first clip if ffmpeg is missing. */
 export async function concatMp4Clips(clips: Buffer[]): Promise<Buffer> {
   const usable = clips.filter((c) => c.byteLength > 0);

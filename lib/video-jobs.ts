@@ -4,7 +4,7 @@ import { resolvePlatformMediaConfig } from "@/lib/image-model";
 import { generateSceneVideo } from "@/lib/video-generator";
 
 const inflight = new Set<string>();
-const STALE_MS = 32 * 60 * 1000;
+const STALE_MS = 80 * 60 * 1000;
 
 export async function recoverStaleVideoJob(messageId: string, userId: string) {
   const db = await getDb();
@@ -72,7 +72,7 @@ export function enqueueVideoJob(args: {
 export async function markVideoGenerating(messageId: string) {
   const db = await getDb();
   await db.run(
-    "UPDATE chat_messages SET video_status = 'generating', video_started_at = ?, video_error = NULL WHERE id = ?",
+    "UPDATE chat_messages SET video_status = 'generating', video_started_at = ?, video_error = NULL, video_request_id = NULL WHERE id = ?",
     nowIso(),
     messageId,
   );
