@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BookOpen, Bell, Globe2, IconBadge, Star, UserRound } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
+import { CreatorStatsBoard } from "@/components/CreatorStatsBoard";
 import { replayHeaders } from "@/lib/replay-headers";
 import { MINE_PAGE_SIZE } from "@/lib/mine-list-query";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
+  pending_review: "审核中",
   published: "已发布",
   archived: "已归档",
 };
@@ -26,7 +28,7 @@ type NotificationItem = {
 type MyStoryItem = {
   id: string;
   title: string;
-  status: "draft" | "published" | "archived";
+  status: string;
   updated_at: string;
   source_work_id?: string | null;
   cover_url?: string | null;
@@ -89,27 +91,30 @@ export default function MyPage() {
 
   function formatNotification(item: NotificationItem) {
     const payload = item.payload ?? {};
+    const actor = String(payload.actor_username ?? "").trim() || "匿名用户";
+    if (item.type === "favorited") return `用户${actor}收藏了你`;
+    if (item.type === "liked") return `用户${actor}点赞了你`;
+    if (item.type === "followed") return `用户${actor}关注了你`;
     const title = String(payload.story_title ?? "");
-    if (item.type === "favorited") {
-      const kind = payload.content_kind as string | undefined;
-      if (kind === "character") return `有人收藏了你的角色《${title}》`;
-      if (kind === "world") return `有人收藏了你的世界《${title}》`;
-      return `有人收藏了你的作品《${title}》`;
-    }
-    if (item.type === "liked") {
-      const kind = payload.content_kind as string | undefined;
-      if (kind === "character") return `有人点赞了你的角色《${title}》`;
-      if (kind === "world") return `有人点赞了你的世界《${title}》`;
-      return `有人点赞了你的作品《${title}》`;
-    }
-    if (item.type === "followed") {
-      return "你新增了一位关注者";
-    }
     if (item.type === "author_update") {
       const kind = payload.content_kind as string | undefined;
       if (kind === "character") return `你关注的作者发布了新角色《${title}》`;
       if (kind === "world") return `你关注的作者发布了新世界《${title}》`;
       return `你关注的作者发布了新作品《${title}》`;
+    }
+    if (item.type === "system") {
+      const workTitle = String(payload.title ?? "作品");
+      const kind = String(payload.kind ?? "");
+      if (kind === "moderation_submitted") {
+        return `《${workTitle}》已提交审核，通过后才会出现在市场`;
+      }
+      if (kind === "moderation_approved") {
+        return `《${workTitle}》审核已通过，已上架市场`;
+      }
+      if (kind === "moderation_rejected") {
+        const remark = String(payload.remark ?? "").trim();
+        return remark ? `《${workTitle}》审核未通过：${remark}` : `《${workTitle}》审核未通过`;
+      }
     }
     return "系统通知";
   }
@@ -220,6 +225,15 @@ export default function MyPage() {
     await loadNotifications();
   }
 
+  async function toastPublishResult(json: { code?: number; msg?: string; data?: { pending_review?: boolean } }) {
+    if (json.code === 200) {
+      if (json.data?.pending_review) message.info(json.msg ?? "已提交审核");
+      else message.success("发布成功");
+    } else {
+      message.error(json.msg ?? "发布失败");
+    }
+  }
+
   async function unpublishStory(targetStoryId: string) {
     const story = myStories.find((s) => s.id === targetStoryId);
     confirmUnpublish("story", story?.title ?? "该故事", async () => {
@@ -234,16 +248,14 @@ export default function MyPage() {
   async function publishStory(story: MyStoryItem) {
     const res = await fetch(`/api/stories/${story.id}/publish`, { method: "POST", headers: replayHeaders() });
     const json = await res.json();
-    if (json.code === 200) message.success("发布成功");
-    else message.error(json.msg ?? "发布失败");
+    await toastPublishResult(json);
     await loadMyStories();
   }
 
   async function publishCharacter(character: MyCharacterItem) {
     const res = await fetch(`/api/characters/${character.id}/publish`, { method: "POST", headers: replayHeaders() });
     const json = await res.json();
-    if (json.code === 200) message.success("发布成功");
-    else message.error(json.msg ?? "发布失败");
+    await toastPublishResult(json);
     await loadMyCharacters();
   }
 
@@ -260,8 +272,7 @@ export default function MyPage() {
   async function publishWorld(world: MyWorldItem) {
     const res = await fetch(`/api/worlds/${world.id}/publish`, { method: "POST", headers: replayHeaders() });
     const json = await res.json();
-    if (json.code === 200) message.success("发布成功");
-    else message.error(json.msg ?? "发布失败");
+    await toastPublishResult(json);
     await loadMyWorlds();
   }
 
@@ -390,19 +401,26 @@ export default function MyPage() {
     void loadNotifications();
     void loadMyFavorites();
     void loadPersonaMasks();
+    if (typeof window !== "undefined" && window.location.hash === "#notifications") {
+      window.setTimeout(() => {
+        document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
   }, []);
 
   return (
     <div className="space-y-5">
       <PageHero
         title="我的创作空间"
-        subtitle="管理你的故事、角色和世界，查看通知与收藏"
+        subtitle="管理你的故事、角色和世界，查看数据、通知与收藏"
       />
+
+      <CreatorStatsBoard />
 
       {/* 通知和收藏 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 通知中心 */}
-        <div className="sf-card p-6">
+        <div id="notifications" className="sf-card scroll-mt-24 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
               <IconBadge icon={Bell} tone="notify" size="md" /> 通知中心
@@ -419,26 +437,7 @@ export default function MyPage() {
           <ul className="space-y-3 max-h-[400px] overflow-y-auto">
             {notifications.map((item) => (
               <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
-                <p className="text-sm text-[#1f2a44]">
-                  <span className="font-semibold text-[#5b9dff]">[{item.type}]</span> {formatNotification(item)}
-                </p>
-                <div className="mt-2 flex gap-2">
-                  {typeof item.payload.story_id === "string" && (
-                    <Link className="sf-tag text-xs" href={`/stories/${String(item.payload.story_id)}`}>
-                      查看
-                    </Link>
-                  )}
-                  {typeof item.payload.character_id === "string" && (
-                    <Link className="sf-tag text-xs" href={`/characters/${String(item.payload.character_id)}`}>
-                      查看
-                    </Link>
-                  )}
-                  {typeof item.payload.world_id === "string" && (
-                    <Link className="sf-tag text-xs" href={`/worlds/${String(item.payload.world_id)}`}>
-                      查看
-                    </Link>
-                  )}
-                </div>
+                <p className="text-sm text-[#1f2a44]">{formatNotification(item)}</p>
               </li>
             ))}
             {notifications.length === 0 && (

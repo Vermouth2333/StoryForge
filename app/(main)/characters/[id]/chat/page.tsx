@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -21,6 +22,7 @@ type PersonaMask = { id: string; name: string };
 type Affinity = { score: number; label: string };
 
 export default function CharacterChatPage() {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -171,13 +173,13 @@ export default function CharacterChatPage() {
         body: JSON.stringify({ content: sending }),
         signal: controller.signal,
       });
-      const { text, affinity: nextAffinity } = await readChatSse(res, setStreamText);
+      const { text, affinity: nextAffinity, messageId } = await readChatSse(res, setStreamText);
       if (nextAffinity) setAffinity(nextAffinity);
       if (text) {
         setMessages((prev) => [
           ...prev,
           {
-            id: "assistant_" + Date.now(),
+            id: messageId || "assistant_" + Date.now(),
             role: "assistant",
             content: text,
             created_at: new Date().toISOString(),
@@ -203,6 +205,10 @@ export default function CharacterChatPage() {
           }
           return "";
         });
+      } else {
+        message.error(err instanceof Error ? err.message : "生成失败");
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+        setInputMessage(sending);
       }
     } finally {
       abortRef.current = null;
@@ -268,6 +274,12 @@ export default function CharacterChatPage() {
       onSend={sendMessage}
       onStop={() => requestChatStop(activeSessionId, abortRef.current)}
       onRegenerate={regenerateMessage}
+      onAssistantContentChange={(id, content) => {
+        setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, content } : m)));
+      }}
+      onAssistantMediaChange={(id, patch) => {
+        setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+      }}
     />
   );
 }

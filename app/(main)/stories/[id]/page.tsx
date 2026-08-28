@@ -41,6 +41,7 @@ type StoryDetail = {
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
+  pending_review: "审核中",
   published: "已发布",
   archived: "已归档",
 };

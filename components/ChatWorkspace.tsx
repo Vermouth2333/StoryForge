@@ -2,7 +2,8 @@
 
 import { App, Input, Modal } from "antd";
 import Link from "next/link";
-import { Flag, RefreshCw } from "lucide-react";
+import { ChatMediaThumb } from "@/components/ChatMediaThumb";
+import { Flag, ImagePlus, Pencil, RefreshCw, Video } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type ChatSessionInfo = {
@@ -16,6 +17,10 @@ export type ChatMessageItem = {
   role: "system" | "user" | "assistant";
   content: string;
   created_at: string;
+  image_url?: string | null;
+  video_url?: string | null;
+  video_status?: string | null;
+  video_error?: string | null;
 };
 
 type SnapshotLite = {
@@ -56,6 +61,11 @@ type ChatWorkspaceProps = {
   onSend: () => void | Promise<void>;
   onStop: () => void;
   onRegenerate?: () => void | Promise<void>;
+  onAssistantContentChange?: (messageId: string, content: string) => void;
+  onAssistantMediaChange?: (
+    messageId: string,
+    patch: { image_url?: string | null; video_url?: string | null; video_status?: string | null; video_error?: string | null },
+  ) => void;
   affinity?: { score: number; label: string } | null;
   personaLabel?: string | null;
   headerExtra?: React.ReactNode;
@@ -135,6 +145,8 @@ export function ChatWorkspace({
   onSend,
   onStop,
   onRegenerate,
+  onAssistantContentChange,
+  onAssistantMediaChange,
   affinity,
   personaLabel,
   headerExtra,
@@ -146,8 +158,27 @@ export function ChatWorkspace({
   const [checkpointOpen, setCheckpointOpen] = useState(false);
   const [checkpointNote, setCheckpointNote] = useState("");
   const [checkpointBusy, setCheckpointBusy] = useState(false);
+  const [imageBusyId, setImageBusyId] = useState<string | null>(null);
+  const [removingMediaKey, setRemovingMediaKey] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
+  const [videoStatus, setVideoStatus] = useState<Record<string, string | null>>({});
   const [snapshotsBySession, setSnapshotsBySession] = useState<Record<string, SnapshotLite[]>>({});
   const [highlightMsgId, setHighlightMsgId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const editorWrapRef = useRef<HTMLDivElement | null>(null);
+  const savingEditRef = useRef(false);
+  const editDraftRef = useRef("");
+  const editingIdRef = useRef<string | null>(null);
+  const messagesRef = useRef(messages);
+  const onAssistantContentChangeRef = useRef(onAssistantContentChange);
+  const onAssistantMediaChangeRef = useRef(onAssistantMediaChange);
+  editDraftRef.current = editDraft;
+  editingIdRef.current = editingId;
+  messagesRef.current = messages;
+  onAssistantContentChangeRef.current = onAssistantContentChange;
+  onAssistantMediaChangeRef.current = onAssistantMediaChange;
 
   useEffect(() => {
     if (pendingScrollMsgId.current) return;
@@ -185,6 +216,181 @@ export function ChatWorkspace({
     !busy &&
     !streamText;
   const canCheckpoint = Boolean(activeSessionId) && visibleMessages.length > 0 && !busy && !streamText;
+
+  useEffect(() => {
+    setImageUrls({});
+    setVideoUrls({});
+    setVideoStatus({});
+    setImageBusyId(null);
+    setRemovingMediaKey(null);
+    setEditingId(null);
+    setEditDraft("");
+  }, [activeSessionId]);
+
+  function startEdit(msg: ChatMessageItem) {
+    if (busy || streamText || msg.role !== "assistant") return;
+    setEditingId(msg.id);
+    setEditDraft(msg.content);
+  }
+
+  async function commitEdit() {
+    const messageId = editingIdRef.current;
+    if (!messageId || savingEditRef.current) return;
+    const original = messagesRef.current.find((m) => m.id === messageId)?.content ?? "";
+    const next = editDraftRef.current;
+    if (next === original) {
+      if (editingIdRef.current === messageId) setEditingId(null);
+      return;
+    }
+    if (!next.trim()) {
+      message.error("内容不能为空");
+      return;
+    }
+    savingEditRef.current = true;
+    try {
+      const res = await fetch(`/api/chat/messages/${messageId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: next }),
+      });
+      const json = await res.json().catch(() => null);
+      if (json?.code === 200) {
+        onAssistantContentChangeRef.current?.(messageId, next);
+        if (editingIdRef.current === messageId) setEditingId(null);
+      } else {
+        message.error(json?.msg ?? "保存失败");
+      }
+    } catch {
+      message.error("保存失败");
+    } finally {
+      savingEditRef.current = false;
+    }
+  }
+
+  useEffect(() => {
+    if (!editingId) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const wrap = editorWrapRef.current;
+      if (!wrap) return;
+      if (wrap.contains(e.target as Node)) return;
+      void commitEdit();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [editingId]);
+
+  async function generateImageFor(msg: ChatMessageItem) {
+    if (imageBusyId || busy || msg.role !== "assistant") return;
+    setImageBusyId(msg.id);
+    try {
+      const res = await fetch(`/api/chat/messages/${msg.id}/generate-image`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (json?.code === 200 && json.data?.imageUrl) {
+        setImageUrls((prev) => ({ ...prev, [msg.id]: json.data.imageUrl as string }));
+        message.success("配图已生成");
+      } else if (json?.code === 402) {
+        message.error(json.msg ?? "积分不足");
+      } else {
+        message.error(json?.msg ?? "生成图片失败");
+      }
+    } catch {
+      message.error("生成图片失败");
+    } finally {
+      setImageBusyId(null);
+    }
+  }
+
+  async function removeMediaFor(msg: ChatMessageItem, kind: "image" | "video") {
+    if (msg.role !== "assistant") return;
+    const key = `${msg.id}:${kind}`;
+    if (removingMediaKey) return;
+    setRemovingMediaKey(key);
+    try {
+      const res = await fetch(`/api/chat/messages/${msg.id}/media?kind=${kind}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (json?.code !== 200) {
+        message.error(json?.msg ?? "删除失败");
+        return;
+      }
+      if (kind === "image") {
+        setImageUrls((prev) => ({ ...prev, [msg.id]: "" }));
+        onAssistantMediaChangeRef.current?.(msg.id, { image_url: null });
+        message.success("已删除配图");
+      } else {
+        setVideoUrls((prev) => ({ ...prev, [msg.id]: "" }));
+        setVideoStatus((prev) => ({ ...prev, [msg.id]: "" }));
+        onAssistantMediaChangeRef.current?.(msg.id, {
+          video_url: null,
+          video_status: null,
+          video_error: null,
+        });
+        message.success("已删除视频");
+      }
+    } catch {
+      message.error("删除失败");
+    } finally {
+      setRemovingMediaKey(null);
+    }
+  }
+
+  async function generateVideoFor(msg: ChatMessageItem) {
+    if (msg.role !== "assistant") return;
+    const already = (videoStatus[msg.id] || msg.video_status) === "generating";
+    if (already) return;
+    setVideoStatus((prev) => ({ ...prev, [msg.id]: "generating" }));
+    try {
+      const res = await fetch(`/api/chat/messages/${msg.id}/generate-video`, { method: "POST" });
+      const json = await res.json().catch(() => null);
+      if (json?.code === 200) {
+        setVideoStatus((prev) => ({ ...prev, [msg.id]: "generating" }));
+        message.success("视频开始生成，可离开页面，稍后回来查看");
+      } else if (json?.code === 402) {
+        setVideoStatus((prev) => ({ ...prev, [msg.id]: msg.video_status ?? null }));
+        message.error(json.msg ?? "积分不足");
+      } else {
+        setVideoStatus((prev) => ({ ...prev, [msg.id]: "failed" }));
+        message.error(json?.msg ?? "生成视频失败");
+      }
+    } catch {
+      setVideoStatus((prev) => ({ ...prev, [msg.id]: "failed" }));
+      message.error("生成视频失败");
+    }
+  }
+
+  useEffect(() => {
+    const generatingIds = visibleMessages
+      .filter((m) => (videoStatus[m.id] || m.video_status) === "generating")
+      .map((m) => m.id);
+    if (generatingIds.length === 0 || !activeSessionId) return;
+    let cancelled = false;
+    const tick = async () => {
+      await Promise.all(
+        generatingIds.map(async (mid) => {
+          const res = await fetch(`/api/chat/messages/${mid}/generate-video`);
+          const json = await res.json().catch(() => null);
+          if (cancelled || json?.code !== 200) return;
+          const status = String(json.data?.video_status ?? "");
+          setVideoStatus((prev) => {
+            if (prev[mid] === "") return prev;
+            return prev[mid] === status ? prev : { ...prev, [mid]: status };
+          });
+          if (json.data?.video_url) {
+            setVideoUrls((prev) => {
+              if (prev[mid] === "") return prev;
+              return prev[mid] === json.data.video_url ? prev : { ...prev, [mid]: json.data.video_url as string };
+            });
+          }
+        }),
+      );
+    };
+    void tick();
+    const timer = window.setInterval(() => void tick(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在生成中的消息集合变化时轮询
+  }, [visibleMessages.map((m) => `${m.id}:${videoStatus[m.id] || m.video_status || ""}`).join("|"), activeSessionId]);
 
   const checkpointsByMessage = useMemo(() => {
     const map = new Map<string, SnapshotLite[]>();
@@ -268,7 +474,7 @@ export function ChatWorkspace({
   }
 
   const bubbleActionClass =
-    "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#DCE9FF] bg-white px-3 py-1.5 text-xs font-medium text-[#5B6B8C] hover:border-[#5B9DFF] hover:text-[#3F86F5]";
+    "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#DCE9FF] bg-white px-3 py-1.5 text-xs font-medium text-[#5B6B8C] hover:border-[#5B9DFF] hover:text-[#3F86F5] disabled:cursor-wait disabled:opacity-60";
 
   return (
     <main className="flex h-full min-h-0 flex-1 overflow-hidden bg-[#F5F7FB]">
@@ -411,6 +617,13 @@ export function ChatWorkspace({
                 const isLastAssistant = msg.id === lastAssistant?.id;
                 const showCheckpoint = canCheckpoint && isLast;
                 const showRegenerate = canRegenerate && isLastAssistant;
+                const showImageBtn = !isUser && !busy && !streamText;
+                const imageUrl = imageUrls[msg.id] ?? msg.image_url ?? "";
+                const videoUrl = videoUrls[msg.id] ?? msg.video_url ?? "";
+                const vStatus =
+                  videoStatus[msg.id] !== undefined ? videoStatus[msg.id] || "" : msg.video_status || "";
+                const videoGenerating = vStatus === "generating";
+                const videoFailed = vStatus === "failed";
                 const msgCheckpoints = checkpointsByMessage.get(msg.id) ?? [];
                 const highlighted = highlightMsgId === msg.id;
                 return (
@@ -419,10 +632,22 @@ export function ChatWorkspace({
                     id={`chat-msg-${msg.id}`}
                     className={`flex ${isUser ? "justify-end" : "justify-start"}`}
                   >
-                    <div className={`max-w-[88%] ${isUser ? "items-end" : "items-start"} flex flex-col gap-1.5`}>
+                    <div className={`flex flex-col gap-1.5 ${isUser ? "max-w-[88%] items-end" : editingId === msg.id ? "w-full max-w-none items-stretch" : "max-w-[88%] items-start"}`}>
                       {!isUser ? (
                         <p className="px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
                       ) : null}
+                      {editingId === msg.id ? (
+                        <div ref={editorWrapRef} className="w-full">
+                          <Input.TextArea
+                            autoFocus
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            autoSize={{ minRows: 10, maxRows: 28 }}
+                            className="!min-h-[240px] !text-sm !leading-relaxed"
+                          />
+                          <p className="mt-1 px-1 text-[11px] text-[#8A97B3]">点击编辑区外的页面保存修改</p>
+                        </div>
+                      ) : (
                       <div
                         className={[
                           "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap transition-shadow",
@@ -434,6 +659,29 @@ export function ChatWorkspace({
                       >
                         <MessageText text={msg.content} />
                       </div>
+                      )}
+                      {imageUrl || videoGenerating || videoUrl || videoFailed ? (
+                      <div className="flex flex-wrap items-start gap-2">
+                      {imageUrl ? (
+                        <ChatMediaThumb
+                          kind="image"
+                          src={imageUrl}
+                          onRemove={() => void removeMediaFor(msg, "image")}
+                          removing={removingMediaKey === `${msg.id}:image`}
+                        />
+                      ) : null}
+                      {videoGenerating || videoUrl || videoFailed ? (
+                        <ChatMediaThumb
+                          kind="video"
+                          src={videoUrl}
+                          generating={videoGenerating}
+                          failed={videoFailed && !videoUrl}
+                          onRemove={() => void removeMediaFor(msg, "video")}
+                          removing={removingMediaKey === `${msg.id}:video`}
+                        />
+                      ) : null}
+                      </div>
+                      ) : null}
                       {msgCheckpoints.length > 0 ? (
                         <div className={`flex flex-wrap gap-1 ${isUser ? "justify-end" : "justify-start"}`}>
                           {msgCheckpoints.map((sn) => (
@@ -447,8 +695,18 @@ export function ChatWorkspace({
                           ))}
                         </div>
                       ) : null}
-                      {showCheckpoint || showRegenerate ? (
+                      {showCheckpoint || showRegenerate || showImageBtn ? (
                         <div className="flex w-full flex-wrap items-center justify-end gap-2">
+                          {showImageBtn && editingId !== msg.id ? (
+                            <button
+                              type="button"
+                              className={bubbleActionClass}
+                              onClick={() => startEdit(msg)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" aria-hidden />
+                              编辑
+                            </button>
+                          ) : null}
                           {showCheckpoint ? (
                             <button
                               type="button"
@@ -457,6 +715,28 @@ export function ChatWorkspace({
                             >
                               <Flag className="h-3.5 w-3.5" aria-hidden />
                               生成检查点
+                            </button>
+                          ) : null}
+                          {showImageBtn ? (
+                            <button
+                              type="button"
+                              className={bubbleActionClass}
+                              disabled={imageBusyId === msg.id || videoGenerating}
+                              onClick={() => void generateImageFor(msg)}
+                            >
+                              <ImagePlus className="h-3.5 w-3.5" aria-hidden />
+                              {imageBusyId === msg.id ? "配图生成中…" : imageUrl ? "重新生成图片" : "生成图片"}
+                            </button>
+                          ) : null}
+                          {showImageBtn ? (
+                            <button
+                              type="button"
+                              className={bubbleActionClass}
+                              disabled={videoGenerating || Boolean(imageBusyId)}
+                              onClick={() => void generateVideoFor(msg)}
+                            >
+                              <Video className="h-3.5 w-3.5" aria-hidden />
+                              {videoGenerating ? "视频生成中…" : videoUrl ? "重新生成视频" : "生成视频"}
                             </button>
                           ) : null}
                           {showRegenerate ? (

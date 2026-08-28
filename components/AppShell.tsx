@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bell, Coins } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { IconBadge, NavIcons, NavTones } from "@/components/icons";
@@ -23,6 +24,7 @@ type ProfileLite = {
   username: string | null;
   avatar_url: string | null;
   is_admin?: boolean;
+  credits?: number;
 };
 
 function navClass(active: boolean) {
@@ -56,6 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         username: pJson.data.username ?? null,
         avatar_url: pJson.data.avatar_url ?? null,
         is_admin: pJson.data.is_admin ?? false,
+        credits: Number(pJson.data.credits ?? 0),
       });
     }
     if (uJson?.code === 200 && uJson.data) {
@@ -91,6 +94,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const composeActive = pathname.startsWith("/compose");
   const myActive = pathname.startsWith("/my");
   const historyActive = pathname.startsWith("/history");
+  const creditsManageActive = pathname.startsWith("/developer");
+  const moderationActive = pathname.startsWith("/admin/moderation");
   const settingsActive = pathname.startsWith("/settings");
   const isChatLayout =
     /\/characters\/[^/]+\/chat\/?$/.test(pathname) ||
@@ -121,7 +126,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href={profile ? "/market" : "/"} className="no-underline" aria-label="StoryForge 首页">
           <BrandLogo size={28} />
         </Link>
-        <span className="w-10 text-right text-xs text-[var(--text-secondary)]">{unread > 0 ? unread : ""}</span>
+        <Link href="/my#notifications" className="w-10 cursor-pointer text-right text-xs text-[var(--text-secondary)] no-underline">
+          {unread > 0 ? unread : ""}
+        </Link>
       </header>
 
       {mobileOpen ? (
@@ -262,15 +269,86 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     设置
                   </span>
                 </Link>
+                {profile.is_admin ? (
+                  <>
+                    <div className="sf-nav-admin-split" role="separator" aria-label="管理">
+                      <span>管理</span>
+                    </div>
+                    <Link
+                      href="/developer"
+                      title="积分管理"
+                      className={navClass(creditsManageActive)}
+                      onClick={closeMobile}
+                    >
+                      <IconBadge
+                        icon={NavIcons.credits}
+                        tone={NavTones.credits}
+                        size="md"
+                        active={creditsManageActive}
+                      />
+                      <span
+                        className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--credits ${creditsManageActive ? "is-active" : ""}`}
+                      >
+                        积分管理
+                      </span>
+                    </Link>
+                    <Link
+                      href="/admin/moderation"
+                      title="审核台"
+                      className={navClass(moderationActive)}
+                      onClick={closeMobile}
+                    >
+                      <IconBadge
+                        icon={NavIcons.moderation}
+                        tone={NavTones.moderation}
+                        size="md"
+                        active={moderationActive}
+                      />
+                      <span
+                        className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--moderation ${moderationActive ? "is-active" : ""}`}
+                      >
+                        审核台
+                      </span>
+                    </Link>
+                  </>
+                ) : null}
               </>
             )}
           </nav>
 
           <div className="mt-auto space-y-4 border-t border-[var(--border)] px-4 py-5 lg:px-5 bg-gradient-to-t from-[#F8FBFF] to-white">
             {profile && (
-              <div className="rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--primary-hover)] px-4 py-3 text-center text-sm font-semibold text-white shadow-lg">
-                <span className="hidden lg:inline">未读通知：</span>
-                <span className="text-lg">{unread}</span>
+              <div className="sf-sidebar-stats">
+                <Link
+                  href="/credits"
+                  className="sf-stat-chip sf-stat-chip--credits"
+                  onClick={closeMobile}
+                  title="我的积分"
+                >
+                  <span className="sf-stat-chip__icon" aria-hidden>
+                    <Coins strokeWidth={2.3} />
+                  </span>
+                  <span className="sf-stat-chip__meta">
+                    <span className="sf-stat-chip__label">积分</span>
+                    <span className="sf-stat-chip__value">
+                      {typeof profile.credits === "number" ? profile.credits : 0}
+                    </span>
+                  </span>
+                </Link>
+                <Link
+                  href="/my#notifications"
+                  className={`sf-stat-chip sf-stat-chip--notify${unread > 0 ? " has-unread" : ""}`}
+                  onClick={closeMobile}
+                  title="未读消息"
+                >
+                  <span className="sf-stat-chip__icon" aria-hidden>
+                    <Bell strokeWidth={2.3} />
+                  </span>
+                  <span className="sf-stat-chip__meta">
+                    <span className="sf-stat-chip__label">未读</span>
+                    <span className="sf-stat-chip__value">{unread}</span>
+                  </span>
+                </Link>
               </div>
             )}
 
@@ -310,15 +388,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             )}
 
-            {profile?.is_admin && (
-              <Link
-                href="/admin/moderation"
-                className="block text-center text-xs text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors lg:text-left"
-                onClick={closeMobile}
-              >
-                审核台
-              </Link>
-            )}
           </div>
         </div>
       </aside>

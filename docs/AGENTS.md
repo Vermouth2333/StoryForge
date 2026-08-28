@@ -78,7 +78,20 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 复用现有工具函数与服务，不重复造轮子。
 - 错误在边界处处理并返回规范响应，不吞异常。
 
-## 8. 常用命令
+## 8. OpenSpec（SDD）
+
+本仓库使用 OpenSpec 做规格驱动开发。新功能默认走：
+
+1. `/opsx-propose` 写变更（proposal / specs / design / tasks）
+2. `/opsx-apply` 按任务实现
+3. `/opsx-archive` 合并进 `openspec/specs/` 并归档
+
+- 项目上下文：`openspec/project.md`
+- 当前规格：`openspec/specs/`
+- 已归档基线：`openspec/changes/archive/2026-08-28-bootstrap-storyforge-sdd/`
+- 助手说明：`openspec/AGENTS.md`
+
+## 9. 常用命令
 
 ```bash
 npm install     # 安装依赖
@@ -87,7 +100,7 @@ npm run build   # 生产构建
 npm run lint    # 代码检查
 ```
 
-## 9. 禁止事项
+## 10. 禁止事项
 
 - 不提交/修改 `storage/**` 运行时数据。
 - 不绕过 `zod` 校验、`middleware` 防护或鉴权。

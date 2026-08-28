@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
-import { scanTextBundle } from "@/lib/content-filter";
+import { characterPublishTextParts, scanTextBundle } from "@/lib/content-filter";
 import { getDb, nowIso } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
-import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
+import {
+  resolvePendingItemsOnDirectPublish,
+  submitSensitivePublishForReview,
+} from "@/lib/moderation-queue";
 import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { assertPublishAllowedForDerivative } from "@/lib/work-download";
@@ -70,19 +73,25 @@ export async function POST(
     return NextResponse.json({ code: 404, msg: "角色不存在" }, { status: 404 });
   }
 
-  const scan = scanTextBundle([row.name, row.summary, row.personality]);
+  const scan = scanTextBundle(await characterPublishTextParts(db, id));
   if (!scan.ok) {
-    try {
-      await enqueueSensitivePublishBlock(db, {
-        contentType: "character",
-        targetId: id,
-        submitterUserId: userId,
-      });
-    } catch (e) {
-      console.error("[moderation enqueue]", e);
+    if (scan.reason === "too_long") {
+      return NextResponse.json({ code: 400, msg: scan.msg }, { status: 400 });
     }
-    return NextResponse.json({ code: 400, msg: scan.msg }, { status: 400 });
+    await submitSensitivePublishForReview(db, {
+      contentType: "character",
+      targetId: id,
+      submitterUserId: userId,
+      title: row.name,
+    });
+    return NextResponse.json({
+      code: 200,
+      msg: scan.msg,
+      data: { pending_review: true },
+    });
   }
+
+  await resolvePendingItemsOnDirectPublish(db, "character", id);
 
   const now = nowIso();
   await db.run(

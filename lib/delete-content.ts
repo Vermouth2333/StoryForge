@@ -91,6 +91,7 @@ export async function deleteStory(
   );
   await deleteChatSessionsForContent(db, "story_id", storyId);
   await deleteAssetsForTarget(db, "story", storyId);
+  await db.run("DELETE FROM moderation_items WHERE content_type = 'story' AND target_id = ?", storyId);
   await db.run("DELETE FROM stories WHERE id = ?", storyId);
   return { ok: true };
 }
@@ -138,6 +139,7 @@ export async function deleteCharacter(
   );
   await deleteChatSessionsForContent(db, "character_id", characterId);
   await deleteAssetsForTarget(db, "character", characterId);
+  await db.run("DELETE FROM moderation_items WHERE content_type = 'character' AND target_id = ?", characterId);
   await db.run("DELETE FROM characters WHERE id = ?", characterId);
   return { ok: true };
 }
@@ -181,6 +183,7 @@ export async function deleteWorld(
   await db.run("DELETE FROM rag_vectors WHERE world_id = ?", worldId);
   await deleteChatSessionsForContent(db, "world_id", worldId);
   await deleteAssetsForTarget(db, "world", worldId);
+  await db.run("DELETE FROM moderation_items WHERE content_type = 'world' AND target_id = ?", worldId);
   await db.run("DELETE FROM worlds WHERE id = ?", worldId);
   return { ok: true };
 }

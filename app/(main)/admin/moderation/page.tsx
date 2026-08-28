@@ -121,7 +121,7 @@ export default function AdminModerationPage() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="section-title">审核台</h2>
-          <p className="section-subtitle">处理敏感拦截与举报内容</p>
+          <p className="section-subtitle">敏感词拦截的发布会进入待审，通过后才会出现在市场</p>
         </div>
         <div className="flex items-center gap-2">
           <button

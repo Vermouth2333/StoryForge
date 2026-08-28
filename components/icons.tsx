@@ -4,6 +4,8 @@ import {
   Bell,
   BookOpen,
   Bot,
+  ClipboardCheck,
+  Coins,
   Feather,
   Gamepad2,
   Globe2,
@@ -174,7 +176,9 @@ export const NavIcons = {
   compose: PenLine,
   my: UserRound,
   history: History,
+  credits: Coins,
   settings: Settings,
+  moderation: ClipboardCheck,
 } as const;
 
 export const NavTones = {
@@ -182,7 +186,9 @@ export const NavTones = {
   compose: "compose",
   my: "user",
   history: "history",
+  credits: "star",
   settings: "settings",
+  moderation: "danger",
 } as const satisfies Record<keyof typeof NavIcons, IconTone>;
 
 export {

@@ -65,7 +65,13 @@ async function migrateCharacterRelationsAllowMultiple(db: Database) {
 async function migrateSchema(db: Database) {
   await db.exec("PRAGMA foreign_keys = ON;");
 
-  await addColumnIfMissing(db, "stories", "cover_asset_id", "cover_asset_id TEXT");
+  await addColumnIfMissing(db, "chat_messages", "image_asset_id", "image_asset_id TEXT");
+  await addColumnIfMissing(db, "chat_messages", "video_asset_id", "video_asset_id TEXT");
+  await addColumnIfMissing(db, "chat_messages", "video_status", "video_status TEXT");
+  await addColumnIfMissing(db, "chat_messages", "video_request_id", "video_request_id TEXT");
+  await addColumnIfMissing(db, "chat_messages", "video_started_at", "video_started_at TEXT");
+  await addColumnIfMissing(db, "chat_messages", "video_error", "video_error TEXT");
+  await addColumnIfMissing(db, "users", "credits", "credits INTEGER NOT NULL DEFAULT 100");
 
   await addColumnIfMissing(db, "users", "gender", "gender TEXT");
   await addColumnIfMissing(db, "users", "age", "age INTEGER");
@@ -411,6 +417,23 @@ async function migrateSchema(db: Database) {
     );
   `);
 
+  await db.exec(`
+    CREATE TABLE IF NOT EXISTS credit_ledger (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      delta INTEGER NOT NULL,
+      balance_after INTEGER NOT NULL,
+      reason TEXT NOT NULL,
+      ref_type TEXT,
+      ref_id TEXT,
+      operator_user_id TEXT,
+      note TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
+      ON credit_ledger(user_id, created_at DESC);
+  `);
+
   // 用户自定义模型配置（API Key 等敏感信息存储于此）
   await db.exec(`
     CREATE TABLE IF NOT EXISTS user_models (
@@ -519,6 +542,23 @@ async function migrateSchema(db: Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_work_downloads_user
       ON work_downloads(user_id, created_at DESC);
+  `);
+
+  await db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_work_downloads_source
+      ON work_downloads(work_type, source_work_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_likes_target_created
+      ON likes(target_type, target_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_favorites_target_created
+      ON favorites(target_type, target_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_follows_author_created
+      ON follows(author_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_story
+      ON chat_sessions(story_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_character
+      ON chat_sessions(character_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_world
+      ON chat_sessions(world_id, created_at);
   `);
 }
 

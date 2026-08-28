@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "antd";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +23,7 @@ type PersonaMask = { id: string; name: string; summary?: string };
 type StorySession = ChatSessionInfo & { persona_mask_id?: string | null };
 
 export default function StoryPlayPage() {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -183,15 +185,13 @@ export default function StoryPlayPage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: "temp_" + Date.now(),
-        role: "user",
-        content: inputMessage,
-        created_at: new Date().toISOString(),
-      },
-    ]);
+    const userMsg: ChatMessageItem = {
+      id: "temp_" + Date.now(),
+      role: "user",
+      content: inputMessage,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
     const sending = inputMessage;
     setInputMessage("");
 
@@ -202,12 +202,12 @@ export default function StoryPlayPage() {
         body: JSON.stringify({ content: sending }),
         signal: controller.signal,
       });
-      const { text } = await readChatSse(res, setStreamText);
+      const { text, messageId } = await readChatSse(res, setStreamText);
       if (text) {
         setMessages((prev) => [
           ...prev,
           {
-            id: "assistant_" + Date.now(),
+            id: messageId || "assistant_" + Date.now(),
             role: "assistant",
             content: text,
             created_at: new Date().toISOString(),
@@ -233,6 +233,10 @@ export default function StoryPlayPage() {
           }
           return "";
         });
+      } else {
+        message.error(err instanceof Error ? err.message : "生成失败");
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id));
+        setInputMessage(sending);
       }
     } finally {
       abortRef.current = null;
@@ -288,6 +292,12 @@ export default function StoryPlayPage() {
         onSend={sendMessage}
         onStop={() => requestChatStop(activeSessionId, abortRef.current)}
         onRegenerate={regenerateMessage}
+        onAssistantContentChange={(id, content) => {
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, content } : m)));
+        }}
+        onAssistantMediaChange={(id, patch) => {
+          setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+        }}
       />
     );
   }

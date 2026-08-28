@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { isPlatformAdmin } from "@/lib/admin-auth";
 import { getCurrentUserId } from "@/lib/auth";
+import { getCreditBalance } from "@/lib/credits";
 import { getDb, nowIso } from "@/lib/db";
+import { isDeveloperUsername } from "@/lib/developer-auth";
 import { maskCnPhone, sanitizePlainText } from "@/lib/text";
 import { ensureUserRow } from "@/lib/user";
-import { isAdminUser } from "@/lib/admin-auth";
 
 const patchSchema = z.object({
   username: z.string().min(1).max(40).optional(),
@@ -47,7 +49,15 @@ export async function GET() {
     return res;
   }
 
-  return NextResponse.json({ code: 200, data: { ...row, is_admin: isAdminUser(userId) }, msg: "ok" });
+  return NextResponse.json({
+    code: 200,
+    data: {
+      ...row,
+      credits: await getCreditBalance(userId),
+      is_admin: await isPlatformAdmin(userId),
+    },
+    msg: "ok",
+  });
 }
 
 export async function PATCH(req: Request) {
@@ -76,8 +86,19 @@ export async function PATCH(req: Request) {
   const values: unknown[] = [];
 
   if (parsed.data.username !== undefined) {
+    const nextName = parsed.data.username.trim();
+    const current = await db.get<{ username: string | null }>(
+      "SELECT username FROM users WHERE id = ?",
+      userId,
+    );
+    if (isDeveloperUsername(current?.username) && !isDeveloperUsername(nextName)) {
+      return NextResponse.json({ code: 400, msg: "开发者账号不可修改用户名" }, { status: 400 });
+    }
+    if (isDeveloperUsername(nextName) && !isDeveloperUsername(current?.username)) {
+      return NextResponse.json({ code: 400, msg: "该用户名不可用" }, { status: 400 });
+    }
     fields.push("username = ?");
-    values.push(parsed.data.username.trim());
+    values.push(nextName);
   }
   if (parsed.data.gender !== undefined) {
     fields.push("gender = ?");

@@ -17,6 +17,7 @@ type Profile = {
   age: number | null;
   phone_masked: string | null;
   bio: string | null;
+  credits?: number;
 };
 
 export default function SettingsPage() {
@@ -39,27 +40,7 @@ export default function SettingsPage() {
     "anonymize_published",
   );
   const [deleteBusy, setDeleteBusy] = useState(false);
-
-  // 模型管理
-  const [models, setModels] = useState<Array<{
-    id: string; name: string; provider: string; modelName: string;
-    baseUrl?: string; hasApiKey: boolean; enabled: boolean;
-    defaultTemperature?: number; maxTokens?: number;
-  }>>([]);
-  const [defaultModelId, setDefaultModelId] = useState("");
-  const [showModelForm, setShowModelForm] = useState(false);
-  const [editingModel, setEditingModel] = useState<typeof models[number] | null>(null);
-  const [modelForm, setModelForm] = useState({
-    name: "",
-    provider: "deepseek" as string,
-    modelName: "deepseek-chat",
-    baseUrl: "https://api.deepseek.com/v1",
-    apiKey: "",
-    defaultTemperature: 0.7,
-    maxTokens: 4096,
-    enabled: true,
-  });
-  const [modelBusy, setModelBusy] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -76,38 +57,11 @@ export default function SettingsPage() {
         setGender(p.gender ?? "");
         setAge(p.age ?? "");
         setBio(p.bio ?? "");
+        setCredits(typeof p.credits === "number" ? p.credits : null);
       }
       setLoading(false);
     })();
-
-    void loadModels();
   }, [router]);
-
-  useEffect(() => {
-    if (loading) return;
-    const scrollToModels = () => {
-      if (typeof window === "undefined") return;
-      if (window.location.hash !== "#ai-model-settings") return;
-      document.getElementById("ai-model-settings")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    };
-    scrollToModels();
-    const t = window.setTimeout(scrollToModels, 120);
-    return () => window.clearTimeout(t);
-  }, [loading]);
-
-  async function loadModels() {
-    const res = await fetch("/api/models");
-    if (res.ok) {
-      const json = await res.json();
-      if (json.code === 200) {
-        setModels(json.data ?? []);
-        setDefaultModelId(json.defaultModelId ?? "");
-      }
-    }
-  }
 
   async function uploadAvatar(file: File) {
     setAvatarBusy(true);
@@ -356,330 +310,17 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 模型管理 */}
-      <div id="ai-model-settings" className="sf-card scroll-mt-24 p-6">
+      <div id="credits-settings" className="sf-card scroll-mt-24 p-6">
         <h3 className="text-base font-semibold text-[#1F2A44] mb-2 flex items-center gap-2">
-          <IconBadge icon={Bot} tone="ai" size="sm" /> AI 模型管理
+          <IconBadge icon={Bot} tone="ai" size="sm" /> 创作积分
         </h3>
-        <p className="text-sm text-[#5B6B8C] mb-6">
-          添加和管理你的 DeepSeek 模型，配置 API Key 后即可在创作中使用。
+        <p className="text-sm text-[#5B6B8C] mb-4">
+          对话、配图与配视频由平台统一提供模型，按次消耗积分。当前余额
+          <span className="mx-1 font-semibold text-[#1F2A44]">{credits ?? "—"}</span>。
         </p>
-
-        {/* 模型列表 */}
-        {models.length > 0 ? (
-          <div className="space-y-3 mb-6">
-            {models.map((m) => (
-              <div
-                key={m.id}
-                className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${
-                  m.id === defaultModelId
-                    ? "border-[#5B9DFF] bg-[#F0F6FF]"
-                    : "border-[#DCE9FF] bg-[#F8FBFF]"
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-[#1F2A44] truncate">{m.name}</p>
-                    {m.id === defaultModelId && (
-                      <span className="shrink-0 rounded-full bg-[#5B9DFF] px-2 py-0.5 text-xs text-white">默认</span>
-                    )}
-                    {!m.enabled && (
-                      <span className="shrink-0 rounded-full bg-[#DCE9FF] px-2 py-0.5 text-xs text-[#5B6B8C]">已禁用</span>
-                    )}
-                  </div>
-                  <p className="text-xs text-[#5B6B8C] mt-1">
-                    {m.provider} / {m.modelName}
-                    {m.hasApiKey ? " · Key 已配置" : " · 未配置 Key"}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-3">
-                  {m.id !== defaultModelId && m.enabled && (
-                    <button
-                      className="text-xs text-[#5B9DFF] hover:underline"
-                      onClick={async () => {
-                        const r = await fetch("/api/settings/model", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ modelId: m.id }),
-                        });
-                        const j = await r.json();
-                        if (j.code === 200) {
-                          message.success("已设为默认模型");
-                          await loadModels();
-                        } else {
-                          message.error(j.msg ?? "操作失败");
-                        }
-                      }}
-                    >
-                      设为默认
-                    </button>
-                  )}
-                  <button
-                    className="text-xs text-[#5B6B8C] hover:text-[#1F2A44]"
-                    onClick={() => {
-                      setEditingModel(m);
-                      setModelForm({
-                        name: m.name,
-                        provider: "deepseek",
-                        modelName: m.modelName,
-                        baseUrl: m.baseUrl ?? "",
-                        apiKey: "",
-                        defaultTemperature: m.defaultTemperature ?? 0.7,
-                        maxTokens: m.maxTokens ?? 4096,
-                        enabled: m.enabled,
-                      });
-                      setShowModelForm(true);
-                    }}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    className="text-xs text-red-400 hover:text-red-600"
-                    onClick={() => {
-                      modal.confirm({
-                        centered: true,
-                        title: "删除模型",
-                        content: `确定删除「${m.name}」？此操作不可恢复。`,
-                        okText: "删除",
-                        okButtonProps: { danger: true },
-                        cancelText: "取消",
-                        onOk: async () => {
-                          const r = await fetch(`/api/models?id=${m.id}`, { method: "DELETE" });
-                          const j = await r.json();
-                          if (j.code === 200) {
-                            message.success("模型已删除");
-                            await loadModels();
-                          } else {
-                            message.error(j.msg ?? "删除失败");
-                            return Promise.reject();
-                          }
-                        },
-                      });
-                    }}
-                  >
-                    删除
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="mb-6 p-6 rounded-xl border border-dashed border-[#DCE9FF] bg-[#F8FBFF] text-center">
-            <p className="text-sm text-[#5B6B8C]">尚未配置任何 AI 模型</p>
-            <p className="text-xs text-[#5B6B8C] mt-1">点击下方按钮添加你的第一个模型</p>
-          </div>
-        )}
-
-        {/* 添加/编辑模型表单 */}
-        {showModelForm ? (
-          <div className="border border-[#DCE9FF] rounded-xl p-5 space-y-4 bg-white">
-            <h4 className="text-sm font-semibold text-[#1F2A44]">
-              {editingModel ? "编辑模型" : "添加模型"}
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">显示名称 *</label>
-                <input
-                  className="sf-input"
-                  placeholder="如：DeepSeek Chat"
-                  value={modelForm.name}
-                  onChange={(e) => setModelForm((f) => ({ ...f, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">服务商 *</label>
-                <select
-                  className="sf-input"
-                  value={modelForm.provider}
-                  onChange={() => setModelForm((f) => ({ ...f, provider: "deepseek" }))}
-                >
-                  <option value="deepseek">DeepSeek</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">模型 ID *</label>
-                <input
-                  className="sf-input"
-                  placeholder="如：deepseek-chat / deepseek-reasoner"
-                  value={modelForm.modelName}
-                  onChange={(e) => setModelForm((f) => ({ ...f, modelName: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">API Base URL</label>
-                <input
-                  className="sf-input"
-                  placeholder="默认 https://api.deepseek.com/v1"
-                  value={modelForm.baseUrl}
-                  onChange={(e) => setModelForm((f) => ({ ...f, baseUrl: e.target.value }))}
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">API Key</label>
-                <input
-                  className="sf-input"
-                  type="password"
-                  placeholder={editingModel?.hasApiKey ? "留空保持原 Key 不变" : "输入你的 API Key"}
-                  value={modelForm.apiKey}
-                  onChange={(e) => setModelForm((f) => ({ ...f, apiKey: e.target.value }))}
-                />
-                <p className="mt-1.5 text-xs text-[#5B6B8C]">
-                  还没有 Key？前往{" "}
-                  <a
-                    href="https://platform.deepseek.com/api_keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#5B9DFF] hover:underline"
-                  >
-                    DeepSeek 开放平台申请 API Key
-                  </a>
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">Temperature</label>
-                <input
-                  className="sf-input"
-                  type="number"
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={modelForm.defaultTemperature}
-                  onChange={(e) => setModelForm((f) => ({ ...f, defaultTemperature: Number(e.target.value) }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#1F2A44] mb-1">Max Tokens</label>
-                <input
-                  className="sf-input"
-                  type="number"
-                  min={1}
-                  max={128000}
-                  step={1}
-                  value={modelForm.maxTokens}
-                  onChange={(e) => setModelForm((f) => ({ ...f, maxTokens: Number(e.target.value) }))}
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm text-[#1F2A44]">
-                <input
-                  type="checkbox"
-                  checked={modelForm.enabled}
-                  onChange={(e) => setModelForm((f) => ({ ...f, enabled: e.target.checked }))}
-                />
-                启用此模型
-              </label>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button
-                type="button"
-                className="sf-btn-primary"
-                disabled={modelBusy}
-                onClick={async () => {
-                  if (!modelForm.name.trim() || !modelForm.modelName.trim()) {
-                    message.warning("名称和模型 ID 不能为空");
-                    return;
-                  }
-                  setModelBusy(true);
-                  try {
-                    const payload: Record<string, unknown> = {
-                      name: modelForm.name.trim(),
-                      provider: "deepseek",
-                      modelName: modelForm.modelName.trim(),
-                      defaultTemperature: modelForm.defaultTemperature,
-                      maxTokens: modelForm.maxTokens,
-                      enabled: modelForm.enabled,
-                    };
-                    if (modelForm.baseUrl.trim()) payload.baseUrl = modelForm.baseUrl.trim();
-                    if (modelForm.apiKey.trim()) payload.apiKey = modelForm.apiKey.trim();
-
-                    let res: Response;
-                    if (editingModel) {
-                      payload.id = editingModel.id;
-                      res = await fetch("/api/models", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                      });
-                    } else {
-                      res = await fetch("/api/models", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                      });
-                    }
-                    const json = await res.json();
-                    if (json.code === 200) {
-                      setShowModelForm(false);
-                      setEditingModel(null);
-                      setModelForm({
-                        name: "",
-                        provider: "deepseek",
-                        modelName: "deepseek-chat",
-                        baseUrl: "https://api.deepseek.com/v1",
-                        apiKey: "",
-                        defaultTemperature: 0.7,
-                        maxTokens: 4096,
-                        enabled: true,
-                      });
-                      await loadModels();
-                      message.success(editingModel ? "模型已更新" : "模型已添加");
-                    } else {
-                      message.error(json.msg ?? "操作失败");
-                    }
-                  } catch {
-                    message.error("操作失败，请稍后重试");
-                  } finally {
-                    setModelBusy(false);
-                  }
-                }}
-              >
-                {modelBusy ? "保存中..." : editingModel ? "保存更改" : "添加模型"}
-              </button>
-              <button
-                type="button"
-                className="sf-btn-secondary"
-                onClick={() => {
-                  setShowModelForm(false);
-                  setEditingModel(null);
-                  setModelForm({
-                    name: "",
-                    provider: "deepseek",
-                    modelName: "deepseek-chat",
-                    baseUrl: "https://api.deepseek.com/v1",
-                    apiKey: "",
-                    defaultTemperature: 0.7,
-                    maxTokens: 4096,
-                    enabled: true,
-                  });
-                }}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="sf-btn-primary"
-            onClick={() => {
-              setEditingModel(null);
-              setModelForm({
-                name: "DeepSeek Chat",
-                provider: "deepseek",
-                modelName: "deepseek-chat",
-                baseUrl: "https://api.deepseek.com/v1",
-                apiKey: "",
-                defaultTemperature: 0.7,
-                maxTokens: 4096,
-                enabled: true,
-              });
-              setShowModelForm(true);
-            }}
-          >
-            + 添加模型
-          </button>
-        )}
+        <Link href="/credits" className="sf-btn-primary inline-flex no-underline">
+          查看积分与充值
+        </Link>
       </div>
 
       {/* 危险操作 */}

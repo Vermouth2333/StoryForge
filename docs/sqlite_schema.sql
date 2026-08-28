@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone_masked TEXT,
   phone_verified_at TEXT,
   bio TEXT,
+  credits INTEGER NOT NULL DEFAULT 100,
   status TEXT NOT NULL DEFAULT 'active',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
@@ -207,7 +208,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   token_output INTEGER NOT NULL DEFAULT 0,
   latency_ms INTEGER NOT NULL DEFAULT 0,
   model_name TEXT DEFAULT 'mock-model',
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  image_asset_id TEXT,
+  video_asset_id TEXT,
+  video_status TEXT,
+  video_request_id TEXT,
+  video_started_at TEXT,
+  video_error TEXT
 );
 
 CREATE TABLE IF NOT EXISTS likes (
@@ -477,4 +484,21 @@ CREATE TABLE IF NOT EXISTS branch_nodes (
   created_at TEXT NOT NULL,
   FOREIGN KEY (branch_id) REFERENCES story_branches(id)
 );
+
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  delta INTEGER NOT NULL,
+  balance_after INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  ref_type TEXT,
+  ref_id TEXT,
+  operator_user_id TEXT,
+  note TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credit_ledger_user_created
+  ON credit_ledger(user_id, created_at DESC);
+
 

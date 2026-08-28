@@ -3,6 +3,7 @@ import { z } from "zod";
 import { logBasicSafe } from "@/lib/basic-logs";
 import { getCurrentUserId } from "@/lib/auth";
 import { scanTextBundle } from "@/lib/content-filter";
+import { CREDIT_COSTS, InsufficientCreditsError, refundCredits, spendCredits } from "@/lib/credits";
 import { getDb, id, nowIso } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import type { ChatMessage } from "@/lib/ai-provider";
@@ -93,8 +94,10 @@ export async function POST(
   }
 
   // 在写入本轮用户消息之前组装上下文（系统/世界/角色/文风/历史 + 当前指令）
-  // 构建多模型降级链：主模型在前，已启用且已配置凭据的备用模型在后（见文档 5.8.5）
   const providerChain = await resolveSessionProviderChain(sessionId, userId);
+  if (providerChain.length === 0) {
+    return NextResponse.json({ code: 503, msg: "创作服务暂不可用" }, { status: 503 });
+  }
   let contextMessages: ChatMessage[] = [];
   try {
     contextMessages = await buildChatContext(db, sessionId, session, parsed.data.content);
@@ -110,6 +113,22 @@ export async function POST(
 
   const userMessageId = id("msg");
   const now = nowIso();
+  try {
+    await spendCredits({
+      userId,
+      reason: "chat",
+      refType: "chat_message",
+      refId: userMessageId,
+    });
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        { code: 402, msg: `${err.message}，请前往积分页充值`, data: { need: err.need, balance: err.balance } },
+        { status: 402 },
+      );
+    }
+    throw err;
+  }
   await db.run(
     `INSERT INTO chat_messages (id, session_id, role, content, created_at)
      VALUES (?, ?, 'user', ?, ?)`,
@@ -163,6 +182,17 @@ export async function POST(
           emit,
           logCategory: "chat_generate",
         });
+
+        if (usedModelName === "mock-model") {
+          await refundCredits({
+            userId,
+            reason: "refund_chat",
+            amount: CREDIT_COSTS.chat,
+            refType: "chat_message",
+            refId: userMessageId,
+            note: "模型不可用已退回",
+          });
+        }
 
         if (stopped) {
           controller.enqueue(

@@ -3,7 +3,10 @@ import { getCurrentUserId } from "@/lib/auth";
 import { scanTextBundle, storyPublishTextParts } from "@/lib/content-filter";
 import { getDb, nowIso } from "@/lib/db";
 import { createNotification } from "@/lib/notifications";
-import { enqueueSensitivePublishBlock } from "@/lib/moderation-queue";
+import {
+  resolvePendingItemsOnDirectPublish,
+  submitSensitivePublishForReview,
+} from "@/lib/moderation-queue";
 import { invalidateMarketCache } from "@/lib/invalidate-market-cache";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import { assertPublishAllowedForDerivative } from "@/lib/work-download";
@@ -72,17 +75,23 @@ export async function POST(
   const parts = await storyPublishTextParts(db, id);
   const scan = scanTextBundle(parts);
   if (!scan.ok) {
-    try {
-      await enqueueSensitivePublishBlock(db, {
-        contentType: "story",
-        targetId: id,
-        submitterUserId: userId,
-      });
-    } catch (e) {
-      console.error("[moderation enqueue]", e);
+    if (scan.reason === "too_long") {
+      return NextResponse.json({ code: 400, msg: scan.msg }, { status: 400 });
     }
-    return NextResponse.json({ code: 400, msg: scan.msg }, { status: 400 });
+    await submitSensitivePublishForReview(db, {
+      contentType: "story",
+      targetId: id,
+      submitterUserId: userId,
+      title: story.title,
+    });
+    return NextResponse.json({
+      code: 200,
+      msg: scan.msg,
+      data: { pending_review: true },
+    });
   }
+
+  await resolvePendingItemsOnDirectPublish(db, "story", id);
 
   const now = nowIso();
   await db.run(

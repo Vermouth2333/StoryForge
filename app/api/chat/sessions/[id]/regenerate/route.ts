@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { logBasicSafe } from "@/lib/basic-logs";
 import { getCurrentUserId } from "@/lib/auth";
-import { getDb, nowIso } from "@/lib/db";
+import { CREDIT_COSTS, InsufficientCreditsError, refundCredits, spendCredits } from "@/lib/credits";
+import { getDb, id, nowIso } from "@/lib/db";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
 import type { ChatMessage } from "@/lib/ai-provider";
 import { produceChatText, resolveSessionProviderChain } from "@/lib/chat-produce-text";
@@ -98,6 +99,26 @@ export async function POST(
   }
 
   const providerChain = await resolveSessionProviderChain(sessionId, userId);
+  if (providerChain.length === 0) {
+    return NextResponse.json({ code: 503, msg: "创作服务暂不可用" }, { status: 503 });
+  }
+  const spendRef = id("crd");
+  try {
+    await spendCredits({
+      userId,
+      reason: "chat",
+      refType: "chat_regenerate",
+      refId: spendRef,
+    });
+  } catch (err) {
+    if (err instanceof InsufficientCreditsError) {
+      return NextResponse.json(
+        { code: 402, msg: `${err.message}，请前往积分页充值`, data: { need: err.need, balance: err.balance } },
+        { status: 402 },
+      );
+    }
+    throw err;
+  }
   const ragQuery = precedingUser?.content ?? REGENERATE_GREETING;
   let contextMessages: ChatMessage[] = [];
   try {
@@ -163,6 +184,17 @@ export async function POST(
           emit,
           logCategory: "chat_regenerate",
         });
+
+        if (usedModelName === "mock-model") {
+          await refundCredits({
+            userId,
+            reason: "refund_chat",
+            amount: CREDIT_COSTS.chat,
+            refType: "chat_regenerate",
+            refId: spendRef,
+            note: "模型不可用已退回",
+          });
+        }
 
         if (stopped) {
           // 取消重新生成时保留原文，不落库

@@ -10,11 +10,12 @@ import { buildFilename, sanitizeFileBase } from "@/lib/export-shared";
 import { ensurePdfFont, getPdfFontPath, hasPdfFont } from "@/lib/pdf-font";
 import type { OutlineNode } from "@/lib/outline-order";
 import { buildSessionExportBundle, type SessionExportMessage } from "@/lib/session-export";
+import { buildSessionMediaZip } from "@/lib/session-media-zip";
 
 const MAX_BYTES = 50 * 1024 * 1024;
 
 const bodySchema = z.object({
-  format: z.enum(["markdown", "txt", "pdf", "epub"]),
+  format: z.enum(["markdown", "txt", "pdf", "epub", "images", "videos"]),
   scope: z.enum(["ai", "all"]).default("all"),
 });
 
@@ -59,6 +60,29 @@ export async function POST(
     userId,
   );
   const authorName = (authorRow?.username ?? "").trim() || "用户";
+
+  if (parsed.data.format === "images" || parsed.data.format === "videos") {
+    const kind = parsed.data.format === "images" ? "image" : "video";
+    const packed = await buildSessionMediaZip(db, sessionId, kind);
+    if ("empty" in packed) {
+      return NextResponse.json(
+        { code: 400, msg: kind === "image" ? "该会话暂无图片" : "该会话暂无视频" },
+        { status: 400 },
+      );
+    }
+    if (packed.buffer.length > MAX_BYTES) {
+      return NextResponse.json({ code: 400, msg: "导出文件过大" }, { status: 400 });
+    }
+    const storyTitle = session.title?.trim() || "会话导出";
+    const suffix = kind === "image" ? "images" : "videos";
+    const fn = buildFilename(`${storyTitle}_${suffix}`, authorName, "zip");
+    return new NextResponse(new Uint8Array(packed.buffer), {
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": disposition(fn),
+      },
+    });
+  }
 
   const messages = (await db.all(
     `SELECT role, content FROM chat_messages

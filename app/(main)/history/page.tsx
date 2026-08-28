@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { App, Modal, Radio } from "antd";
+import { ChatMediaThumb } from "@/components/ChatMediaThumb";
 import { EmptyState } from "@/components/EmptyState";
 import { IconBadge, Inbox, MessagesSquare, MessageSquareText, MousePointerClick } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
@@ -23,6 +24,9 @@ type MessageItem = {
   role: "system" | "user" | "assistant";
   content: string;
   created_at: string;
+  image_url?: string | null;
+  video_url?: string | null;
+  video_status?: string | null;
 };
 
 type SessionSnapshotItem = {
@@ -50,12 +54,15 @@ export default function HistoryPage() {
   const [sessionSnapshots, setSessionSnapshots] = useState<SessionSnapshotItem[]>([]);
   const [snapshotLabel, setSnapshotLabel] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"markdown" | "txt" | "pdf" | "epub" | null>(null);
+  const [exportFormat, setExportFormat] = useState<
+    "markdown" | "txt" | "pdf" | "epub" | "images" | "videos" | null
+  >(null);
   const [exportScope, setExportScope] = useState<"ai" | "all">("all");
   const [exportBusy, setExportBusy] = useState(false);
   const [editingSnapshotId, setEditingSnapshotId] = useState("");
   const [editingSnapshotLabel, setEditingSnapshotLabel] = useState("");
   const [savingSnapshot, setSavingSnapshot] = useState(false);
+  const [removingMediaKey, setRemovingMediaKey] = useState<string | null>(null);
 
   async function loadSessions() {
     const params = new URLSearchParams();
@@ -79,6 +86,34 @@ export default function HistoryPage() {
     setMessages(list);
     setMessagePage(page);
     setHasMoreMessages(list.length >= messagePageSize);
+  }
+
+  async function removeSessionMedia(messageId: string, kind: "image" | "video") {
+    const key = `${messageId}:${kind}`;
+    if (removingMediaKey) return;
+    setRemovingMediaKey(key);
+    try {
+      const res = await fetch(`/api/chat/messages/${messageId}/media?kind=${kind}`, { method: "DELETE" });
+      const json = await res.json().catch(() => null);
+      if (json?.code !== 200) {
+        message.error(json?.msg ?? "删除失败");
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? kind === "image"
+              ? { ...m, image_url: null }
+              : { ...m, video_url: null, video_status: null }
+            : m,
+        ),
+      );
+      message.success(kind === "image" ? "已删除配图" : "已删除视频");
+    } catch {
+      message.error("删除失败");
+    } finally {
+      setRemovingMediaKey(null);
+    }
   }
 
   async function loadSessionSnapshots(sid: string) {
@@ -152,7 +187,14 @@ export default function HistoryPage() {
       const plain = /filename="([^"]+)"/i.exec(cd);
       const filename = star
         ? decodeURIComponent(star[1])
-        : plain?.[1] ?? `session-export.${exportFormat === "markdown" ? "md" : exportFormat}`;
+        : plain?.[1] ??
+          `session-export.${
+            exportFormat === "markdown"
+              ? "md"
+              : exportFormat === "images" || exportFormat === "videos"
+                ? "zip"
+                : exportFormat
+          }`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -404,13 +446,15 @@ export default function HistoryPage() {
                             导出
                           </button>
                           {exportOpen ? (
-                            <div className="absolute right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-xl border border-[#dce9ff] bg-white py-1 shadow-[0_8px_24px_rgba(63,134,245,0.14)]">
+                            <div className="absolute right-0 z-20 mt-1 min-w-[140px] overflow-hidden rounded-xl border border-[#dce9ff] bg-white py-1 shadow-[0_8px_24px_rgba(63,134,245,0.14)]">
                               {(
                                 [
                                   ["markdown", "MD"],
                                   ["txt", "TXT"],
                                   ["epub", "EPUB"],
                                   ["pdf", "PDF"],
+                                  ["images", "图片 ZIP"],
+                                  ["videos", "视频 ZIP"],
                                 ] as const
                               ).map(([fmt, label]) => (
                                 <button
@@ -483,6 +527,27 @@ export default function HistoryPage() {
                       </span>
                     </div>
                     <p className="text-sm leading-relaxed text-[#1f2a44]">{m.content}</p>
+                    {m.image_url || m.video_url || m.video_status === "generating" ? (
+                      <div className="mt-3 flex flex-wrap items-start gap-2">
+                        {m.image_url ? (
+                          <ChatMediaThumb
+                            kind="image"
+                            src={m.image_url}
+                            onRemove={m.role === "assistant" ? () => void removeSessionMedia(m.id, "image") : undefined}
+                            removing={removingMediaKey === `${m.id}:image`}
+                          />
+                        ) : null}
+                        {m.video_url || m.video_status === "generating" ? (
+                          <ChatMediaThumb
+                            kind="video"
+                            src={m.video_url || ""}
+                            generating={m.video_status === "generating"}
+                            onRemove={m.role === "assistant" ? () => void removeSessionMedia(m.id, "video") : undefined}
+                            removing={removingMediaKey === `${m.id}:video`}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
                     {msgCheckpoints.length > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-1">
                         {msgCheckpoints.map((sn) => (
@@ -662,18 +727,28 @@ export default function HistoryPage() {
           setExportFormat(null);
         }}
       >
-        <p className="mb-3 text-sm text-[#5B6B8C]">选择要写入文件的内容范围。</p>
-        <Radio.Group
-          value={exportScope}
-          onChange={(e) => setExportScope(e.target.value)}
-          className="flex flex-col gap-2"
-        >
-          <Radio value="ai" className="!cursor-pointer">只导出 AI 生成的内容</Radio>
-          <Radio value="all" className="!cursor-pointer">导出用户提问和 AI 生成的内容</Radio>
-        </Radio.Group>
-        {sessions.find((s) => s.id === selectedSessionForHistory)?.session_type === "story" ? (
-          <p className="mt-3 text-xs text-[#8A97B3]">故事会话将按大纲分章导出。</p>
-        ) : null}
+        {exportFormat === "images" || exportFormat === "videos" ? (
+          <p className="text-sm text-[#5B6B8C]">
+            {exportFormat === "images"
+              ? "将会话中已生成的全部图片打包成一个 ZIP 下载。"
+              : "将会话中已生成的全部视频打包成一个 ZIP 下载。"}
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-[#5B6B8C]">选择要写入文件的内容范围。</p>
+            <Radio.Group
+              value={exportScope}
+              onChange={(e) => setExportScope(e.target.value)}
+              className="flex flex-col gap-2"
+            >
+              <Radio value="ai" className="!cursor-pointer">只导出 AI 生成的内容</Radio>
+              <Radio value="all" className="!cursor-pointer">导出用户提问和 AI 生成的内容</Radio>
+            </Radio.Group>
+            {sessions.find((s) => s.id === selectedSessionForHistory)?.session_type === "story" ? (
+              <p className="mt-3 text-xs text-[#8A97B3]">故事会话将按大纲分章导出。</p>
+            ) : null}
+          </>
+        )}
       </Modal>
     </div>
   );

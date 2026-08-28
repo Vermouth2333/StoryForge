@@ -13,6 +13,7 @@ export type WorkKind = "story" | "character" | "world";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "草稿",
+  pending_review: "审核中",
   published: "已发布",
   archived: "已归档",
 };
@@ -199,8 +200,13 @@ export default function AuthorWorkEditor({
           });
           const pubJson = await pubRes.json();
           if (pubJson.code === 200) {
-            onStatusChange("published", pubJson.data?.publish_at ?? new Date().toISOString());
-            message.success("已保存并上架");
+            if (pubJson.data?.pending_review) {
+              onStatusChange("pending_review", null);
+              message.info(pubJson.msg ?? "已提交审核");
+            } else {
+              onStatusChange("published", pubJson.data?.publish_at ?? new Date().toISOString());
+              message.success("已保存并上架");
+            }
           } else {
             message.warning(`内容已保存，但上架失败：${pubJson.msg ?? "未知错误"}`);
           }
@@ -247,7 +253,9 @@ export default function AuthorWorkEditor({
       <p className="mb-4 text-xs text-[#5B6B8C]">
         {status === "published"
           ? "「保存修改」仅保存本地草稿，不会更新市场展示；确认无误后点击「保存并同步市场」。"
-          : "「保存修改」只存草稿；「保存并上架」会保存当前内容并发布到市场。"}
+          : status === "pending_review"
+            ? "当前正在等待管理员审核，不会出现在市场。修改后可再次「保存并上架」提交审核。"
+            : "「保存修改」只存草稿；「保存并上架」会保存当前内容并发布到市场。命中敏感词时将进入审核，通过后才上架。"}
       </p>
 
       <div

@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserId } from "@/lib/auth";
-import { isAdminUser, parseAdminUserIds } from "@/lib/admin-auth";
+import { isPlatformAdmin } from "@/lib/admin-auth";
 import { getDb } from "@/lib/db";
 
 /** GET — 审核队列列表（管理员） */
 export async function GET() {
   const userId = await getCurrentUserId();
-  if (parseAdminUserIds().length === 0) {
-    return NextResponse.json(
-      { code: 503, msg: "未配置 STORYFORGE_ADMIN_USER_IDS，管理接口不可用" },
-      { status: 503 },
-    );
+  if (!userId) {
+    return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
   }
-  if (!isAdminUser(userId)) {
+  if (!(await isPlatformAdmin(userId))) {
     return NextResponse.json({ code: 403, msg: "需要管理员权限" }, { status: 403 });
   }
 

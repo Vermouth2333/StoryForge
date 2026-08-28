@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDb, id, nowIso } from "@/lib/db";
+import { grantSignupCredits } from "@/lib/credits";
 import { ensureDefaultPersonaMask } from "@/lib/default-persona-mask";
 import { hashPassword } from "@/lib/password";
 import { getRequestIp, rateLimitAllow } from "@/lib/rate-limit";
@@ -49,8 +50,8 @@ export async function POST(req: Request) {
   const passwordHash = await hashPassword(password);
 
   await db.run(
-    `INSERT INTO users (id, email, username, avatar_url, status, password_hash, created_at, updated_at)
-     VALUES (?, NULL, ?, NULL, 'active', ?, ?, ?)`,
+    `INSERT INTO users (id, email, username, avatar_url, status, password_hash, credits, created_at, updated_at)
+     VALUES (?, NULL, ?, NULL, 'active', ?, 100, ?, ?)`,
     userId,
     username,
     passwordHash,
@@ -58,6 +59,7 @@ export async function POST(req: Request) {
     now,
   );
   await ensureDefaultPersonaMask(db, userId);
+  await grantSignupCredits(userId);
 
   const res = NextResponse.json({
     code: 200,

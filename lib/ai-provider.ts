@@ -41,7 +41,24 @@ function normalizeDeepseekBaseUrl(raw: string): string {
  * 将模型配置 + 环境变量解析为可用的 provider 凭据。
  * 未配置（缺少 Key 或端点）时返回 null，调用方应回退到占位输出。
  */
+export function resolvePlatformChatProvider(): ResolvedProvider | null {
+  const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+  if (!apiKey) return null;
+  const baseUrlRaw = process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1";
+  const baseUrl = normalizeDeepseekBaseUrl(sanitizeBaseUrl(baseUrlRaw) || baseUrlRaw);
+  const modelName = (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim() || "deepseek-chat";
+  return { baseUrl, apiKey, modelName };
+}
+
 export function resolveProvider(config: ModelConfig): ResolvedProvider | null {
+  const platform = resolvePlatformChatProvider();
+  if (platform && (config.provider === "deepseek" || config.id === "platform-deepseek")) {
+    return {
+      ...platform,
+      modelName: config.modelName || platform.modelName,
+    };
+  }
+
   const env = process.env;
 
   let baseUrlRaw: string | undefined;

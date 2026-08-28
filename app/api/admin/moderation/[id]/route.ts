@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUserId } from "@/lib/auth";
-import { isAdminUser, parseAdminUserIds } from "@/lib/admin-auth";
+import { isPlatformAdmin } from "@/lib/admin-auth";
 import {
   adminForceTakeDown,
+  adminPublishApprovedWork,
+  adminRejectWork,
   logModerationDecision,
 } from "@/lib/moderation-queue";
 import { getDb, nowIso } from "@/lib/db";
@@ -24,13 +26,7 @@ export async function PATCH(
     return NextResponse.json({ code: 401, msg: "未登录" }, { status: 401 });
   }
 
-  if (parseAdminUserIds().length === 0) {
-    return NextResponse.json(
-      { code: 503, msg: "未配置 STORYFORGE_ADMIN_USER_IDS" },
-      { status: 503 },
-    );
-  }
-  if (!isAdminUser(adminId)) {
+  if (!(await isPlatformAdmin(adminId))) {
     return NextResponse.json({ code: 403, msg: "需要管理员权限" }, { status: 403 });
   }
 
@@ -51,10 +47,17 @@ export async function PATCH(
   if (!row) {
     return NextResponse.json({ code: 404, msg: "记录不存在" }, { status: 404 });
   }
+  if (row.status !== "pending") {
+    return NextResponse.json({ code: 400, msg: "该审核项已处理" }, { status: 400 });
+  }
 
   const ts = nowIso();
-  if (parsed.data.status === "taken_down") {
+  if (parsed.data.status === "approved") {
+    await adminPublishApprovedWork(db, row.content_type, row.target_id);
+  } else if (parsed.data.status === "taken_down") {
     await adminForceTakeDown(db, row.content_type, row.target_id);
+  } else if (parsed.data.status === "rejected") {
+    await adminRejectWork(db, row.content_type, row.target_id, parsed.data.audit_remark);
   }
 
   await db.run(

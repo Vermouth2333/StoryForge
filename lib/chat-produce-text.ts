@@ -1,8 +1,8 @@
 import { logBasicSafe } from "@/lib/basic-logs";
 import { consumeStop } from "@/lib/chat-state";
-import { ModelManager, type ModelConfig } from "@/lib/model-manager";
+import { type ModelConfig } from "@/lib/model-manager";
 import {
-  resolveProvider,
+  resolvePlatformChatProvider,
   streamChat,
   type ChatMessage,
   type ResolvedProvider,
@@ -13,17 +13,15 @@ export const MAX_STREAM_MS = 180_000;
 
 /** 未配置真实模型时的占位流式输出片段 */
 export const MOCK_CHUNKS = [
-  "已收到你的创作指令，",
-  "这是一个 MVP 版本的流式回复（未配置真实模型）。",
-  "请在「设置 → 模型管理」页面配置 API Key 和模型，即可启用真实模型输出。",
-  "\n\n[前往配置 API →](/settings#ai-model-settings)",
+  "创作服务暂时不可用。",
+  "请稍后再试，或到「积分」页确认余额后重试。",
+  "\n\n[前往积分 →](/credits)",
 ];
 
 const MOCK_FAIL_CHUNKS = [
-  "已配置的模型调用失败（请检查 API Key、额度与 Base URL）。",
-  "DeepSeek 请确认 Base URL 为 https://api.deepseek.com/v1 。",
-  "也可到「设置 → AI 模型管理」核对后重试。",
-  "\n\n[前往配置 API →](/settings#ai-model-settings)",
+  "模型调用失败，请稍后重试。",
+  "若多次失败，请联系开发者检查平台服务配置。",
+  "\n\n[前往积分 →](/credits)",
 ];
 
 export type ProviderChainItem = {
@@ -32,22 +30,23 @@ export type ProviderChainItem = {
 };
 
 export async function resolveSessionProviderChain(
-  sessionId: string,
-  userId: string,
+  _sessionId: string,
+  _userId: string,
 ): Promise<ProviderChainItem[]> {
-  const primaryModelId = await ModelManager.getSessionModel(sessionId, userId);
-  const fallbackIds = await ModelManager.getFallbackModelIds(primaryModelId, userId);
-  const providerChain = (
-    await Promise.all(
-      fallbackIds.map(async (mid) => {
-        const config = await ModelManager.getModelConfig(mid, userId);
-        if (!config) return null;
-        const provider = resolveProvider(config);
-        return provider ? { config, provider } : null;
-      }),
-    )
-  ).filter((x): x is ProviderChainItem => x !== null);
-  return providerChain;
+  const provider = resolvePlatformChatProvider();
+  if (!provider) return [];
+  const config: ModelConfig = {
+    id: "platform-deepseek",
+    name: "平台 DeepSeek",
+    provider: "deepseek",
+    baseUrl: provider.baseUrl,
+    apiKey: provider.apiKey,
+    modelName: provider.modelName,
+    defaultTemperature: 0.7,
+    maxTokens: 4096,
+    enabled: true,
+  };
+  return [{ config, provider }];
 }
 
 /** 按降级链流式产出助手文本；调用方负责写入 SSE 与落库。 */
