@@ -163,6 +163,7 @@ export function ChatWorkspace({
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [videoStatus, setVideoStatus] = useState<Record<string, string | null>>({});
+  const [videoErrors, setVideoErrors] = useState<Record<string, string>>({});
   const [snapshotsBySession, setSnapshotsBySession] = useState<Record<string, SnapshotLite[]>>({});
   const [highlightMsgId, setHighlightMsgId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -221,6 +222,7 @@ export function ChatWorkspace({
     setImageUrls({});
     setVideoUrls({});
     setVideoStatus({});
+    setVideoErrors({});
     setImageBusyId(null);
     setRemovingMediaKey(null);
     setEditingId(null);
@@ -338,6 +340,7 @@ export function ChatWorkspace({
     const already = (videoStatus[msg.id] || msg.video_status) === "generating";
     if (already) return;
     setVideoStatus((prev) => ({ ...prev, [msg.id]: "generating" }));
+    setVideoErrors((prev) => ({ ...prev, [msg.id]: "" }));
     try {
       const res = await fetch(`/api/chat/messages/${msg.id}/generate-video`, { method: "POST" });
       const json = await res.json().catch(() => null);
@@ -379,6 +382,11 @@ export function ChatWorkspace({
               if (prev[mid] === "") return prev;
               return prev[mid] === json.data.video_url ? prev : { ...prev, [mid]: json.data.video_url as string };
             });
+          }
+          if (typeof json.data?.video_error === "string") {
+            setVideoErrors((prev) =>
+              prev[mid] === json.data.video_error ? prev : { ...prev, [mid]: json.data.video_error as string },
+            );
           }
         }),
       );
@@ -676,6 +684,7 @@ export function ChatWorkspace({
                           src={videoUrl}
                           generating={videoGenerating}
                           failed={videoFailed && !videoUrl}
+                          failedReason={videoErrors[msg.id] || msg.video_error}
                           onRemove={() => void removeMediaFor(msg, "video")}
                           removing={removingMediaKey === `${msg.id}:video`}
                         />

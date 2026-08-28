@@ -942,6 +942,9 @@ select.sf-input {
 .sf-nav-label--my {
   background-image: linear-gradient(100deg, #4f46e5 0%, #a5b4fc 50%, #4f46e5 100%);
 }
+.sf-nav-label--stats {
+  background-image: linear-gradient(100deg, #0f766e 0%, #5eead4 50%, #0f766e 100%);
+}
 .sf-nav-label--history {
   background-image: linear-gradient(100deg, #0369a1 0%, #38bdf8 50%, #0369a1 100%);
 }
@@ -970,6 +973,9 @@ select.sf-input {
 .sf-nav-label--my.is-active {
   background-image: linear-gradient(100deg, #4f46e5 0%, #a5b4fc 45%, #e0e7ff 70%, #4f46e5 100%);
 }
+.sf-nav-label--stats.is-active {
+  background-image: linear-gradient(100deg, #0f766e 0%, #5eead4 45%, #ccfbf1 70%, #0f766e 100%);
+}
 .sf-nav-label--history.is-active {
   background-image: linear-gradient(100deg, #0369a1 0%, #38bdf8 45%, #bae6fd 70%, #0369a1 100%);
 }
@@ -996,6 +1002,9 @@ a:hover .sf-nav-label--compose:not(.is-active) {
 }
 a:hover .sf-nav-label--my:not(.is-active) {
   background-image: linear-gradient(100deg, #6366f1 0%, #c7d2fe 50%, #6366f1 100%);
+}
+a:hover .sf-nav-label--stats:not(.is-active) {
+  background-image: linear-gradient(100deg, #0d9488 0%, #99f6e4 50%, #0d9488 100%);
 }
 a:hover .sf-nav-label--history:not(.is-active) {
   background-image: linear-gradient(100deg, #0284c7 0%, #7dd3fc 50%, #0284c7 100%);
@@ -1088,6 +1097,51 @@ a:hover .sf-nav-label--moderation:not(.is-active) {
 .sf-unread-badge span {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar-button,
+.sf-sidebar-scroll::-webkit-scrollbar-button:start:decrement,
+.sf-sidebar-scroll::-webkit-scrollbar-button:end:increment,
+.sf-sidebar-scroll::-webkit-scrollbar-button:vertical:start:decrement,
+.sf-sidebar-scroll::-webkit-scrollbar-button:vertical:end:increment,
+.sf-sidebar-scroll::-webkit-scrollbar-button:vertical:start:increment,
+.sf-sidebar-scroll::-webkit-scrollbar-button:vertical:end:decrement,
+.sf-sidebar-scroll::-webkit-scrollbar-button:horizontal:start:decrement,
+.sf-sidebar-scroll::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #c4c9d4;
+  border: none;
+  border-radius: 999px;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9aa3b2;
+}
+
+.sf-sidebar-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+@supports (-moz-appearance: none) {
+  .sf-sidebar-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #c4c9d4 transparent;
+  }
 }
 
 .sf-nav-admin-split {

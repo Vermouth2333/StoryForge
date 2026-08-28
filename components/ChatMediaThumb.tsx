@@ -11,6 +11,7 @@ export function ChatMediaThumb(props: {
   src: string;
   generating?: boolean;
   failed?: boolean;
+  failedReason?: string | null;
   onRemove?: () => void;
   removing?: boolean;
 }) {
@@ -71,7 +72,11 @@ export function ChatMediaThumb(props: {
           </button>
         ) : null}
       </div>
-      {props.failed ? <p className="text-[11px] text-[#8B2E2E]">生成失败，可重试</p> : null}
+      {props.failed ? (
+        <p className="max-w-[220px] text-[11px] leading-snug text-[#8B2E2E]">
+          {props.failedReason?.trim() || "生成失败，可重试"}
+        </p>
+      ) : null}
       </div>
       <Modal
         centered

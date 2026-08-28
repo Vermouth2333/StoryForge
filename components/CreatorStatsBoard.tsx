@@ -23,7 +23,7 @@ const METRICS: Array<{
   { key: "favorites", label: "收藏", hint: "收藏了你的作品", icon: Star },
 ];
 
-export function CreatorStatsBoard() {
+export function CreatorStatsBoard({ heading = true }: { heading?: boolean }) {
   const [range, setRange] = useState<StatsRange>("day");
   const [totals, setTotals] = useState<StatsTotals | null>(null);
   const [series, setSeries] = useState<StatsBucket[]>([]);
@@ -57,11 +57,13 @@ export function CreatorStatsBoard() {
 
   return (
     <div className="sf-card p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className={`mb-4 flex flex-wrap items-center gap-3 ${heading ? "justify-between" : "justify-end"}`}>
+      {heading ? (
         <div>
           <h3 className="text-lg font-bold text-[#1f2a44]">作品数据看板</h3>
           <p className="mt-1 text-xs text-[#5B6B8C]">统计有多少人与你的作品互动（按所选周期）</p>
         </div>
+      ) : null}
         <div className="flex gap-2">
           {RANGES.map((r) => {
             const active = range === r.id;

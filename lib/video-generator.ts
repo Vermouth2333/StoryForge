@@ -3,8 +3,8 @@ import { getDb, id, nowIso } from "@/lib/db";
 import type { ImageModelConfig } from "@/lib/image-model";
 import { saveRawMediaFile } from "@/lib/media-storage";
 
-const POLL_MS = 5000;
-const MAX_POLLS = 50;
+const POLL_MS = 8_000;
+const MAX_POLLS = 90;
 
 function buildVideoPrompt(reply: string) {
   const cleaned = reply.replace(/\s+/g, " ").trim().slice(0, 500);
@@ -44,7 +44,7 @@ export async function generateSceneVideo(args: {
       body: JSON.stringify({
         model: args.config.videoModelName,
         prompt,
-        image_size: "1280x720",
+        image_size: "960x960",
       }),
     });
     if (!submitRes.ok) {
@@ -62,6 +62,7 @@ export async function generateSceneVideo(args: {
   }
 
   let videoUrl = "";
+  let lastStatus = "InQueue";
   for (let i = 0; i < MAX_POLLS; i++) {
     await sleep(POLL_MS);
     if (!(await videoJobStillActive(args.messageId, requestId))) {
@@ -82,13 +83,21 @@ export async function generateSceneVideo(args: {
     const statusJson = (await statusRes.json()) as {
       status?: string;
       reason?: string;
+      data?: {
+        status?: string;
+        reason?: string;
+        results?: { videos?: Array<{ url?: string }> };
+      };
       results?: { videos?: Array<{ url?: string }> };
     };
-    if (statusJson.status === "Failed") {
-      throw new Error(statusJson.reason || "视频生成失败");
+    const payload = statusJson.data ?? statusJson;
+    const status = String(payload.status ?? "").trim();
+    lastStatus = status || lastStatus;
+    if (status.toLowerCase() === "failed") {
+      throw new Error(payload.reason || statusJson.reason || "视频生成失败");
     }
-    if (statusJson.status === "Succeed") {
-      videoUrl = statusJson.results?.videos?.[0]?.url ?? "";
+    if (status.toLowerCase() === "succeed") {
+      videoUrl = payload.results?.videos?.[0]?.url ?? statusJson.results?.videos?.[0]?.url ?? "";
       break;
     }
   }
@@ -96,7 +105,7 @@ export async function generateSceneVideo(args: {
     if (!(await videoJobStillActive(args.messageId, requestId))) {
       return { discarded: true };
     }
-    throw new Error("视频生成超时，请稍后重试");
+    throw new Error(`视频生成超时（最后状态：${lastStatus || "未知"}），请稍后重试`);
   }
 
   if (!(await videoJobStillActive(args.messageId, requestId))) {

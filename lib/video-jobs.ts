@@ -4,7 +4,7 @@ import { resolvePlatformMediaConfig } from "@/lib/image-model";
 import { generateSceneVideo } from "@/lib/video-generator";
 
 const inflight = new Set<string>();
-const STALE_MS = 12 * 60 * 1000;
+const STALE_MS = 16 * 60 * 1000;
 
 export async function recoverStaleVideoJob(messageId: string, userId: string) {
   const db = await getDb();
@@ -61,6 +61,7 @@ export function enqueueVideoJob(args: {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "生成视频失败";
+      console.error("[video job]", args.messageId, msg);
       await failVideoJob(args.messageId, args.userId, msg);
     } finally {
       inflight.delete(args.messageId);

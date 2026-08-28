@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BookOpen, Bell, Globe2, IconBadge, Star, UserRound } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
-import { CreatorStatsBoard } from "@/components/CreatorStatsBoard";
 import { replayHeaders } from "@/lib/replay-headers";
 import { MINE_PAGE_SIZE } from "@/lib/mine-list-query";
 import { useWorkConfirm } from "@/hooks/use-work-confirm";
@@ -412,10 +411,8 @@ export default function MyPage() {
     <div className="space-y-5">
       <PageHero
         title="我的创作空间"
-        subtitle="管理你的故事、角色和世界，查看数据、通知与收藏"
+        subtitle="管理你的故事、角色和世界，查看通知与收藏"
       />
-
-      <CreatorStatsBoard />
 
       {/* 通知和收藏 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

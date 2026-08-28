@@ -93,6 +93,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const marketActive = pathname.startsWith("/market");
   const composeActive = pathname.startsWith("/compose");
   const myActive = pathname.startsWith("/my");
+  const statsActive = pathname.startsWith("/stats");
   const historyActive = pathname.startsWith("/history");
   const creditsManageActive = pathname.startsWith("/developer");
   const moderationActive = pathname.startsWith("/admin/moderation");
@@ -143,7 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside
         id="mobile-nav-drawer"
         className={[
-          "fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:sticky md:top-0 md:z-0 md:h-screen md:max-w-none md:translate-x-0 md:shadow-none",
+          "sf-sidebar-scroll fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:sticky md:top-0 md:z-0 md:h-screen md:max-w-none md:translate-x-0 md:shadow-none",
           "md:w-16 md:min-w-16 lg:w-64 lg:min-w-64",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         ].join(" ")}
@@ -159,7 +160,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col">
           <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
             <Link
               href={profile ? "/market" : "/"}
@@ -231,6 +232,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--my ${myActive ? "is-active" : ""}`}
                   >
                     我的
+                  </span>
+                </Link>
+                <Link
+                  href="/stats"
+                  title="数据看板"
+                  className={navClass(statsActive)}
+                  onClick={closeMobile}
+                >
+                  <IconBadge
+                    icon={NavIcons.stats}
+                    tone={NavTones.stats}
+                    size="md"
+                    active={statsActive}
+                  />
+                  <span
+                    className={`inline md:hidden lg:inline truncate sf-nav-label sf-nav-label--stats ${statsActive ? "is-active" : ""}`}
+                  >
+                    数据看板
                   </span>
                 </Link>
                 <Link
