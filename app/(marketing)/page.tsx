@@ -5,7 +5,7 @@ import { getCurrentUserId } from "@/lib/auth";
 export const metadata = {
   title: "StoryForge · AI 角色互动平台",
   description:
-    "用人设面具走进故事：作者创作并发布故事卡、角色卡与世界卡，读者下载到本地与 NPC 互动，好感随对话生长。",
+    "用人设面具走进故事：市场下载故事、角色与世界卡，平台提供对话续写、插画与配视频，积分按次消费，无需自备模型密钥。",
 };
 
 export default async function HomePage() {

@@ -346,7 +346,7 @@ export function ChatWorkspace({
       const json = await res.json().catch(() => null);
       if (json?.code === 200) {
         setVideoStatus((prev) => ({ ...prev, [msg.id]: "generating" }));
-        message.success("视频开始生成，可离开页面，稍后回来查看");
+        message.success(json.msg ?? "视频开始生成，大约需要 10–20 分钟，可离开页面稍后回来");
       } else if (json?.code === 402) {
         setVideoStatus((prev) => ({ ...prev, [msg.id]: msg.video_status ?? null }));
         message.error(json.msg ?? "积分不足");

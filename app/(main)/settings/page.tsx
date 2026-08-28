@@ -4,7 +4,7 @@ import { App } from "antd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bot, IconBadge, Lock, AlertTriangle, UserRound } from "@/components/icons";
+import { IconBadge, Lock, AlertTriangle, UserRound } from "@/components/icons";
 import { PageHero } from "@/components/PageHero";
 import { replayHeaders } from "@/lib/replay-headers";
 
@@ -17,7 +17,6 @@ type Profile = {
   age: number | null;
   phone_masked: string | null;
   bio: string | null;
-  credits?: number;
 };
 
 export default function SettingsPage() {
@@ -40,7 +39,6 @@ export default function SettingsPage() {
     "anonymize_published",
   );
   const [deleteBusy, setDeleteBusy] = useState(false);
-  const [credits, setCredits] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -57,7 +55,6 @@ export default function SettingsPage() {
         setGender(p.gender ?? "");
         setAge(p.age ?? "");
         setBio(p.bio ?? "");
-        setCredits(typeof p.credits === "number" ? p.credits : null);
       }
       setLoading(false);
     })();
@@ -308,19 +305,6 @@ export default function SettingsPage() {
             <span className="text-green-500 text-sm font-medium">✓ 正常</span>
           </div>
         </div>
-      </div>
-
-      <div id="credits-settings" className="sf-card scroll-mt-24 p-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] mb-2 flex items-center gap-2">
-          <IconBadge icon={Bot} tone="ai" size="sm" /> 创作积分
-        </h3>
-        <p className="text-sm text-[#5B6B8C] mb-4">
-          对话、配图与配视频由平台统一提供模型，按次消耗积分。当前余额
-          <span className="mx-1 font-semibold text-[#1F2A44]">{credits ?? "—"}</span>。
-        </p>
-        <Link href="/credits" className="sf-btn-primary inline-flex no-underline">
-          查看积分与充值
-        </Link>
       </div>
 
       {/* 危险操作 */}

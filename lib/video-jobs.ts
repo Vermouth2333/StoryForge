@@ -4,7 +4,7 @@ import { resolvePlatformMediaConfig } from "@/lib/image-model";
 import { generateSceneVideo } from "@/lib/video-generator";
 
 const inflight = new Set<string>();
-const STALE_MS = 16 * 60 * 1000;
+const STALE_MS = 32 * 60 * 1000;
 
 export async function recoverStaleVideoJob(messageId: string, userId: string) {
   const db = await getDb();

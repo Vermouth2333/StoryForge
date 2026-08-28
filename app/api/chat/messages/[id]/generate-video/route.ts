@@ -114,7 +114,7 @@ export async function POST(
     return NextResponse.json({
       code: 200,
       data: { status: "generating", cost: CREDIT_COSTS.video },
-      msg: "视频仍在生成中",
+      msg: "视频仍在生成中，大约还需要 10–20 分钟",
     });
   }
 
@@ -147,6 +147,6 @@ export async function POST(
   return NextResponse.json({
     code: 200,
     data: { status: "generating", cost: CREDIT_COSTS.video },
-    msg: "已开始生成视频",
+    msg: "已开始生成约 30 秒视频，大约需要 10–20 分钟，可离开页面稍后回来",
   });
 }

@@ -1,14 +1,7 @@
 import { processAndSaveCover } from "@/lib/cover-processing";
 import { getDb, id, nowIso } from "@/lib/db";
 import type { ImageModelConfig } from "@/lib/image-model";
-
-function buildScenePrompt(reply: string) {
-  const cleaned = reply.replace(/\s+/g, " ").trim().slice(0, 800);
-  return [
-    "高质量小说场景插画，电影感光影，精致细节，不要文字、水印、字幕或对话框。",
-    `场景内容：${cleaned}`,
-  ].join("\n");
-}
+import { buildIllustrationImagePrompt } from "@/lib/scene-style";
 
 async function bufferFromImagePayload(item: { url?: string; b64_json?: string }): Promise<Buffer> {
   if (item.b64_json) {
@@ -30,7 +23,7 @@ export async function generateSceneImage(args: {
   replyContent: string;
   config: ImageModelConfig;
 }): Promise<{ assetId: string; imageUrl: string }> {
-  const prompt = buildScenePrompt(args.replyContent);
+  const prompt = buildIllustrationImagePrompt(args.replyContent);
   const res = await fetch(`${args.config.baseUrl}/images/generations`, {
     method: "POST",
     headers: {

@@ -10,31 +10,32 @@ import { ShowcaseStage, type ShowcaseItem } from "@/components/marketing/Showcas
 const NAV = [
   { href: "#assets", label: "内容类型" },
   { href: "#features", label: "能做什么" },
+  { href: "#studio", label: "创作能力" },
   { href: "#flow", label: "如何开始" },
 ];
 
 const FEATURES: ShowcaseItem[] = [
   {
     title: "人设面具",
-    desc: "用自己的身份走进故事。面具只属于你，不上架、也不售卖。",
+    desc: "用自己的身份走进故事。面具只属于你：可改设定与开场，但不上架、也不售卖，避免把「我是谁」变成商品。",
     sticker: "paper",
     tilt: "left",
   },
   {
     title: "故事是舞台",
-    desc: "故事里的角色都是 NPC。戴上面具进场，故事会先开口，再由你续写。",
+    desc: "故事里的角色都是 NPC。戴上面具进场后，故事会先开口；你用行动续写，关系与剧情一起往前走。",
     sticker: "blue",
     tilt: "right",
   },
   {
     title: "好感会生长",
-    desc: "对话会推进好感档位；每个 NPC 各自累积，语气随关系亲近而悄然变化。",
+    desc: "每次对话都会推进好感档位；每个 NPC 各自累积。语气、称呼和态度会随关系从陌生走向羁绊。",
     sticker: "soft",
     tilt: "left",
   },
   {
     title: "下载到本地",
-    desc: "市场提供的是下载，不是在线引用。作者改稿或下架，都不影响你已保存的版本。",
+    desc: "市场给的是一份你自己的副本，不是在线引用。作者改稿、下架或删作，都不影响你已经保存的版本。",
     sticker: "sky",
     tilt: "right",
   },
@@ -43,29 +44,29 @@ const FEATURES: ShowcaseItem[] = [
 const STEPS: ShowcaseItem[] = [
   {
     kicker: "01",
-    title: "发现",
-    desc: "在市场浏览故事、角色与世界，点进详情了解设定。",
+    title: "发现&创作",
+    desc: "在市场浏览故事、角色与世界，点进详情看简介、标签，确认这是你想进入的舞台，或者你也可以创建属于你的故事",
     sticker: "soft",
     tilt: "left",
   },
   {
     kicker: "02",
     title: "下载",
-    desc: "免费下载到「我的」。内容成为你的本地副本。",
+    desc: "把作品存进「我的」。之后的对话、配图和导出都基于这份本地副本。",
     sticker: "paper",
     tilt: "right",
   },
   {
     kicker: "03",
     title: "戴上面具",
-    desc: "选择人设面具作为「我」。进入故事前，先确认你要扮演的身份。",
+    desc: "选择人设面具作为「我」。进入故事前先确认身份，故事中的角色会按这个身份来回应你。",
     sticker: "blue",
     tilt: "left",
   },
   {
     kicker: "04",
     title: "互动",
-    desc: "作品先开口。对话推进剧情，好感从陌生走向羁绊。",
+    desc: "作品先开口。你可以续写、配图、把回复做成短视频，也可以随时导出这次冒险。",
     sticker: "sky",
     tilt: "right",
   },
@@ -75,30 +76,49 @@ const ASSETS: ShowcaseItem[] = [
   {
     kicker: "可发布到市场",
     title: "故事卡",
-    desc: "可体验的剧本",
+    desc: "带开场与角色关系的可体验剧本，读者戴面具进入后由故事先开口。",
     sticker: "paper",
     tilt: "left",
   },
   {
     kicker: "可发布到市场",
     title: "角色卡",
-    desc: "故事中的 NPC",
+    desc: "可单独对话的 NPC：性格、问候语和封面都会带到聊天里。",
     sticker: "blue",
     tilt: "right",
   },
   {
     kicker: "可发布到市场",
     title: "世界卡",
-    desc: "舞台与设定集",
+    desc: "舞台与设定集，用来托住故事背景，也可直接进去探索。",
     sticker: "sky",
     tilt: "left",
   },
   {
     kicker: "私有 · 不可上架",
     title: "人设面具",
-    desc: "你的私有身份",
+    desc: "你的私有身份，只用于进场扮演，不会出现在市场货架上。",
     sticker: "soft",
     tilt: "right",
+  },
+];
+
+const STUDIO = [
+  {
+    title: "对话续写",
+    desc: "登录即可聊，不必自己填模型地址或密钥。回复流式出现，按次扣除积分。",
+  },
+  {
+    title: "场景插画",
+    desc: "一键画成小说插画：二次元绘本或厚涂质感，避免真人写实和字幕水印。",
+  },
+  {
+    title: "剧情短视频",
+    desc: "按对话拆成约六段动态再接成约 30 秒短片，跟封面或已生成配图同一套造型与配色。",
+  },
+  {
+    title: "积分即可创作",
+    desc: "注册即送体验积分。对话、配图、配视频各自计价。",
   },
 ];
 
@@ -122,7 +142,7 @@ export function LandingPage() {
           <Link href="/" className="no-underline" aria-label="StoryForge 官网">
             <BrandLogo size={32} />
           </Link>
-          <nav className="hidden items-center gap-7 text-sm font-medium text-[#5B6B8C] md:flex">
+        <nav className="hidden items-center gap-5 text-sm font-medium text-[#5B6B8C] lg:gap-7 md:flex">
             {NAV.map((item) => (
               <a key={item.href} href={item.href} className="sf-landing-nav-link">
                 {item.label}
@@ -186,8 +206,7 @@ export function LandingPage() {
               走进别人写的世界。
             </h1>
             <p className="mt-5 max-w-xl text-base leading-7 text-[#5B6B8C] md:text-lg">
-              作者在这里创作故事、角色与世界，读者则戴上自己的面具走进其中。
-              不是对着空白对话框，而是选身份、进场景、去冒险。
+              作者在这里创作故事、角色与世界，读者则戴上自己的面具走进其中。不是对着空白对话框，而是选身份、进场景、去冒险。
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link href="/register" className="sf-landing-btn sf-landing-btn-primary no-underline">
@@ -204,7 +223,11 @@ export function LandingPage() {
         </section>
 
         <section id="assets" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
-          <SectionHead kicker="内容模型" title="三种可上架，一种只属于你" />
+          <SectionHead
+            kicker="内容模型"
+            title="三种可上架，一种只属于你"
+            desc="故事、角色、世界可以发布到市场被下载；人设面具只用来扮演，永远不会出现在货架上。"
+          />
           <ShowcaseStage items={ASSETS} variant="assets" />
         </section>
 
@@ -212,16 +235,32 @@ export function LandingPage() {
           <SectionHead
             kicker="产品能力"
             title="从发现到相遇，一整条互动链路"
-            desc="从发现、下载，到戴上面具登场，每一步都清晰可控。"
+            desc="不是对着空白对话框开聊：先选作品、再选身份，进场后由故事开口。对话会推进好感，你的本地副本也不会被作者改稿带走。"
           />
           <ShowcaseStage items={FEATURES} variant="features" />
+        </section>
+
+        <section id="studio" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
+          <SectionHead
+            kicker="创作能力"
+            title="你负责把故事演下去"
+            desc="对话、插画和短视频"
+          />
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {STUDIO.map((item) => (
+              <article key={item.title} className="sf-landing-bento rounded-2xl p-5 md:p-6">
+                <h3 className="text-lg font-semibold text-[#1F2A44]">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#5B6B8C] md:text-base">{item.desc}</p>
+              </article>
+            ))}
+          </div>
         </section>
 
         <section id="flow" className="mx-auto max-w-6xl px-4 py-8 md:py-16">
           <SectionHead
             kicker="使用路径"
             title="四步进入故事"
-            desc="未登录也能先逛市场；登录后，下载、创作、对话全部打开。"
+            desc="未登录也能先逛市场；注册后下载、戴面具、对话、配图和配视频会一起打开。"
           />
           <ShowcaseStage items={STEPS} variant="flow" />
         </section>
@@ -236,7 +275,7 @@ export function LandingPage() {
               <p className="text-xs font-semibold tracking-[0.2em] text-[#5B9DFF]">开始冒险</p>
               <h2 className="mt-2 text-2xl font-bold text-[#1F2A44] md:text-3xl">准备好相遇了吗？</h2>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[#5B6B8C] md:text-base">
-                注册后进入市场，下载一张故事或角色卡，戴上面具即可开始。接入你的 AI 模型，即可体验完整对话。
+                注册后进入市场，下载一张故事或角色卡，戴上面具即可开始。平台已接好对话与影像模型，有积分就能聊、能画、能做成短视频。
               </p>
             </div>
             <div className="relative flex flex-wrap items-center gap-3">

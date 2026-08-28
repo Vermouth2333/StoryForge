@@ -25,6 +25,7 @@
 *.pem
 /storage/
 /backups/
+/.tmp/
 
 # debug
 npm-debug.log*
