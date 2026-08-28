@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { App, Modal, Radio } from "antd";
+import { Download } from "lucide-react";
 import { ChatMediaThumb } from "@/components/ChatMediaThumb";
 import { EmptyState } from "@/components/EmptyState";
 import { IconBadge, Inbox, MessagesSquare, MessageSquareText, MousePointerClick } from "@/components/icons";
@@ -27,6 +28,19 @@ type MessageItem = {
   image_url?: string | null;
   video_url?: string | null;
   video_status?: string | null;
+};
+
+type SessionMediaItem = {
+  asset_id: string;
+  message_id: string;
+  file_name: string;
+  mime_type: string;
+  url: string;
+};
+
+type SessionMediaPayload = {
+  images: SessionMediaItem[];
+  videos: SessionMediaItem[];
 };
 
 type SessionSnapshotItem = {
@@ -59,6 +73,11 @@ export default function HistoryPage() {
   >(null);
   const [exportScope, setExportScope] = useState<"ai" | "all">("all");
   const [exportBusy, setExportBusy] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaZipBusy, setMediaZipBusy] = useState<"images" | "videos" | "media" | null>(null);
+  const [mediaItemBusy, setMediaItemBusy] = useState<string | null>(null);
+  const [sessionMedia, setSessionMedia] = useState<SessionMediaPayload | null>(null);
   const [editingSnapshotId, setEditingSnapshotId] = useState("");
   const [editingSnapshotLabel, setEditingSnapshotLabel] = useState("");
   const [savingSnapshot, setSavingSnapshot] = useState(false);
@@ -212,6 +231,109 @@ export default function HistoryPage() {
     }
   }
 
+  function filenameFromDisposition(cd: string, fallback: string) {
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+    const plain = /filename="([^"]+)"/i.exec(cd);
+    if (star) return decodeURIComponent(star[1]);
+    if (plain?.[1]) return plain[1];
+    return fallback;
+  }
+
+  function saveBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function openSessionMedia() {
+    if (!selectedSessionForHistory) return;
+    setExportOpen(false);
+    setMediaOpen(true);
+    setMediaLoading(true);
+    try {
+      const res = await fetch(`/api/chat/sessions/${selectedSessionForHistory}/media`);
+      const json = await res.json().catch(() => null);
+      if (json?.code === 200 && json.data) {
+        setSessionMedia({
+          images: json.data.images ?? [],
+          videos: json.data.videos ?? [],
+        });
+      } else {
+        setSessionMedia({ images: [], videos: [] });
+        message.error(json?.msg ?? "加载媒体失败");
+      }
+    } catch {
+      setSessionMedia({ images: [], videos: [] });
+      message.error("加载媒体失败");
+    } finally {
+      setMediaLoading(false);
+    }
+  }
+
+  async function downloadMediaZip(kind: "images" | "videos" | "media") {
+    if (!selectedSessionForHistory) return;
+    setMediaZipBusy(kind);
+    try {
+      const res = await fetch(`/api/chat/sessions/${selectedSessionForHistory}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format: kind, scope: "all" }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        message.error(err?.msg ?? "下载失败");
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("Content-Disposition") ?? "";
+      saveBlob(blob, filenameFromDisposition(cd, `${kind}.zip`));
+      message.success("已开始下载");
+    } catch {
+      message.error("下载失败");
+    } finally {
+      setMediaZipBusy(null);
+    }
+  }
+
+  async function downloadMediaItem(item: SessionMediaItem) {
+    setMediaItemBusy(item.asset_id);
+    try {
+      const res = await fetch(item.url);
+      if (!res.ok) {
+        message.error("下载失败");
+        return;
+      }
+      const blob = await res.blob();
+      const ext =
+        pathExtFromName(item.file_name) ||
+        (item.mime_type.includes("mp4")
+          ? ".mp4"
+          : item.mime_type.includes("png")
+            ? ".png"
+            : item.mime_type.includes("webp")
+              ? ".webp"
+              : item.mime_type.includes("jpeg") || item.mime_type.includes("jpg")
+                ? ".jpg"
+                : "");
+      const base = (item.file_name || item.asset_id).replace(/\.[^.]+$/, "");
+      saveBlob(blob, `${base}${ext || ""}`);
+    } catch {
+      message.error("下载失败");
+    } finally {
+      setMediaItemBusy(null);
+    }
+  }
+
+  function pathExtFromName(name: string) {
+    const i = name.lastIndexOf(".");
+    return i >= 0 ? name.slice(i) : "";
+  }
+
   function jumpToHistoryMessage(messageId?: string) {
     if (!messageId) {
       message.info("该检查点没有关联的对话节点");
@@ -318,6 +440,8 @@ export default function HistoryPage() {
   useEffect(() => {
     if (!selectedSessionForHistory) return;
     setExportOpen(false);
+    setMediaOpen(false);
+    setSessionMedia(null);
     setEditingSnapshotId("");
     /* eslint-disable react-hooks/set-state-in-effect */
     void loadMessages(selectedSessionForHistory, 1);
@@ -437,6 +561,13 @@ export default function HistoryPage() {
                     const href = selected ? getContinueSessionHref(selected) : null;
                     return (
                       <>
+                        <button
+                          type="button"
+                          className="sf-tag cursor-pointer"
+                          onClick={() => void openSessionMedia()}
+                        >
+                          查看
+                        </button>
                         <div className="relative">
                           <button
                             type="button"
@@ -713,6 +844,117 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
+
+      <Modal
+        centered
+        title="会话图片与视频"
+        open={mediaOpen}
+        onCancel={() => setMediaOpen(false)}
+        footer={null}
+        width={720}
+        destroyOnHidden
+      >
+        {mediaLoading ? (
+          <div className="sf-loading min-h-40" />
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-[#5B6B8C]">
+                点击缩略图可放大看图或播放视频。可单张下载，也可打包全部。
+              </p>
+              <button
+                type="button"
+                className="sf-btn-primary inline-flex items-center gap-1.5 text-sm"
+                disabled={
+                  Boolean(mediaZipBusy) ||
+                  !sessionMedia ||
+                  (sessionMedia.images.length === 0 && sessionMedia.videos.length === 0)
+                }
+                onClick={() => void downloadMediaZip("media")}
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden />
+                {mediaZipBusy === "media" ? "打包中…" : "全部下载"}
+              </button>
+            </div>
+
+            <section>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold text-[#1F2A44]">
+                  图片
+                  <span className="ml-1 font-normal text-[#5B6B8C]">
+                    ({sessionMedia?.images.length ?? 0})
+                  </span>
+                </h4>
+                <button
+                  type="button"
+                  className="sf-tag text-xs"
+                  disabled={Boolean(mediaZipBusy) || !sessionMedia?.images.length}
+                  onClick={() => void downloadMediaZip("images")}
+                >
+                  {mediaZipBusy === "images" ? "打包中…" : "下载本组"}
+                </button>
+              </div>
+              {sessionMedia?.images.length ? (
+                <div className="flex flex-wrap gap-3">
+                  {sessionMedia.images.map((item) => (
+                    <div key={item.asset_id} className="flex w-[100px] flex-col items-stretch gap-1">
+                      <ChatMediaThumb kind="image" src={item.url} />
+                      <button
+                        type="button"
+                        className="sf-tag justify-center text-xs"
+                        disabled={mediaItemBusy === item.asset_id}
+                        onClick={() => void downloadMediaItem(item)}
+                      >
+                        {mediaItemBusy === item.asset_id ? "…" : "下载"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#5B6B8C]">该会话暂无图片</p>
+              )}
+            </section>
+
+            <section>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h4 className="text-sm font-semibold text-[#1F2A44]">
+                  视频
+                  <span className="ml-1 font-normal text-[#5B6B8C]">
+                    ({sessionMedia?.videos.length ?? 0})
+                  </span>
+                </h4>
+                <button
+                  type="button"
+                  className="sf-tag text-xs"
+                  disabled={Boolean(mediaZipBusy) || !sessionMedia?.videos.length}
+                  onClick={() => void downloadMediaZip("videos")}
+                >
+                  {mediaZipBusy === "videos" ? "打包中…" : "下载本组"}
+                </button>
+              </div>
+              {sessionMedia?.videos.length ? (
+                <div className="flex flex-wrap gap-3">
+                  {sessionMedia.videos.map((item) => (
+                    <div key={item.asset_id} className="flex w-[100px] flex-col items-stretch gap-1">
+                      <ChatMediaThumb kind="video" src={item.url} />
+                      <button
+                        type="button"
+                        className="sf-tag justify-center text-xs"
+                        disabled={mediaItemBusy === item.asset_id}
+                        onClick={() => void downloadMediaItem(item)}
+                      >
+                        {mediaItemBusy === item.asset_id ? "…" : "下载"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#5B6B8C]">该会话暂无视频</p>
+              )}
+            </section>
+          </div>
+        )}
+      </Modal>
 
       <Modal
         centered

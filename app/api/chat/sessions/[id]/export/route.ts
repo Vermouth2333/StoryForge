@@ -15,7 +15,7 @@ import { buildSessionMediaZip } from "@/lib/session-media-zip";
 const MAX_BYTES = 50 * 1024 * 1024;
 
 const bodySchema = z.object({
-  format: z.enum(["markdown", "txt", "pdf", "epub", "images", "videos"]),
+  format: z.enum(["markdown", "txt", "pdf", "epub", "images", "videos", "media"]),
   scope: z.enum(["ai", "all"]).default("all"),
 });
 
@@ -61,20 +61,20 @@ export async function POST(
   );
   const authorName = (authorRow?.username ?? "").trim() || "用户";
 
-  if (parsed.data.format === "images" || parsed.data.format === "videos") {
-    const kind = parsed.data.format === "images" ? "image" : "video";
+  if (parsed.data.format === "images" || parsed.data.format === "videos" || parsed.data.format === "media") {
+    const kind =
+      parsed.data.format === "images" ? "image" : parsed.data.format === "videos" ? "video" : "all";
     const packed = await buildSessionMediaZip(db, sessionId, kind);
     if ("empty" in packed) {
-      return NextResponse.json(
-        { code: 400, msg: kind === "image" ? "该会话暂无图片" : "该会话暂无视频" },
-        { status: 400 },
-      );
+      const emptyMsg =
+        kind === "image" ? "该会话暂无图片" : kind === "video" ? "该会话暂无视频" : "该会话暂无图片或视频";
+      return NextResponse.json({ code: 400, msg: emptyMsg }, { status: 400 });
     }
     if (packed.buffer.length > MAX_BYTES) {
       return NextResponse.json({ code: 400, msg: "导出文件过大" }, { status: 400 });
     }
     const storyTitle = session.title?.trim() || "会话导出";
-    const suffix = kind === "image" ? "images" : "videos";
+    const suffix = kind === "image" ? "images" : kind === "video" ? "videos" : "media";
     const fn = buildFilename(`${storyTitle}_${suffix}`, authorName, "zip");
     return new NextResponse(new Uint8Array(packed.buffer), {
       headers: {
