@@ -123,7 +123,7 @@ export async function parseWorkImportWithAi(
 ): Promise<WorkImportResult> {
   const provider = resolveProvider(model);
   if (!provider) {
-    throw new Error("未配置可用模型，请先在「设置 → AI 模型管理」中配置 API Key");
+    throw new Error("创作服务暂不可用");
   }
 
   const text = sourceText.trim();

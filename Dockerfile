@@ -27,7 +27,7 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 ffmpeg \
+  && apt-get install -y --no-install-recommends ca-certificates libstdc++6 libfontconfig1 ffmpeg \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
@@ -36,9 +36,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/sqlite3 ./node_modules/sqlite3
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pdf-parse ./node_modules/pdf-parse
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/pdfjs-dist ./node_modules/pdfjs-dist
 
 RUN mkdir -p /app/storage \
-  && chown -R nextjs:nodejs /app/storage /app/node_modules/sqlite3
+  && chown -R nextjs:nodejs /app/storage /app/node_modules/sqlite3 /app/node_modules/@napi-rs /app/node_modules/pdf-parse /app/node_modules/pdfjs-dist
 
 USER nextjs
 EXPOSE 3000

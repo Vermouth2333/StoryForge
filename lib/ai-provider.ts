@@ -44,7 +44,10 @@ function normalizeDeepseekBaseUrl(raw: string): string {
  */
 export function resolvePlatformChatProvider(): ResolvedProvider | null {
   const apiKey = serverEnv("DEEPSEEK_API_KEY");
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.warn("[chat] DEEPSEEK_API_KEY 未配置，对话不可用");
+    return null;
+  }
   const baseUrlRaw = serverEnv("DEEPSEEK_BASE_URL") || "https://api.deepseek.com/v1";
   const baseUrl = normalizeDeepseekBaseUrl(sanitizeBaseUrl(baseUrlRaw) || baseUrlRaw);
   const modelName = (serverEnv("DEEPSEEK_MODEL") || "deepseek-chat").trim() || "deepseek-chat";

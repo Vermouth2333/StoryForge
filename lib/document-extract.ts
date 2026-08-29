@@ -57,14 +57,8 @@ export async function extractTextFromFile(
   }
 
   if (ext === "pdf" || mimeLower === "application/pdf") {
-    const { PDFParse } = await import("pdf-parse");
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    try {
-      const result = await parser.getText();
-      return truncateText(result.text ?? "");
-    } finally {
-      await parser.destroy().catch(() => undefined);
-    }
+    const text = await extractPdfText(buffer);
+    return truncateText(text);
   }
 
   if (
@@ -84,4 +78,39 @@ export async function extractTextFromFile(
   }
 
   throw new Error("无法识别的文件类型");
+}
+
+type PdfDomGlobals = {
+  DOMMatrix?: unknown;
+  ImageData?: unknown;
+  Path2D?: unknown;
+  Image?: unknown;
+};
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  // pdfjs-dist reads DOMMatrix at module load; polyfill before importing pdf-parse.
+  const canvasMod = await import("@napi-rs/canvas");
+  const canvas = canvasMod as unknown as {
+    default?: PdfDomGlobals;
+    DOMMatrix?: unknown;
+    ImageData?: unknown;
+    Path2D?: unknown;
+    Image?: unknown;
+  };
+  const impl = canvas.default ?? canvas;
+  const g = globalThis as PdfDomGlobals;
+  if (!g.DOMMatrix) g.DOMMatrix = impl.DOMMatrix;
+  if (!g.ImageData) g.ImageData = impl.ImageData;
+  if (!g.Path2D) g.Path2D = impl.Path2D;
+  if (!g.Image) g.Image = impl.Image;
+
+  const { CanvasFactory } = await import("pdf-parse/worker");
+  const { PDFParse } = await import("pdf-parse");
+  const parser = new PDFParse({ data: new Uint8Array(buffer), CanvasFactory });
+  try {
+    const result = await parser.getText();
+    return result.text ?? "";
+  } finally {
+    await parser.destroy().catch(() => undefined);
+  }
 }
