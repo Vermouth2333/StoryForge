@@ -59,7 +59,7 @@ export default function DeveloperCreditsPage() {
 
   if (allowed === false) {
     return (
-      <div className="sf-card p-8 text-center text-sm text-[#5B6B8C]">没有管理员权限</div>
+      <div className="sf-card p-8 text-center text-sm text-[var(--text-secondary)]">没有管理员权限</div>
     );
   }
 
@@ -70,7 +70,7 @@ export default function DeveloperCreditsPage() {
       <div className="sf-card space-y-4 p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#1F2A44]">用户名</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--foreground)]">用户名</label>
             <input
               className="sf-input"
               value={username}
@@ -79,7 +79,7 @@ export default function DeveloperCreditsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#1F2A44]">积分数量</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--foreground)]">积分数量</label>
             <input
               className="sf-input"
               type="number"
@@ -89,7 +89,7 @@ export default function DeveloperCreditsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#1F2A44]">备注</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--foreground)]">备注</label>
             <input
               className="sf-input"
               value={note}
@@ -120,11 +120,11 @@ export default function DeveloperCreditsPage() {
             <button
               key={u.id}
               type="button"
-              className="flex w-full items-center justify-between rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] px-4 py-3 text-left text-sm"
+              className="flex w-full items-center justify-between rounded-xl border border-[#DCE9FF] bg-[var(--background)] px-4 py-3 text-left text-sm"
               onClick={() => setUsername(u.username ?? "")}
             >
-              <span className="font-medium text-[#1F2A44]">{u.username ?? u.id}</span>
-              <span className="text-[#5B6B8C]">{u.credits} 积分</span>
+              <span className="font-medium text-[var(--foreground)]">{u.username ?? u.id}</span>
+              <span className="text-[var(--text-secondary)]">{u.credits} 积分</span>
             </button>
           ))}
           {users.length === 0 ? <p className="text-sm text-[#8A97B3]">暂无用户</p> : null}

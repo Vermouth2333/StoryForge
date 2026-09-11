@@ -419,7 +419,7 @@ export default function MyPage() {
         {/* 通知中心 */}
         <div id="notifications" className="sf-card scroll-mt-24 p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
+            <h3 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
               <IconBadge icon={Bell} tone="notify" size="md" /> 通知中心
             </h3>
             <div className="flex gap-2">
@@ -433,12 +433,12 @@ export default function MyPage() {
           </div>
           <ul className="space-y-3 max-h-[400px] overflow-y-auto">
             {notifications.map((item) => (
-              <li key={item.id} className="rounded-xl bg-[#f8fbff] p-4">
-                <p className="text-sm text-[#1f2a44]">{formatNotification(item)}</p>
+              <li key={item.id} className="rounded-xl bg-[var(--background)] p-4">
+                <p className="text-sm text-[var(--foreground)]">{formatNotification(item)}</p>
               </li>
             ))}
             {notifications.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">暂无通知</li>
+              <li className="text-center py-8 text-[var(--text-secondary)]">暂无通知</li>
             )}
           </ul>
         </div>
@@ -446,7 +446,7 @@ export default function MyPage() {
         {/* 我的收藏 */}
         <div className="sf-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[#1f2a44] flex items-center gap-2">
+            <h3 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
               <IconBadge icon={Star} tone="star" size="md" /> 我的收藏
             </h3>
             <button className="sf-tag" onClick={loadMyFavorites}>
@@ -464,13 +464,13 @@ export default function MyPage() {
               return (
                 <li
                   key={row.favorite_row_id}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-[#f8fbff] p-4"
+                  className="flex items-center justify-between gap-3 rounded-xl bg-[var(--background)] p-4"
                 >
                   <div className="min-w-0">
                     <span className="text-xs uppercase tracking-wider text-[#5b9dff] font-semibold">
                       {row.target_type}
                     </span>
-                    <p className="font-semibold text-[#1f2a44] truncate mt-1">
+                    <p className="font-semibold text-[var(--foreground)] truncate mt-1">
                       {row.title || row.target_id}
                     </p>
                   </div>
@@ -481,7 +481,7 @@ export default function MyPage() {
               );
             })}
             {myFavorites.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">暂无收藏</li>
+              <li className="text-center py-8 text-[var(--text-secondary)]">暂无收藏</li>
             )}
           </ul>
         </div>
@@ -489,7 +489,7 @@ export default function MyPage() {
 
       <div className="sf-card p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[#1f2a44]">我的人设面具</h3>
+          <h3 className="text-lg font-bold text-[var(--foreground)]">我的人设面具</h3>
           <div className="flex gap-2">
             <button className="sf-tag" onClick={loadPersonaMasks}>刷新</button>
             <Link className="sf-tag" href="/compose?tab=persona">创建</Link>
@@ -497,10 +497,10 @@ export default function MyPage() {
         </div>
         <ul className="space-y-3">
           {personaMasks.map((mask) => (
-            <li key={mask.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#f8fbff] p-4">
+            <li key={mask.id} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--background)] p-4">
               <div className="min-w-0">
-                <p className="truncate font-semibold text-[#1f2a44]">{mask.name}</p>
-                <p className="mt-1 line-clamp-1 text-xs text-[#5b6b8c]">{mask.summary || "暂无简介"}</p>
+                <p className="truncate font-semibold text-[var(--foreground)]">{mask.name}</p>
+                <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{mask.summary || "暂无简介"}</p>
               </div>
               <div className="flex shrink-0 gap-2">
                 <Link className="sf-tag text-xs" href={`/persona-masks/${mask.id}`}>编辑</Link>
@@ -508,7 +508,7 @@ export default function MyPage() {
               </div>
             </li>
           ))}
-          {personaMasks.length === 0 && <li className="py-8 text-center text-[#5b6b8c]">暂无人设面具</li>}
+          {personaMasks.length === 0 && <li className="py-8 text-center text-[var(--text-secondary)]">暂无人设面具</li>}
         </ul>
       </div>
 
@@ -517,7 +517,7 @@ export default function MyPage() {
         {/* 我的故事 */}
         <div className="sf-card p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[var(--foreground)]">
               <IconBadge icon={BookOpen} tone="story" size="md" /> 我的故事
             </h3>
             <input
@@ -535,7 +535,7 @@ export default function MyPage() {
             {myStories.map((item) => {
               const coverSrc = item.cover_thumbnail_url || item.cover_url;
               return (
-              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[var(--background)] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
@@ -551,8 +551,8 @@ export default function MyPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[#1f2a44] truncate">{item.title}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
+                    <p className="font-semibold text-[var(--foreground)] truncate">{item.title}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -584,7 +584,7 @@ export default function MyPage() {
               );
             })}
             {myStories.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">
+              <li className="text-center py-8 text-[var(--text-secondary)]">
                 {storyQDebounced ? "没有匹配的故事" : "暂无我的故事"}
               </li>
             )}
@@ -599,7 +599,7 @@ export default function MyPage() {
         {/* 我的角色 */}
         <div className="sf-card p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[var(--foreground)]">
               <IconBadge icon={UserRound} tone="character" size="md" /> 我的角色
             </h3>
             <input
@@ -620,7 +620,7 @@ export default function MyPage() {
             {myCharacters.map((item) => {
               const coverSrc = item.cover_thumbnail_url || item.cover_url;
               return (
-              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[var(--background)] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
@@ -636,8 +636,8 @@ export default function MyPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
+                    <p className="font-semibold text-[var(--foreground)] truncate">{item.name}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -666,7 +666,7 @@ export default function MyPage() {
               );
             })}
             {myCharacters.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">
+              <li className="text-center py-8 text-[var(--text-secondary)]">
                 {characterQDebounced ? "没有匹配的角色" : "暂无角色卡"}
               </li>
             )}
@@ -681,7 +681,7 @@ export default function MyPage() {
         {/* 我的世界 */}
         <div className="sf-card p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[#1f2a44]">
+            <h3 className="flex shrink-0 items-center gap-2 text-lg font-bold text-[var(--foreground)]">
               <IconBadge icon={Globe2} tone="world" size="md" /> 我的世界
             </h3>
             <input
@@ -702,7 +702,7 @@ export default function MyPage() {
             {myWorlds.map((item) => {
               const coverSrc = item.cover_thumbnail_url || item.cover_url;
               return (
-              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[#f8fbff] p-4">
+              <li key={item.id} className="relative overflow-hidden rounded-xl bg-[var(--background)] p-4">
                 {item.source_work_id ? (
                   <span className="absolute right-0 top-0 rounded-bl-lg bg-[#EEF6FF] px-2 py-0.5 text-[10px] font-semibold text-[#3F86F5]">
                     市场下载
@@ -718,8 +718,8 @@ export default function MyPage() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-[#1f2a44] truncate">{item.name}</p>
-                    <p className="text-xs text-[#5b6b8c] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
+                    <p className="font-semibold text-[var(--foreground)] truncate">{item.name}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">状态: {STATUS_LABELS[item.status] ?? item.status}</p>
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -748,7 +748,7 @@ export default function MyPage() {
               );
             })}
             {myWorlds.length === 0 && (
-              <li className="text-center py-8 text-[#5b6b8c]">
+              <li className="text-center py-8 text-[var(--text-secondary)]">
                 {worldQDebounced ? "没有匹配的世界" : "暂无世界卡"}
               </li>
             )}
@@ -776,7 +776,7 @@ function MinePager({
   const totalPages = Math.max(1, Math.ceil(total / MINE_PAGE_SIZE));
   if (total <= MINE_PAGE_SIZE) return null;
   return (
-    <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[#5B6B8C]">
+    <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[var(--text-secondary)]">
       <button
         type="button"
         className="sf-tag text-xs disabled:opacity-40"

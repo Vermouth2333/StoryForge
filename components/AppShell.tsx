@@ -31,8 +31,8 @@ function navClass(active: boolean) {
   return [
     "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-200 md:justify-center lg:justify-start",
     active
-      ? "bg-gradient-to-r from-[var(--primary-soft)] to-white font-semibold text-[var(--primary-active)] shadow-sm border border-[var(--border)]"
-      : "text-[var(--text-secondary)] hover:bg-[#F8FBFF] hover:border border-[var(--border)] border border-transparent",
+      ? "bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)] font-semibold text-[var(--primary)] shadow-sm border border-[var(--primary-muted)]"
+      : "text-[var(--text-secondary)] hover:bg-[var(--paper)] border border-transparent hover:border-[var(--border)]",
   ].join(" ");
 }
 
@@ -149,11 +149,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         ].join(" ")}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:hidden bg-gradient-to-r from-[var(--primary-soft)] to-white">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:hidden bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)]">
           <span className="font-bold text-[var(--foreground)]">导航</span>
           <button
             type="button"
-            className="rounded-xl px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-white/50 transition-colors"
+            className="rounded-xl px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--paper)] transition-colors"
             onClick={() => setMobileOpen(false)}
           >
             关闭
@@ -161,7 +161,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-white to-[#F8FBFF]">
+          <div className="border-b border-[var(--border)] px-4 py-6 lg:px-5 bg-gradient-to-b from-[var(--surface)] to-[var(--background)]">
             <Link
               href={profile ? "/market" : "/"}
               className="block no-underline"
@@ -335,7 +335,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </nav>
 
-          <div className="mt-auto space-y-4 border-t border-[var(--border)] px-4 py-5 lg:px-5 bg-gradient-to-t from-[#F8FBFF] to-white">
+          <div className="mt-auto space-y-4 border-t border-[var(--border)] px-4 py-5 lg:px-5 bg-gradient-to-t from-[var(--background)] to-[var(--surface)]">
             {profile && (
               <div className="sf-sidebar-stats">
                 <Link
@@ -373,16 +373,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {profile ? (
               <div className="flex flex-col gap-4 lg:flex-col">
-                <div className="flex items-center gap-3 bg-[#F8FBFF] rounded-xl p-3">
+                <div className="flex items-center gap-3 bg-[var(--paper)] rounded-xl p-3">
                   {profile.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={profile.avatar_url}
                       alt=""
-                      className="h-10 w-10 shrink-0 rounded-full border-2 border-[var(--primary-soft)] object-cover shadow-sm"
+                      className="h-10 w-10 shrink-0 rounded-full border-2 border-[var(--primary-muted)] object-cover shadow-sm"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] bg-white text-xs text-[var(--text-secondary)] font-medium">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[var(--border)] bg-[var(--surface)] text-xs text-[var(--text-secondary)] font-medium">
                       用户
                     </div>
                   )}

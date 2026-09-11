@@ -10,7 +10,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-[#5B9DFF]/15 blur-3xl"
+        className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-[var(--primary)]/15 blur-3xl"
       />
       <div
         aria-hidden
@@ -25,7 +25,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         >
           <BrandLogo size={48} className="justify-center" />
         </Link>
-        <p className="mt-3 text-sm text-[#5B6B8C]">AI 角色互动平台</p>
+        <p className="mt-3 text-sm text-[var(--text-secondary)]">AI 角色互动平台</p>
       </div>
 
       <div className="relative z-10 w-full max-w-md">{children}</div>

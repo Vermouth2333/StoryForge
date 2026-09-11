@@ -203,7 +203,7 @@ export default function WorldDetailPage() {
   }
   if (!row) {
     return (
-      <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">
+      <main className="mx-auto max-w-4xl p-6 text-sm text-[var(--text-secondary)]">
         {error || "世界不存在"}
       </main>
     );
@@ -282,10 +282,10 @@ export default function WorldDetailPage() {
       {(Boolean(row && !isAuthor && row.status === "published") || Boolean(row && isAuthor)) && (
         <div className="mb-6 space-y-4">
           {row && !isAuthor && row.status === "published" && (
-            <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-6">
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-6">
               <div>
-                <h3 className="mb-1 text-base font-semibold text-[#1F2A44]">下载到本地</h3>
-                <p className="text-xs text-[#5B6B8C]">下载后可在「我的世界」中开启探索对话</p>
+                <h3 className="mb-1 text-base font-semibold text-[var(--foreground)]">下载到本地</h3>
+                <p className="text-xs text-[var(--text-secondary)]">下载后可在「我的世界」中开启探索对话</p>
               </div>
               <MarketDownloadButton
                 workType="world"
@@ -295,13 +295,13 @@ export default function WorldDetailPage() {
             </div>
           )}
           {row && isAuthor && (
-            <div className="rounded-xl border border-[#DCE9FF] bg-white p-6">
+            <div className="rounded-xl border border-[var(--border)] bg-white p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="mb-1 flex items-center gap-2 text-base font-semibold text-[#1F2A44]">
+                  <h3 className="mb-1 flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
                     <IconBadge icon={Globe2} tone="world" size="sm" /> 探索 {row.name}
                   </h3>
-                  <p className="text-xs text-[#5B6B8C]">在新页面中开启对话并查看历史会话</p>
+                  <p className="text-xs text-[var(--text-secondary)]">在新页面中开启对话并查看历史会话</p>
                 </div>
                 <Link href={`/worlds/${row.id}/chat`} className="sf-btn-primary">
                   进入对话 →
@@ -348,12 +348,12 @@ export default function WorldDetailPage() {
       })()}
 
       {/* 世界信息卡片 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+      <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           {!canEdit && (
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-[#1F2A44]">{row.name}</h1>
-              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{row.summary || "暂无简介"}</p>
+              <h1 className="text-2xl font-bold text-[var(--foreground)]">{row.name}</h1>
+              <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md">{row.summary || "暂无简介"}</p>
             </div>
           )}
           <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
@@ -364,14 +364,14 @@ export default function WorldDetailPage() {
             )}
             <button
               type="button"
-              className={`sf-tag ${row.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag ${row.liked_by_me ? "!bg-[var(--primary)] !text-white" : ""}`}
               onClick={() => void toggleLike()}
             >
               {row.liked_by_me ? "❤️ 已点赞" : "🤍 点赞"} ({row.like_count})
             </button>
             <button
               type="button"
-              className={`sf-tag ${row.favorited_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag ${row.favorited_by_me ? "!bg-[var(--primary)] !text-white" : ""}`}
               onClick={() => void toggleFavorite()}
             >
               {row.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({row.favorite_count})
@@ -379,7 +379,7 @@ export default function WorldDetailPage() {
             {row.author_id && row.author_id !== meId && (
               <button
                 type="button"
-                className={`sf-tag ${row.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
+                className={`sf-tag ${row.is_following ? "!bg-[var(--primary)] !text-white" : ""}`}
                 onClick={() => void toggleFollow()}
               >
                 {row.is_following ? "已关注作者" : "＋ 关注作者"}
@@ -395,55 +395,55 @@ export default function WorldDetailPage() {
           </div>
         )}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.like_count}</p>
-            <p className="text-xs text-[#5B6B8C]">点赞</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{row.like_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">点赞</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.favorite_count}</p>
-            <p className="text-xs text-[#5B6B8C]">收藏</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{row.favorite_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">收藏</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{STATUS_LABELS[row.status] ?? row.status}</p>
-            <p className="text-xs text-[#5B6B8C]">状态</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{STATUS_LABELS[row.status] ?? row.status}</p>
+            <p className="text-xs text-[var(--text-secondary)]">状态</p>
           </div>
-          <Link href={`/authors/${row.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">
-            <p className="text-lg font-bold text-[#5B9DFF]">{row.author_display || "作者"}</p>
-            <p className="text-xs text-[#5B6B8C]">作者</p>
+          <Link href={`/authors/${row.author_id}`} className="rounded-xl bg-[var(--background)] p-4 text-center hover:bg-[var(--primary-soft)] transition-colors">
+            <p className="text-lg font-bold text-[var(--primary)]">{row.author_display || "作者"}</p>
+            <p className="text-xs text-[var(--text-secondary)]">作者</p>
           </Link>
         </div>
       </div>
 
       {!canEdit && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2 mb-4">
             <span>🖼️</span> 封面图
           </h3>
           {row.cover_url ? (
             <CoverDisplay src={row.cover_url} alt={`${row.name} 封面`} />
           ) : (
-            <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+            <p className="text-sm text-[var(--text-secondary)]">暂无封面</p>
           )}
         </div>
       )}
 
       {!canEdit && row.setting_notes && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2">
             <IconBadge icon={BookOpen} tone="story" size="sm" /> 世界设定
           </h3>
-          <p className="mt-3 whitespace-pre-wrap text-sm text-[#5B6B8C] leading-relaxed">
+          <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--text-secondary)] leading-relaxed">
             {row.setting_notes}
           </p>
         </div>
       )}
 
       {/* 知识库 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2">
+      <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
+        <h3 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2">
           <IconBadge icon={Library} tone="primary" size="sm" /> 知识库
         </h3>
-        <p className="mt-1 text-xs text-[#5B6B8C]">
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">
           词条用于补充规则、地理、势力等设定；已发布世界对访客可见。
         </p>
         {knowledge.length > 0 ? (
@@ -451,7 +451,7 @@ export default function WorldDetailPage() {
             {knowledge.map((e) => (
               <div
                 key={e.id}
-                className="rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4"
+                className="rounded-xl border border-[var(--border)] bg-[var(--background)] p-4"
               >
                 {editingId === e.id ? (
                   <div className="space-y-2">
@@ -485,7 +485,7 @@ export default function WorldDetailPage() {
                 ) : (
                   <>
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h4 className="font-medium text-[#1F2A44]">{e.title}</h4>
+                      <h4 className="font-medium text-[var(--foreground)]">{e.title}</h4>
                       {canEdit ? (
                         <div className="flex gap-2">
                           <button
@@ -510,7 +510,7 @@ export default function WorldDetailPage() {
                       ) : null}
                     </div>
                     {e.body && (
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-[#5B6B8C]">
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--text-secondary)]">
                         {e.body}
                       </p>
                     )}
@@ -522,12 +522,12 @@ export default function WorldDetailPage() {
         ) : (
           <div className="mt-4 text-center py-8">
             <div className="text-4xl mb-3">📭</div>
-            <p className="text-sm text-[#5B6B8C]">暂无词条</p>
+            <p className="text-sm text-[var(--text-secondary)]">暂无词条</p>
           </div>
         )}
         {canEdit && (
-          <div className="mt-6 border-t border-[#DCE9FF] pt-4">
-            <p className="text-xs font-medium text-[#1F2A44]">新增词条</p>
+          <div className="mt-6 border-t border-[var(--border)] pt-4">
+            <p className="text-xs font-medium text-[var(--foreground)]">新增词条</p>
             <input
               className="sf-input mt-2 w-full"
               placeholder="标题"

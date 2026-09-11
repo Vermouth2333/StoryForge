@@ -2,30 +2,30 @@
   min-height: 100dvh;
   color: var(--foreground);
   background:
-    radial-gradient(ellipse 90% 60% at 8% -8%, rgba(91, 157, 255, 0.28), transparent 52%),
-    radial-gradient(ellipse 70% 50% at 96% 4%, rgba(127, 180, 255, 0.22), transparent 48%),
-    radial-gradient(ellipse 50% 40% at 50% 108%, rgba(63, 134, 245, 0.12), transparent 50%),
-    linear-gradient(180deg, #f3f8ff 0%, #f8fbff 38%, #ffffff 100%);
+    radial-gradient(ellipse 90% 60% at 8% -8%, rgba(99, 102, 241, 0.15), transparent 52%),
+    radial-gradient(ellipse 70% 50% at 96% 4%, rgba(139, 92, 246, 0.12), transparent 48%),
+    radial-gradient(ellipse 50% 40% at 50% 108%, rgba(99, 102, 241, 0.08), transparent 50%),
+    linear-gradient(180deg, var(--surface) 0%, var(--background) 38%, #ffffff 100%);
 }
 
 .sf-landing-grid {
   background-image:
-    linear-gradient(rgba(91, 157, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(91, 157, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 88%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 88%);
 }
 
 .sf-landing-nav {
   backdrop-filter: blur(18px);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(220, 233, 255, 0.9);
-  box-shadow: 0 10px 40px rgba(63, 134, 245, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(99, 102, 241, 0.08);
 }
 
 .sf-landing-nav-link {
   position: relative;
-  color: #5b6b8c;
+  color: var(--text-secondary);
   text-decoration: none;
   transition: color 0.2s ease;
 }
@@ -38,14 +38,14 @@
   bottom: -6px;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #7fb4ff, #3f86f5);
+  background: linear-gradient(90deg, var(--primary), var(--character-color));
   transform: scaleX(0);
   transform-origin: center;
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .sf-landing-nav-link:hover {
-  color: #3f86f5;
+  color: var(--primary);
 }
 
 .sf-landing-nav-link:hover::after {
@@ -53,7 +53,7 @@
 }
 
 .sf-landing-hero-title {
-  background: linear-gradient(120deg, #1f2a44 10%, #3f86f5 48%, #5b9dff 78%, #1f2a44 100%);
+  background: linear-gradient(120deg, var(--foreground) 10%, var(--primary) 42%, var(--character-color) 68%, var(--foreground) 100%);
   background-size: 180% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -80,9 +80,9 @@
 
 .sf-landing-window {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow:
-    0 24px 64px rgba(63, 134, 245, 0.16),
+    0 24px 64px rgba(99, 102, 241, 0.1),
     0 0 0 1px rgba(255, 255, 255, 0.7) inset;
 }
 
@@ -92,7 +92,7 @@
   gap: 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.82);
   padding: 0.35rem 0.8rem;
   font-size: 0.75rem;
   font-weight: 600;
@@ -101,7 +101,7 @@
 
 .sf-landing-bento {
   border: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(238, 246, 255, 0.65));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), var(--primary-soft));
   box-shadow: var(--shadow-soft);
   transition:
     transform 0.25s ease,
@@ -129,9 +129,9 @@
 .sf-cloud {
   position: absolute;
   display: block;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.82);
   border-radius: 999px;
-  filter: drop-shadow(0 8px 16px rgba(91, 157, 255, 0.12));
+  filter: drop-shadow(0 8px 16px rgba(99, 102, 241, 0.1));
   animation: sf-cloud-drift 9s ease-in-out infinite;
 }
 
@@ -216,7 +216,7 @@
   right: 4%;
   top: auto;
   bottom: 48%;
-  border-top: 2px dashed rgba(91, 157, 255, 0.32);
+  border-top: 2px dashed rgba(99, 102, 241, 0.25);
 }
 
 .sf-stage-row {
@@ -258,10 +258,10 @@
   width: 100%;
   padding: 1.35rem 1.2rem 1.4rem;
   overflow: hidden;
-  border: 1px solid #dce9ff;
+  border: 1px solid var(--border);
   border-radius: 1.5rem;
-  background: linear-gradient(180deg, #ffffff 0%, #eef6ff 100%);
-  box-shadow: 0 10px 28px rgba(63, 134, 245, 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, var(--primary-soft) 100%);
+  box-shadow: 0 10px 28px rgba(99, 102, 241, 0.06);
   transition:
     transform 0.35s ease,
     box-shadow 0.35s ease,
@@ -277,14 +277,14 @@
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.14em;
-  color: #5b9dff;
+  color: var(--primary);
 }
 
 .sf-portal-title {
   font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.35;
-  color: #1f2a44;
+  color: var(--foreground);
 }
 
 .sf-portal-desc {
@@ -293,7 +293,7 @@
   font-style: normal;
   font-size: 0.82rem;
   line-height: 1.65;
-  color: #5b6b8c;
+  color: var(--text-secondary);
 }
 
 .sf-portal.is-active {
@@ -305,19 +305,19 @@
 }
 
 .sf-portal:focus-visible .sf-portal-frame {
-  outline: 3px solid #3f86f5;
+  outline: 3px solid var(--primary);
   outline-offset: 4px;
 }
 
 .sf-portal.is-active .sf-portal-frame,
 .sf-portal:hover .sf-portal-frame {
-  border-color: #5b9dff;
+  border-color: var(--primary-muted);
 }
 
 .sf-stage-assets .sf-portal.is-active .sf-portal-frame,
 .sf-stage-assets .sf-portal:hover .sf-portal-frame {
   transform: translateY(-10px) scale(1.03);
-  box-shadow: 0 18px 36px rgba(63, 134, 245, 0.2);
+  box-shadow: 0 18px 36px rgba(99, 102, 241, 0.15);
 }
 
 .sf-stage-features .sf-portal {
@@ -327,7 +327,7 @@
 .sf-stage-features .sf-portal-frame {
   border-radius: 1.1rem;
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(232, 243, 255, 0.92));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(238, 242, 255, 0.92));
   animation: sf-portal-sway 5.4s ease-in-out infinite;
 }
 
@@ -339,7 +339,7 @@
 .sf-stage-features .sf-portal:hover .sf-portal-frame {
   animation-play-state: paused;
   transform: translateX(6px) rotate(-1.4deg);
-  box-shadow: 0 16px 32px rgba(47, 143, 255, 0.22);
+  box-shadow: 0 16px 32px rgba(99, 102, 241, 0.18);
 }
 
 .sf-stage-features .sf-portal.is-active .sf-portal-title,
@@ -363,14 +363,14 @@
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: #5b9dff;
+  background: var(--primary);
   opacity: 0.45;
   animation: sf-spark-twinkle 2.8s ease-in-out infinite;
 }
 
 .sf-spark-a { left: 12%; top: 20%; }
-.sf-spark-b { left: 48%; top: 0; animation-delay: -0.9s; background: #7fb4ff; }
-.sf-spark-c { right: 14%; top: 28%; animation-delay: -1.6s; background: #3f86f5; }
+.sf-spark-b { left: 48%; top: 0; animation-delay: -0.9s; background: var(--primary-muted); }
+.sf-spark-c { right: 14%; top: 28%; animation-delay: -1.6s; background: var(--character-color); }
 
 .sf-stage-flow {
   padding-top: 0.25rem;
@@ -378,7 +378,7 @@
 
 .sf-stage-flow .sf-stage-line {
   bottom: 52%;
-  border-top: 3px dotted rgba(63, 134, 245, 0.38);
+  border-top: 3px dotted rgba(99, 102, 241, 0.3);
 }
 
 .sf-stage-flow .sf-portal {
@@ -388,7 +388,7 @@
 .sf-stage-flow .sf-portal-frame {
   border-radius: 1.15rem 1.15rem 1.15rem 0.4rem;
   background: #ffffff;
-  box-shadow: 0 8px 22px rgba(21, 112, 224, 0.08);
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.06);
   animation: sf-portal-pulse 3.8s ease-in-out infinite;
 }
 
@@ -400,7 +400,7 @@
   bottom: 0;
   height: 3px;
   border-radius: 0 0 1.15rem 0.4rem;
-  background: linear-gradient(90deg, #5b9dff, #3f86f5);
+  background: linear-gradient(90deg, var(--primary), var(--character-color));
   transform: scaleX(0);
   transform-origin: left center;
   transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
@@ -428,7 +428,7 @@
   height: 2rem;
   margin-bottom: 0.75rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #7fb4ff, #3f86f5);
+  background: linear-gradient(135deg, var(--primary-hover), var(--primary));
   color: #fff;
   letter-spacing: 0;
   font-size: 0.72rem;
@@ -439,10 +439,10 @@
 .sf-stage-flow .sf-portal:hover .sf-portal-frame {
   animation: none;
   transform: perspective(900px) rotateX(8deg) translateY(-2px);
-  border-color: #3f86f5;
+  border-color: var(--primary);
   box-shadow:
-    0 22px 36px rgba(63, 134, 245, 0.2),
-    0 0 0 1px rgba(91, 157, 255, 0.25) inset;
+    0 22px 36px rgba(99, 102, 241, 0.15),
+    0 0 0 1px rgba(99, 102, 241, 0.2) inset;
 }
 
 .sf-stage-flow .sf-portal.is-active .sf-portal-frame::before,
@@ -482,10 +482,10 @@
 @keyframes sf-portal-pulse {
   0%,
   100% {
-    box-shadow: 0 8px 22px rgba(21, 112, 224, 0.08);
+    box-shadow: 0 8px 22px rgba(99, 102, 241, 0.06);
   }
   50% {
-    box-shadow: 0 10px 26px rgba(63, 134, 245, 0.16);
+    box-shadow: 0 10px 26px rgba(99, 102, 241, 0.12);
   }
 }
 
@@ -516,7 +516,7 @@
   transition:
     opacity 0.28s ease,
     transform 0.38s cubic-bezier(0.22, 1.2, 0.36, 1);
-  box-shadow: 0 14px 32px rgba(63, 134, 245, 0.18);
+  box-shadow: 0 14px 32px rgba(99, 102, 241, 0.14);
 }
 
 .sf-sticker-left {
@@ -529,25 +529,25 @@
 
 .sf-sticker-paper {
   background: #ffffff;
-  color: #1f2a44;
+  color: var(--foreground);
   border-radius: 1.5rem 1.85rem 1.35rem 1.7rem;
 }
 
 .sf-sticker-blue {
-  background: #5b9dff;
+  background: var(--primary);
   color: #ffffff;
   border-radius: 1.8rem 1.4rem 1.7rem 1.3rem;
 }
 
 .sf-sticker-soft {
-  background: #eef6ff;
-  color: #1f2a44;
+  background: var(--primary-soft);
+  color: var(--foreground);
   border-radius: 1.35rem 1.9rem 1.5rem 1.7rem;
 }
 
 .sf-sticker-sky {
-  background: #7fb4ff;
-  color: #1f2a44;
+  background: var(--character-bg);
+  color: var(--foreground);
   border-radius: 1.7rem 1.3rem 1.85rem 1.4rem;
 }
 
@@ -644,7 +644,7 @@
   align-items: center;
   border: 1px solid var(--border);
   background:
-    linear-gradient(135deg, rgba(238, 246, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 48%, #ffffff 100%);
+    linear-gradient(135deg, var(--primary-soft) 0%, rgba(255, 255, 255, 0.98) 48%, #ffffff 100%);
   box-shadow: var(--shadow-soft);
 }
 
@@ -678,11 +678,11 @@
 
 .sf-landing-btn-primary {
   color: #ffffff;
-  background: linear-gradient(180deg, #7fb4ff 0%, #5b9dff 46%, #3f86f5 100%);
+  background: linear-gradient(180deg, var(--primary-hover) 0%, var(--primary) 46%, var(--primary-active) 100%);
   border: 1px solid rgba(255, 255, 255, 0.35);
   box-shadow:
-    0 10px 24px rgba(63, 134, 245, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    0 10px 24px rgba(99, 102, 241, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .sf-landing-btn-primary::after {
@@ -691,15 +691,15 @@
   inset: 1px 30% auto;
   height: 42%;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), transparent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), transparent);
   pointer-events: none;
 }
 
 .sf-landing-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 16px 32px rgba(63, 134, 245, 0.46),
-    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    0 16px 32px rgba(99, 102, 241, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .sf-landing-btn-primary:active {
@@ -707,33 +707,33 @@
 }
 
 .sf-landing-btn-ghost {
-  color: #1f2a44;
+  color: var(--foreground);
   background: #ffffff;
-  border: 1.5px solid #dce9ff;
-  box-shadow: 0 8px 20px rgba(91, 157, 255, 0.14);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1);
 }
 
 .sf-landing-btn-ghost:hover {
   transform: translateY(-2px);
-  border-color: #5b9dff;
-  background: #f8fbff;
-  box-shadow: 0 14px 28px rgba(91, 157, 255, 0.2);
+  border-color: var(--primary-muted);
+  background: var(--primary-soft);
+  box-shadow: 0 14px 28px rgba(99, 102, 241, 0.15);
 }
 
 .sf-landing-btn-nav {
   color: #ffffff;
-  background: linear-gradient(180deg, #7fb4ff 0%, #5b9dff 50%, #3f86f5 100%);
+  background: linear-gradient(180deg, var(--primary-hover) 0%, var(--primary) 50%, var(--primary-active) 100%);
   border: 1px solid rgba(255, 255, 255, 0.35);
   padding: 0.62rem 1.15rem;
   font-size: 0.875rem;
   box-shadow:
-    0 8px 18px rgba(63, 134, 245, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 8px 18px rgba(99, 102, 241, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .sf-landing-btn-nav:hover {
   transform: translateY(-1px);
   box-shadow:
-    0 12px 24px rgba(63, 134, 245, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    0 12px 24px rgba(99, 102, 241, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }

@@ -52,12 +52,12 @@ export function BrandLogo({
         >
           <defs>
             <linearGradient id={bgId} x1="12" y1="8" x2="52" y2="56" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#7FB4FF" />
-              <stop offset="1" stopColor="#3F86F5" />
+              <stop stopColor="#818cf8" />
+              <stop offset="1" stopColor="#6366f1" />
             </linearGradient>
             <linearGradient id={pageId} x1="18" y1="18" x2="46" y2="48" gradientUnits="userSpaceOnUse">
               <stop stopColor="#FFFFFF" />
-              <stop offset="1" stopColor="#EAF3FF" />
+              <stop offset="1" stopColor="#eef2ff" />
             </linearGradient>
           </defs>
           <rect x="4" y="4" width="56" height="56" rx="16" fill={`url(#${bgId})`} />
@@ -67,16 +67,16 @@ export function BrandLogo({
           />
           <path
             d="M32 20.5v26.7"
-            stroke="#5B9DFF"
+            stroke="#a5b4fc"
             strokeWidth="1.6"
             strokeLinecap="round"
-            opacity="0.55"
+            opacity="0.65"
           />
           <path
             d="M45.5 14.5 47 18.2l3.7 1.5-3.7 1.5-1.5 3.7-1.5-3.7-3.7-1.5 3.7-1.5 1.5-3.7Z"
-            fill="#FFE08A"
+            fill="#fcd34d"
           />
-          <circle cx="20" cy="16" r="1.6" fill="#FFE08A" opacity="0.9" />
+          <circle cx="20" cy="16" r="1.6" fill="#fcd34d" opacity="0.9" />
         </svg>
       </span>
       {showWordmark ? (

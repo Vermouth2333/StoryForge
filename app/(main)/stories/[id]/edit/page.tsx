@@ -663,9 +663,9 @@ export default function StoryOutlineEditPage() {
   return (
     <main className="mx-auto max-w-3xl p-6">
       <div className="mb-6">
-        <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">章节大纲</p>
+        <p className="text-xs uppercase tracking-wide text-[var(--primary)]">章节大纲</p>
         <div className="mt-0.5 flex items-center justify-between gap-4">
-          <h1 className="min-w-0 truncate text-xl font-semibold text-[#1F2A44]">{storyTitle || storyId}</h1>
+          <h1 className="min-w-0 truncate text-xl font-semibold text-[var(--foreground)]">{storyTitle || storyId}</h1>
           <button
             type="button"
             className="sf-btn-primary shrink-0"
@@ -676,19 +676,19 @@ export default function StoryOutlineEditPage() {
           </button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[#5B6B8C]">导出</span>
+          <span className="text-xs text-[var(--text-secondary)]">导出</span>
           {renderExportButton("markdown", "MD")}
           {renderExportButton("txt", "TXT")}
           {renderExportButton("epub", "EPUB")}
           {renderExportButton("pdf", "PDF", "中文 PDF 首次导出会自动下载字体到 storage/fonts/")}
         </div>
-        <p className="mt-1 whitespace-nowrap text-sm text-[#5B6B8C]">
+        <p className="mt-1 whitespace-nowrap text-sm text-[var(--text-secondary)]">
           按顺序列出章节；可添加同级或子章节，更多操作在右侧菜单中。
         </p>
       </div>
 
       {err ? (
-        <div className="mb-4 rounded-lg border border-[#DCE9FF] bg-[#FFF8F8] px-4 py-3 text-sm text-[#1F2A44]">
+        <div className="mb-4 rounded-lg border border-[var(--border)] bg-[#FFF8F8] px-4 py-3 text-sm text-[var(--foreground)]">
           {err}
         </div>
       ) : null}
@@ -727,7 +727,7 @@ export default function StoryOutlineEditPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <span className="text-xs text-[#5B6B8C]">{depth === 0 ? "章节" : "子章节"}</span>
+                    <span className="text-xs text-[var(--text-secondary)]">{depth === 0 ? "章节" : "子章节"}</span>
                     <input
                       className="sf-input mt-1 font-medium"
                       defaultValue={n.title}
@@ -766,7 +766,7 @@ export default function StoryOutlineEditPage() {
                     </Dropdown>
                   </div>
                 </div>
-                <label className="mt-2 block text-xs text-[#5B6B8C]">
+                <label className="mt-2 block text-xs text-[var(--text-secondary)]">
                   章节摘要（可选）
                   <textarea
                     className="sf-input mt-1 min-h-16 text-sm"
@@ -783,7 +783,7 @@ export default function StoryOutlineEditPage() {
               );
             })}
             {ordered.length === 0 ? (
-              <li className="rounded-xl border border-dashed border-[#DCE9FF] p-6 text-center text-sm text-[#5B6B8C]">
+              <li className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center text-sm text-[var(--text-secondary)]">
                 还没有章节，点击标题旁的「添加章节」开始。
               </li>
             ) : null}
@@ -807,13 +807,13 @@ export default function StoryOutlineEditPage() {
             destroyOnHidden
           >
             {addDraft?.anchorTitle ? (
-              <p className="mb-3 text-sm text-[#5B6B8C]">
+              <p className="mb-3 text-sm text-[var(--text-secondary)]">
                 {addDraft.mode === "child"
                   ? `将在「${addDraft.anchorTitle}」下添加`
                   : `与「${addDraft.anchorTitle}」同级添加`}
               </p>
             ) : null}
-            <label className="block text-sm font-medium text-[#1F2A44]">
+            <label className="block text-sm font-medium text-[var(--foreground)]">
               章节名称
               <input
                 className="sf-input mt-1"
@@ -826,7 +826,7 @@ export default function StoryOutlineEditPage() {
                 }}
               />
             </label>
-            <label className="mt-3 block text-sm font-medium text-[#1F2A44]">
+            <label className="mt-3 block text-sm font-medium text-[var(--foreground)]">
               插入位置
               <select
                 className="sf-input mt-1"
@@ -840,7 +840,7 @@ export default function StoryOutlineEditPage() {
                 ))}
               </select>
             </label>
-            <label className="mt-3 block text-sm font-medium text-[#1F2A44]">
+            <label className="mt-3 block text-sm font-medium text-[var(--foreground)]">
               章节摘要（可选）
               <textarea
                 className="sf-input mt-1 min-h-24 text-sm"
@@ -859,13 +859,13 @@ export default function StoryOutlineEditPage() {
             onCancel={() => setPositionPickerId(null)}
             destroyOnHidden
           >
-            <p className="mb-3 text-sm text-[#5B6B8C]">选择要插入到的同级位置：</p>
+            <p className="mb-3 text-sm text-[var(--text-secondary)]">选择要插入到的同级位置：</p>
             <div className="flex flex-col gap-2">
               {positionSlots.map((slot) => (
                 <button
                   key={`modal-${positionPickerId}-${slot.insertIndex}`}
                   type="button"
-                  className="w-full rounded-lg border border-[#DCE9FF] bg-[#F8FBFF] px-3 py-2.5 text-left text-sm text-[#1F2A44] transition-colors hover:bg-[#EEF6FF]"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-left text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--primary-soft)]"
                   onClick={() => positionPickerId && void moveNodeToPosition(positionPickerId, slot.insertIndex)}
                 >
                   {slot.label}
@@ -876,8 +876,8 @@ export default function StoryOutlineEditPage() {
 
           <div className="sf-card mt-8 space-y-4 p-4">
             <div>
-              <p className="text-sm font-medium text-[#1F2A44]">人物关系图谱（MVP）</p>
-              <p className="mt-1 text-xs text-[#5B6B8C]">
+              <p className="text-sm font-medium text-[var(--foreground)]">人物关系图谱（MVP）</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
                 同一对角色可添加多条关系（如既是亲属又是盟友）。类型：敌对 / 盟友 / 亲属 / 恋人 / 上下级 / 合作。
               </p>
             </div>
@@ -929,15 +929,15 @@ export default function StoryOutlineEditPage() {
           {/* 引入角色卡 / 世界卡 */}
           <div className="sf-card mt-8 space-y-4 p-4">
             <div>
-              <p className="text-sm font-medium text-[#1F2A44]">引入角色卡与世界卡</p>
-              <p className="mt-1 text-xs text-[#5B6B8C]">
+              <p className="text-sm font-medium text-[var(--foreground)]">引入角色卡与世界卡</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
                 从你创建或市场已发布的角色卡/世界卡中引入，AI 创作时将自动参考其设定。
               </p>
             </div>
 
             {/* 引入角色 */}
             <div>
-              <p className="text-xs font-medium text-[#1F2A44] mb-2">引入角色卡</p>
+              <p className="text-xs font-medium text-[var(--foreground)] mb-2">引入角色卡</p>
               <div className="flex flex-wrap gap-2">
                 <select
                   className="sf-input min-w-[200px]"
@@ -963,11 +963,11 @@ export default function StoryOutlineEditPage() {
               {importedChars.length > 0 && (
                 <ul className="mt-3 space-y-2">
                   {importedChars.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F8FBFF] p-2.5 text-xs">
-                      <span className="text-[#1F2A44]">
+                    <li key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--background)] p-2.5 text-xs">
+                      <span className="text-[var(--foreground)]">
                         <span className="font-medium">{c.name}</span>
-                        {c.is_custom ? <span className="ml-1.5 rounded bg-[#EEF6FF] px-1.5 py-0.5 text-[10px] text-[#5B9DFF]">自定义</span> : <span className="ml-1.5 rounded bg-[#F0FFF0] px-1.5 py-0.5 text-[10px] text-[#22C55E]">引入</span>}
-                        {c.summary ? <span className="ml-2 text-[#5B6B8C]">— {c.summary.slice(0, 40)}</span> : null}
+                        {c.is_custom ? <span className="ml-1.5 rounded bg-[var(--primary-soft)] px-1.5 py-0.5 text-[10px] text-[var(--primary)]">自定义</span> : <span className="ml-1.5 rounded bg-[#F0FFF0] px-1.5 py-0.5 text-[10px] text-[#22C55E]">引入</span>}
+                        {c.summary ? <span className="ml-2 text-[var(--text-secondary)]">— {c.summary.slice(0, 40)}</span> : null}
                       </span>
                       <button type="button" className="text-red-500 hover:text-red-700 shrink-0" onClick={() => void removeImport("character", c.id)}>
                         移除
@@ -980,7 +980,7 @@ export default function StoryOutlineEditPage() {
 
             {/* 引入世界 */}
             <div>
-              <p className="text-xs font-medium text-[#1F2A44] mb-2">引入世界卡</p>
+              <p className="text-xs font-medium text-[var(--foreground)] mb-2">引入世界卡</p>
               <div className="flex flex-wrap gap-2">
                 <select
                   className="sf-input min-w-[200px]"
@@ -1006,10 +1006,10 @@ export default function StoryOutlineEditPage() {
               {importedWorlds.length > 0 && (
                 <ul className="mt-3 space-y-2">
                   {importedWorlds.map((w) => (
-                    <li key={w.id} className="flex items-center justify-between gap-2 rounded-lg bg-[#F8FBFF] p-2.5 text-xs">
-                      <span className="text-[#1F2A44]">
+                    <li key={w.id} className="flex items-center justify-between gap-2 rounded-lg bg-[var(--background)] p-2.5 text-xs">
+                      <span className="text-[var(--foreground)]">
                         <span className="font-medium">{w.name}</span>
-                        {w.summary ? <span className="ml-2 text-[#5B6B8C]">— {w.summary.slice(0, 40)}</span> : null}
+                        {w.summary ? <span className="ml-2 text-[var(--text-secondary)]">— {w.summary.slice(0, 40)}</span> : null}
                       </span>
                       <button type="button" className="text-red-500 hover:text-red-700 shrink-0" onClick={() => void removeImport("world", w.id)}>
                         移除
@@ -1026,17 +1026,17 @@ export default function StoryOutlineEditPage() {
       {/* 创作辅助：冲突检测 / 一致性校验 / 文风保持 */}
       <div className="sf-card mt-8 space-y-6 p-4">
         <div>
-          <p className="text-sm font-medium text-[#1F2A44]">创作辅助（MVP）</p>
-          <p className="mt-1 text-xs text-[#5B6B8C]">
+          <p className="text-sm font-medium text-[var(--foreground)]">创作辅助（MVP）</p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
             对当前故事执行冲突检测、一致性校验与文风分析，结果会注入后续 AI 生成的上下文。
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* 冲突检测 */}
-          <div className="rounded-xl border border-[#DCE9FF] p-4">
+          <div className="rounded-xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-[#1F2A44]">冲突检测</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">冲突检测</p>
               <button
                 type="button"
                 className="sf-btn-secondary text-xs"
@@ -1048,7 +1048,7 @@ export default function StoryOutlineEditPage() {
             </div>
             {conflictResult && (
               <div className="mt-3 space-y-2">
-                <p className="text-xs text-[#5B6B8C]">
+                <p className="text-xs text-[var(--text-secondary)]">
                   共 {conflictResult.total} 个冲突
                 </p>
                 {conflictResult.conflicts.length === 0 ? (
@@ -1056,11 +1056,11 @@ export default function StoryOutlineEditPage() {
                 ) : (
                   <ul className="space-y-1.5">
                     {(conflictResult.conflicts as Array<Record<string, unknown>>).map((c, i) => (
-                      <li key={i} className="rounded bg-[#F8FBFF] p-2 text-xs">
-                        <span className="font-semibold text-[#5B9DFF]">
+                      <li key={i} className="rounded bg-[var(--background)] p-2 text-xs">
+                        <span className="font-semibold text-[var(--primary)]">
                           {String(c.level ?? "")}
                         </span>
-                        <span className="ml-2 text-[#1F2A44]">
+                        <span className="ml-2 text-[var(--foreground)]">
                           {String(c.conflictPoint ?? c.description ?? "")}
                         </span>
                       </li>
@@ -1072,9 +1072,9 @@ export default function StoryOutlineEditPage() {
           </div>
 
           {/* 一致性校验 */}
-          <div className="rounded-xl border border-[#DCE9FF] p-4">
+          <div className="rounded-xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-[#1F2A44]">一致性校验</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">一致性校验</p>
               <button
                 type="button"
                 className="sf-btn-secondary text-xs"
@@ -1091,11 +1091,11 @@ export default function StoryOutlineEditPage() {
                 ) : (
                   <ul className="space-y-1.5">
                     {(consistencyResult.violations as Array<Record<string, unknown>>).map((v, i) => (
-                      <li key={i} className="rounded bg-[#F8FBFF] p-2 text-xs">
-                        <span className="font-semibold text-[#5B9DFF]">
+                      <li key={i} className="rounded bg-[var(--background)] p-2 text-xs">
+                        <span className="font-semibold text-[var(--primary)]">
                           {String(v.type ?? "")}
                         </span>
-                        <span className="ml-2 text-[#1F2A44]">
+                        <span className="ml-2 text-[var(--foreground)]">
                           {String(v.message ?? v.description ?? "")}
                         </span>
                       </li>
@@ -1107,9 +1107,9 @@ export default function StoryOutlineEditPage() {
           </div>
 
           {/* 文风保持器 */}
-          <div className="rounded-xl border border-[#DCE9FF] p-4">
+          <div className="rounded-xl border border-[var(--border)] p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-[#1F2A44]">文风保持器</p>
+              <p className="text-sm font-medium text-[var(--foreground)]">文风保持器</p>
               <button
                 type="button"
                 className="sf-btn-secondary text-xs"
@@ -1122,7 +1122,7 @@ export default function StoryOutlineEditPage() {
             {styleResult && (
               <div className="mt-3">
                 <p className="text-xs text-emerald-600">{styleResult.message}</p>
-                <pre className="mt-2 max-h-40 overflow-auto rounded bg-[#F8FBFF] p-2 text-[10px] text-[#5B6B8C]">
+                <pre className="mt-2 max-h-40 overflow-auto rounded bg-[var(--background)] p-2 text-[10px] text-[var(--text-secondary)]">
                   {JSON.stringify(styleResult.features, null, 2)}
                 </pre>
               </div>

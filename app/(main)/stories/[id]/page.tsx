@@ -200,7 +200,7 @@ export default function StoryDetailPage() {
   }
   if (!story) {
     return (
-      <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">
+      <main className="mx-auto max-w-4xl p-6 text-sm text-[var(--text-secondary)]">
         {error || "故事不存在"}
       </main>
     );
@@ -225,10 +225,10 @@ export default function StoryDetailPage() {
         }`}
       >
         {showDownload && (
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4">
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4">
             <div className="text-left">
-              <p className="font-medium text-[#1F2A44]">下载到本地</p>
-              <p className="text-xs text-[#5B6B8C]">下载后可在「我的」中体验与对话</p>
+              <p className="font-medium text-[var(--foreground)]">下载到本地</p>
+              <p className="text-xs text-[var(--text-secondary)]">下载后可在「我的」中体验与对话</p>
             </div>
             <MarketDownloadButton
               workType="story"
@@ -240,24 +240,24 @@ export default function StoryDetailPage() {
         {canEdit && (
           <Link
             href={`/stories/${story.id}/edit`}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
+            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--background)] p-4 hover:bg-[var(--primary-soft)] transition-colors"
           >
             <IconBadge icon={BookOpen} tone="story" size="md" />
             <div className="text-left">
-              <p className="font-medium text-[#1F2A44]">章节大纲</p>
-              <p className="text-xs text-[#5B6B8C]">编辑故事章节结构</p>
+              <p className="font-medium text-[var(--foreground)]">章节大纲</p>
+              <p className="text-xs text-[var(--text-secondary)]">编辑故事章节结构</p>
             </div>
           </Link>
         )}
         {showPlay && (
           <Link
             href={`/stories/${story.id}/play`}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
+            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--primary-soft)] p-4 hover:bg-[#E0F2FE] transition-colors"
           >
             <IconBadge icon={Gamepad2} tone="primary" size="md" />
             <div className="text-left">
-              <p className="font-medium text-[#5B9DFF]">互动体验</p>
-              <p className="text-xs text-[#5B6B8C]">选择人设面具开始冒险</p>
+              <p className="font-medium text-[var(--primary)]">互动体验</p>
+              <p className="text-xs text-[var(--text-secondary)]">选择人设面具开始冒险</p>
             </div>
           </Link>
         )}
@@ -308,12 +308,12 @@ export default function StoryDetailPage() {
       })()}
 
       {/* 故事信息卡片 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+      <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           {!canEdit && (
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
-              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
+              <h1 className="text-2xl font-bold text-[var(--foreground)]">{story.title}</h1>
+              <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md">{story.summary || "暂无简介"}</p>
             </div>
           )}
           <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
@@ -324,14 +324,14 @@ export default function StoryDetailPage() {
             )}
             <button
               type="button"
-              className={`sf-tag ${story.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag ${story.liked_by_me ? "!bg-[var(--primary)] !text-white" : ""}`}
               onClick={() => void toggleLike()}
             >
               {story.liked_by_me ? "❤️ 已点赞" : "🤍 点赞"} ({story.like_count})
             </button>
             <button
               type="button"
-              className={`sf-tag ${story.favorited_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag ${story.favorited_by_me ? "!bg-[var(--primary)] !text-white" : ""}`}
               onClick={() => void toggleFavorite()}
             >
               {story.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({story.favorite_count})
@@ -339,7 +339,7 @@ export default function StoryDetailPage() {
             {story.author_id && story.author_id !== currentUserId && (
               <button
                 type="button"
-                className={`sf-tag ${story.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
+                className={`sf-tag ${story.is_following ? "!bg-[var(--primary)] !text-white" : ""}`}
                 onClick={() => void toggleFollow()}
               >
                 {story.is_following ? "已关注作者" : "＋ 关注作者"}
@@ -355,58 +355,58 @@ export default function StoryDetailPage() {
           </div>
         )}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.like_count}</p>
-            <p className="text-xs text-[#5B6B8C]">点赞</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{story.like_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">点赞</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.favorite_count}</p>
-            <p className="text-xs text-[#5B6B8C]">收藏</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{story.favorite_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">收藏</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{STATUS_LABELS[story.status] ?? story.status}</p>
-            <p className="text-xs text-[#5B6B8C]">状态</p>
+          <div className="rounded-xl bg-[var(--background)] p-4 text-center">
+            <p className="text-lg font-bold text-[var(--primary)]">{STATUS_LABELS[story.status] ?? story.status}</p>
+            <p className="text-xs text-[var(--text-secondary)]">状态</p>
           </div>
-          <Link href={`/authors/${story.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.author_display || "作者"}</p>
-            <p className="text-xs text-[#5B6B8C]">创建者</p>
+          <Link href={`/authors/${story.author_id}`} className="rounded-xl bg-[var(--background)] p-4 text-center hover:bg-[var(--primary-soft)] transition-colors">
+            <p className="text-lg font-bold text-[var(--primary)]">{story.author_display || "作者"}</p>
+            <p className="text-xs text-[var(--text-secondary)]">创建者</p>
           </Link>
         </div>
       </div>
 
       {!canEdit && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2 mb-4">
             <span>🖼️</span> 封面图
           </h3>
           {story.cover_url ? (
             <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
           ) : (
-            <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+            <p className="text-sm text-[var(--text-secondary)]">暂无封面</p>
           )}
         </div>
       )}
 
       {/* 角色关系图谱 */}
       {relations.length > 0 && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
+        <div className="rounded-xl border border-[var(--border)] bg-white p-6 mb-6">
+          <h3 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2 mb-4">
             <span>🔗</span> 角色关系
           </h3>
           <div className="space-y-3">
             {relations.map((rel) => (
               <div
                 key={rel.id}
-                className="flex items-center justify-center gap-4 rounded-xl bg-[#F8FBFF] p-4"
+                className="flex items-center justify-center gap-4 rounded-xl bg-[var(--background)] p-4"
               >
-                <span className="font-medium text-[#1F2A44]">{rel.character_left_name}</span>
+                <span className="font-medium text-[var(--foreground)]">{rel.character_left_name}</span>
                 <span className="text-2xl">↔️</span>
                 <span className="sf-tag">{rel.relation_type}</span>
-                <span className="font-medium text-[#1F2A44]">{rel.character_right_name}</span>
+                <span className="font-medium text-[var(--foreground)]">{rel.character_right_name}</span>
                 {rel.description && (
                   <>
                     <span className="text-2xl">📝</span>
-                    <span className="text-sm text-[#5B6B8C]">{rel.description}</span>
+                    <span className="text-sm text-[var(--text-secondary)]">{rel.description}</span>
                   </>
                 )}
               </div>

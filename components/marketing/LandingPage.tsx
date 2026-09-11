@@ -130,11 +130,11 @@ export function LandingPage() {
       <div aria-hidden className="sf-landing-grid pointer-events-none absolute inset-x-0 top-0 h-[720px]" />
       <div
         aria-hidden
-        className="sf-landing-orb h-72 w-72 bg-[#5B9DFF]/25 left-[-80px] top-24"
+        className="sf-landing-orb h-72 w-72 bg-[#6366f1]/15 left-[-80px] top-24"
       />
       <div
         aria-hidden
-        className="sf-landing-orb h-80 w-80 bg-[#7FB4FF]/20 right-[-60px] top-40"
+        className="sf-landing-orb h-80 w-80 bg-[#8b5cf6]/12 right-[-60px] top-40"
       />
 
       <header className="sticky top-0 z-50 px-4 pt-4">
@@ -159,7 +159,7 @@ export function LandingPage() {
           </div>
           <button
             type="button"
-            className="rounded-xl border border-[#DCE9FF] px-3 py-2 text-sm text-[#1F2A44] md:hidden"
+            className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)] md:hidden"
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
           >
@@ -172,13 +172,13 @@ export function LandingPage() {
               <a
                 key={item.href}
                 href={item.href}
-                className="text-sm text-[#1F2A44]"
+                className="text-sm text-[var(--foreground)]"
                 onClick={() => setMenuOpen(false)}
               >
                 {item.label}
               </a>
             ))}
-            <Link href="/market" className="text-sm text-[#1F2A44]" onClick={() => setMenuOpen(false)}>
+            <Link href="/market" className="text-sm text-[var(--foreground)]" onClick={() => setMenuOpen(false)}>
               逛市场
             </Link>
             <Link
@@ -197,7 +197,7 @@ export function LandingPage() {
         <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 md:grid-cols-[1.05fr_0.95fr] md:pt-20">
           <div>
             <p className="sf-landing-chip">
-              <Sparkles className="h-3.5 w-3.5 text-[#3F86F5]" />
+              <Sparkles className="h-3.5 w-3.5 text-[var(--primary)]" />
               AI 角色互动平台
             </p>
             <h1 className="sf-landing-hero-title mt-5 text-4xl font-bold leading-[1.15] tracking-tight md:text-6xl">
@@ -205,7 +205,7 @@ export function LandingPage() {
               <br />
               走进别人写的世界。
             </h1>
-            <p className="mt-5 max-w-xl text-base leading-7 text-[#5B6B8C] md:text-lg">
+            <p className="mt-5 max-w-xl text-base leading-7 text-[var(--text-secondary)] md:text-lg">
               作者在这里创作故事、角色与世界，读者则戴上自己的面具走进其中。不是对着空白对话框，而是选身份、进场景、去冒险。
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -249,8 +249,8 @@ export function LandingPage() {
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             {STUDIO.map((item) => (
               <article key={item.title} className="sf-landing-bento rounded-2xl p-5 md:p-6">
-                <h3 className="text-lg font-semibold text-[#1F2A44]">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#5B6B8C] md:text-base">{item.desc}</p>
+                <h3 className="text-lg font-semibold text-[var(--foreground)]">{item.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)] md:text-base">{item.desc}</p>
               </article>
             ))}
           </div>
@@ -269,12 +269,12 @@ export function LandingPage() {
           <div className="sf-landing-cta relative overflow-hidden rounded-[2rem] px-8 py-10 md:px-12 md:py-12">
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-8 top-0 h-40 w-40 rounded-full bg-[#5B9DFF]/15 blur-2xl"
+              className="pointer-events-none absolute -right-8 top-0 h-40 w-40 rounded-full bg-[var(--primary)]/12 blur-2xl"
             />
             <div className="relative">
-              <p className="text-xs font-semibold tracking-[0.2em] text-[#5B9DFF]">开始冒险</p>
-              <h2 className="mt-2 text-2xl font-bold text-[#1F2A44] md:text-3xl">准备好相遇了吗？</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#5B6B8C] md:text-base">
+              <p className="text-xs font-semibold tracking-[0.2em] text-[var(--primary)]">开始冒险</p>
+              <h2 className="mt-2 text-2xl font-bold text-[var(--foreground)] md:text-3xl">准备好相遇了吗？</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)] md:text-base">
                 注册后进入市场，下载一张故事或角色卡，戴上面具即可开始。平台已接好对话与影像模型，有积分就能聊、能画、能做成短视频。
               </p>
             </div>
@@ -291,8 +291,8 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-[#DCE9FF] bg-white/70">
-        <p className="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-[#5B6B8C]">
+      <footer className="border-t border-[var(--border)] bg-white/70">
+        <p className="mx-auto max-w-6xl px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
           © {new Date().getFullYear()} StoryForge · storyforge.fun
         </p>
       </footer>
@@ -303,9 +303,9 @@ export function LandingPage() {
 function SectionHead({ kicker, title, desc }: { kicker: string; title: string; desc?: string }) {
   return (
     <div className="max-w-2xl">
-      <p className="text-xs font-semibold tracking-[0.2em] text-[#5B9DFF]">{kicker}</p>
-      <h2 className="mt-2 text-3xl font-bold text-[#1F2A44] md:text-4xl">{title}</h2>
-      {desc ? <p className="mt-3 text-sm leading-6 text-[#5B6B8C] md:text-base">{desc}</p> : null}
+      <p className="text-xs font-semibold tracking-[0.2em] text-[var(--primary)]">{kicker}</p>
+      <h2 className="mt-2 text-3xl font-bold text-[var(--foreground)] md:text-4xl">{title}</h2>
+      {desc ? <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)] md:text-base">{desc}</p> : null}
     </div>
   );
 }
@@ -314,30 +314,30 @@ function HeroPreview() {
   return (
     <div className="sf-landing-window relative rounded-[1.6rem] p-3 md:p-4">
       <div className="mb-3 flex items-center gap-2 px-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4B4]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#FFE08A]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#9BD3B0]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#fda4af]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#fde68a]" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#86efac]" />
       </div>
-      <div className="overflow-hidden rounded-2xl border border-[#DCE9FF] bg-[#F8FBFF]">
-        <div className="flex items-center justify-between border-b border-[#DCE9FF] bg-white px-4 py-3">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--background)]">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-[#1F2A44]">雨巷里的最后一班电车</p>
-            <p className="text-xs text-[#5B6B8C]">面具：巡夜人 · NPC 全员在场</p>
+            <p className="text-sm font-semibold text-[var(--foreground)]">雨巷里的最后一班电车</p>
+            <p className="text-xs text-[var(--text-secondary)]">面具：巡夜人 · NPC 全员在场</p>
           </div>
-          <span className="rounded-full bg-[#EEF6FF] px-2.5 py-1 text-[10px] font-semibold text-[#3F86F5]">
+          <span className="rounded-full bg-[var(--primary-soft)] px-2.5 py-1 text-[10px] font-semibold text-[var(--primary)]">
             好感 42 · 友好
           </span>
         </div>
         <div className="space-y-3 p-4">
-          <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-6 text-[#1F2A44] shadow-sm">
+          <div className="max-w-[88%] rounded-2xl rounded-tl-md bg-white px-4 py-3 text-sm leading-6 text-[var(--foreground)] shadow-sm">
             末世前夜的霓虹还没熄。车门开了一条缝，她看着你，像在确认一封还没送到的信。
-            <p className="mt-2 text-xs text-[#5B9DFF]">开场语 · 故事先说</p>
+            <p className="mt-2 text-xs text-[var(--primary)]">开场语 · 故事先说</p>
           </div>
-          <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-md bg-[#5B9DFF] px-4 py-3 text-sm text-white">
+          <div className="ml-auto max-w-[80%] rounded-2xl rounded-tr-md bg-[var(--primary)] px-4 py-3 text-sm text-white">
             我是今晚的巡夜人。这封信，我送到。
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-dashed border-[#DCE9FF] bg-white px-3 py-2 text-xs text-[#5B6B8C]">
-            <Gamepad2 className="h-3.5 w-3.5 text-[#5B9DFF]" />
+          <div className="flex items-center gap-2 rounded-xl border border-dashed border-[var(--border)] bg-white px-3 py-2 text-xs text-[var(--text-secondary)]">
+            <Gamepad2 className="h-3.5 w-3.5 text-[var(--primary)]" />
             输入你的行动指令…
             <Store className="ml-auto h-3.5 w-3.5 opacity-40" />
           </div>
