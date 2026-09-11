@@ -475,10 +475,10 @@ export default function HistoryPage() {
         {/* 会话列表 */}
         <div className="sf-card flex max-h-[36vh] min-h-0 flex-col p-5 lg:max-h-none lg:h-full">
           <div className="mb-4 flex shrink-0 items-center justify-between">
-            <h3 className="flex items-center gap-2 text-base font-semibold text-[#1f2a44]">
+            <h3 className="flex items-center gap-2 text-base font-semibold text-[var(--foreground)]">
               <IconBadge icon={MessagesSquare} tone="history" size="sm" /> 会话列表
             </h3>
-            <span className="text-xs text-[#5b6b8c]">{sessions.length} 个会话</span>
+            <span className="text-xs text-[var(--text-secondary)]">{sessions.length} 个会话</span>
           </div>
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
             {sessions.map((s) => (
@@ -486,19 +486,19 @@ export default function HistoryPage() {
                 key={s.id}
                 className={`cursor-pointer rounded-xl p-3 transition-all ${
                   selectedSessionForHistory === s.id
-                    ? "bg-[#eef6ff] border-2 border-[#5b9dff]"
-                    : "bg-[#f8fbff] border-2 border-transparent hover:border-[#dce9ff]"
+                    ? "bg-[#eef6ff] border-2 border-[var(--primary)]"
+                    : "bg-[var(--background)] border-2 border-transparent hover:border-[#dce9ff]"
                 }`}
                 onClick={() => setSelectedSessionForHistory(s.id)}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-[#1f2a44]">{s.title}</p>
-                    <p className="mt-1 text-xs text-[#5b6b8c]">
+                    <p className="truncate text-sm font-medium text-[var(--foreground)]">{s.title}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
                       {new Date(s.updated_at).toLocaleDateString()}
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      <span className="inline-block rounded-full bg-[#eef6ff] px-2 py-0.5 text-xs text-[#5b9dff]">
+                      <span className="inline-block rounded-full bg-[#eef6ff] px-2 py-0.5 text-xs text-[var(--primary)]">
                         {s.session_type === "story"
                           ? "故事"
                           : s.session_type === "character"
@@ -513,7 +513,7 @@ export default function HistoryPage() {
                     {getContinueSessionHref(s) ? (
                       <Link
                         href={getContinueSessionHref(s)!}
-                        className="sf-tag shrink-0 text-xs !text-[#3F86F5]"
+                        className="sf-tag shrink-0 text-xs !text-[var(--primary-active)]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         继续
@@ -550,10 +550,10 @@ export default function HistoryPage() {
             <>
               <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#dce9ff] pb-4">
                 <div className="min-w-0">
-                  <h3 className="truncate text-base font-semibold text-[#1f2a44]">
+                  <h3 className="truncate text-base font-semibold text-[var(--foreground)]">
                     {sessions.find((s) => s.id === selectedSessionForHistory)?.title ?? "会话详情"}
                   </h3>
-                  <p className="mt-1 text-xs text-[#5b6b8c]">查看消息记录与管理检查点</p>
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">查看消息记录与管理检查点</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {(() => {
@@ -591,7 +591,7 @@ export default function HistoryPage() {
                                 <button
                                   key={fmt}
                                   type="button"
-                                  className="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-[#1f2a44] hover:bg-[#eef6ff]"
+                                  className="block w-full cursor-pointer px-3 py-1.5 text-left text-sm text-[var(--foreground)] hover:bg-[#eef6ff]"
                                   onClick={() => {
                                     setExportFormat(fmt);
                                     setExportOpen(false);
@@ -604,7 +604,7 @@ export default function HistoryPage() {
                           ) : null}
                         </div>
                         {href ? (
-                          <Link href={href} className="sf-tag !text-[#3F86F5]">
+                          <Link href={href} className="sf-tag !text-[var(--primary-active)]">
                             继续会话
                           </Link>
                         ) : null}
@@ -635,7 +635,7 @@ export default function HistoryPage() {
                     id={`history-msg-${m.id}`}
                     className={`rounded-xl p-4 ${
                       m.role === "user"
-                        ? "bg-[#eef6ff] border-l-4 border-[#5b9dff]"
+                        ? "bg-[#eef6ff] border-l-4 border-[var(--primary)]"
                         : m.role === "assistant"
                           ? "bg-[#f0f9ff] border-l-4 border-[#4facfe]"
                           : "bg-[#f8fafc] border-l-4 border-[#94a3b8]"
@@ -645,7 +645,7 @@ export default function HistoryPage() {
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-semibold ${
                           m.role === "user"
-                            ? "bg-[#5b9dff] text-white"
+                            ? "bg-[var(--primary)] text-white"
                             : m.role === "assistant"
                               ? "bg-[#4facfe] text-white"
                               : "bg-[#94a3b8] text-white"
@@ -653,11 +653,11 @@ export default function HistoryPage() {
                       >
                         {m.role === "user" ? "我" : m.role === "assistant" ? "AI" : "系统"}
                       </span>
-                      <span className="text-xs text-[#5b6b8c]">
+                      <span className="text-xs text-[var(--text-secondary)]">
                         {new Date(m.created_at).toLocaleString()}
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed text-[#1f2a44]">{m.content}</p>
+                    <p className="text-sm leading-relaxed text-[var(--foreground)]">{m.content}</p>
                     {m.image_url || m.video_url || m.video_status === "generating" ? (
                       <div className="mt-3 flex flex-wrap items-start gap-2">
                         {m.image_url ? (
@@ -684,7 +684,7 @@ export default function HistoryPage() {
                         {msgCheckpoints.map((sn) => (
                           <span
                             key={sn.id}
-                            className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] text-[#3F86F5]"
+                            className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] text-[var(--primary-active)]"
                           >
                             {sn.label?.trim() || "检查点"}
                           </span>
@@ -715,7 +715,7 @@ export default function HistoryPage() {
                       上一页
                     </button>
                   )}
-                  <span className="text-sm text-[#5b6b8c]">第 {messagePage} 页</span>
+                  <span className="text-sm text-[var(--text-secondary)]">第 {messagePage} 页</span>
                   {hasMoreMessages && (
                     <button
                       className="sf-tag"
@@ -744,7 +744,7 @@ export default function HistoryPage() {
                 {/* 检查点列表 */}
                 {sessionSnapshots.length > 0 && (
                   <div className="mt-4 max-h-64 overflow-y-auto">
-                    <p className="mb-2 text-xs font-medium text-[#1f2a44]">检查点记录</p>
+                    <p className="mb-2 text-xs font-medium text-[var(--foreground)]">检查点记录</p>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       {sessionSnapshots.map((sn) => (
                         <div
@@ -783,10 +783,10 @@ export default function HistoryPage() {
                             </div>
                           ) : (
                             <>
-                              <p className="truncate text-sm font-medium text-[#1f2a44]">
+                              <p className="truncate text-sm font-medium text-[var(--foreground)]">
                                 {sn.label?.trim() || "（无备注）"}
                               </p>
-                              <p className="mt-1 line-clamp-3 text-xs leading-5 text-[#5b6b8c]">
+                              <p className="mt-1 line-clamp-3 text-xs leading-5 text-[var(--text-secondary)]">
                                 {sn.payload?.last_assistant_preview
                                   ? `AI：${sn.payload.last_assistant_preview}`
                                   : "未关联到 AI 生成内容"}
@@ -859,7 +859,7 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-[#5B6B8C]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 点击缩略图可放大看图或播放视频。可单张下载，也可打包全部。
               </p>
               <button
@@ -879,9 +879,9 @@ export default function HistoryPage() {
 
             <section>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h4 className="text-sm font-semibold text-[#1F2A44]">
+                <h4 className="text-sm font-semibold text-[var(--foreground)]">
                   图片
-                  <span className="ml-1 font-normal text-[#5B6B8C]">
+                  <span className="ml-1 font-normal text-[var(--text-secondary)]">
                     ({sessionMedia?.images.length ?? 0})
                   </span>
                 </h4>
@@ -911,15 +911,15 @@ export default function HistoryPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-[#5B6B8C]">该会话暂无图片</p>
+                <p className="text-sm text-[var(--text-secondary)]">该会话暂无图片</p>
               )}
             </section>
 
             <section>
               <div className="mb-3 flex items-center justify-between gap-2">
-                <h4 className="text-sm font-semibold text-[#1F2A44]">
+                <h4 className="text-sm font-semibold text-[var(--foreground)]">
                   视频
-                  <span className="ml-1 font-normal text-[#5B6B8C]">
+                  <span className="ml-1 font-normal text-[var(--text-secondary)]">
                     ({sessionMedia?.videos.length ?? 0})
                   </span>
                 </h4>
@@ -949,7 +949,7 @@ export default function HistoryPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-[#5B6B8C]">该会话暂无视频</p>
+                <p className="text-sm text-[var(--text-secondary)]">该会话暂无视频</p>
               )}
             </section>
           </div>
@@ -970,14 +970,14 @@ export default function HistoryPage() {
         }}
       >
         {exportFormat === "images" || exportFormat === "videos" ? (
-          <p className="text-sm text-[#5B6B8C]">
+          <p className="text-sm text-[var(--text-secondary)]">
             {exportFormat === "images"
               ? "将会话中已生成的全部图片打包成一个 ZIP 下载。"
               : "将会话中已生成的全部视频打包成一个 ZIP 下载。"}
           </p>
         ) : (
           <>
-            <p className="mb-3 text-sm text-[#5B6B8C]">选择要写入文件的内容范围。</p>
+            <p className="mb-3 text-sm text-[var(--text-secondary)]">选择要写入文件的内容范围。</p>
             <Radio.Group
               value={exportScope}
               onChange={(e) => setExportScope(e.target.value)}

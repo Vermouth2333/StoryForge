@@ -200,7 +200,7 @@ export default function StoryDetailPage() {
   }
   if (!story) {
     return (
-      <main className="mx-auto max-w-4xl p-6 text-sm text-[#5B6B8C]">
+      <main className="sf-page-enter mx-auto max-w-4xl p-6 text-sm text-[var(--text-secondary)]">
         {error || "故事不存在"}
       </main>
     );
@@ -217,18 +217,18 @@ export default function StoryDetailPage() {
   const showPlay = Boolean(story && isAuthor);
 
   return (
-    <main className="mx-auto max-w-4xl p-6">
+    <main className="sf-detail-page sf-page-enter mx-auto max-w-4xl p-6">
       {/* 操作入口：市场访客先下载；本地/作者侧再互动体验 */}
       <div
-        className={`mb-6 grid grid-cols-1 gap-4${
+        className={`sf-detail-actions sf-stagger mb-6 grid grid-cols-1 gap-4${
           canEdit || (showDownload && showPlay) ? " sm:grid-cols-2" : ""
         }`}
       >
         {showDownload && (
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4">
+          <div className="sf-action-card sf-lift flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-soft)]">
             <div className="text-left">
-              <p className="font-medium text-[#1F2A44]">下载到本地</p>
-              <p className="text-xs text-[#5B6B8C]">下载后可在「我的」中体验与对话</p>
+              <p className="font-medium text-[var(--foreground)]">下载到本地</p>
+              <p className="text-xs text-[var(--text-secondary)]">下载后可在「我的」中体验与对话</p>
             </div>
             <MarketDownloadButton
               workType="story"
@@ -240,24 +240,24 @@ export default function StoryDetailPage() {
         {canEdit && (
           <Link
             href={`/stories/${story.id}/edit`}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#F8FBFF] p-4 hover:bg-[#EEF6FF] transition-colors"
+            className="sf-action-card sf-lift sf-focus-ring flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-[var(--shadow-soft)] hover:bg-[var(--primary-soft)] hover:border-[var(--primary-muted)] transition-all"
           >
             <IconBadge icon={BookOpen} tone="story" size="md" />
             <div className="text-left">
-              <p className="font-medium text-[#1F2A44]">章节大纲</p>
-              <p className="text-xs text-[#5B6B8C]">编辑故事章节结构</p>
+              <p className="font-medium text-[var(--foreground)]">章节大纲</p>
+              <p className="text-xs text-[var(--text-secondary)]">编辑故事章节结构</p>
             </div>
           </Link>
         )}
         {showPlay && (
           <Link
             href={`/stories/${story.id}/play`}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE9FF] bg-[#EEF6FF] p-4 hover:bg-[#E0F2FE] transition-colors"
+            className="sf-action-card sf-action-card--primary sf-lift sf-focus-ring sf-hover-glow flex items-center justify-center gap-2 rounded-xl border border-[var(--primary-muted)] bg-gradient-to-r from-[var(--primary-soft)] to-[var(--character-bg)] p-4 shadow-[var(--shadow-soft)] hover:shadow-[var(--shadow-hover)] transition-all"
           >
             <IconBadge icon={Gamepad2} tone="primary" size="md" />
             <div className="text-left">
-              <p className="font-medium text-[#5B9DFF]">互动体验</p>
-              <p className="text-xs text-[#5B6B8C]">选择人设面具开始冒险</p>
+              <p className="font-medium text-[var(--primary)]">互动体验</p>
+              <p className="text-xs text-[var(--text-secondary)]">选择人设面具开始冒险</p>
             </div>
           </Link>
         )}
@@ -308,30 +308,30 @@ export default function StoryDetailPage() {
       })()}
 
       {/* 故事信息卡片 */}
-      <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
+      <div className="sf-detail-card sf-reveal rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-6 shadow-[var(--shadow-soft)]" style={{ animationDelay: "0.1s" }}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           {!canEdit && (
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-[#1F2A44]">{story.title}</h1>
-              <p className="mt-2 text-sm text-[#5B6B8C] max-w-md">{story.summary || "暂无简介"}</p>
+              <h1 className="sf-detail-title text-2xl font-bold text-[var(--foreground)]">{story.title}</h1>
+              <p className="mt-2 text-sm text-[var(--text-secondary)] max-w-md leading-relaxed">{story.summary || "暂无简介"}</p>
             </div>
           )}
-          <div className={`flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
+          <div className={`sf-detail-actions-inline flex flex-wrap gap-2${canEdit ? " w-full justify-end" : ""}`}>
             {!canEdit && (
-              <Link href="/market" className="sf-tag">
+              <Link href="/market" className="sf-tag sf-focus-ring sf-press">
                 返回市场
               </Link>
             )}
             <button
               type="button"
-              className={`sf-tag ${story.liked_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag sf-focus-ring sf-press transition-all ${story.liked_by_me ? "!bg-gradient-to-r !from-[var(--primary)] !to-[var(--character-color)] !text-white !border-transparent" : ""}`}
               onClick={() => void toggleLike()}
             >
               {story.liked_by_me ? "❤️ 已点赞" : "🤍 点赞"} ({story.like_count})
             </button>
             <button
               type="button"
-              className={`sf-tag ${story.favorited_by_me ? "!bg-[#5B9DFF] !text-white" : ""}`}
+              className={`sf-tag sf-focus-ring sf-press transition-all ${story.favorited_by_me ? "!bg-gradient-to-r !from-[var(--accent-warm)] !to-[var(--primary)] !text-white !border-transparent" : ""}`}
               onClick={() => void toggleFavorite()}
             >
               {story.favorited_by_me ? "★ 已收藏" : "☆ 收藏"} ({story.favorite_count})
@@ -339,7 +339,7 @@ export default function StoryDetailPage() {
             {story.author_id && story.author_id !== currentUserId && (
               <button
                 type="button"
-                className={`sf-tag ${story.is_following ? "!bg-[#5B9DFF] !text-white" : ""}`}
+                className={`sf-tag sf-focus-ring sf-press transition-all ${story.is_following ? "!bg-[var(--primary)] !text-white !border-transparent" : ""}`}
                 onClick={() => void toggleFollow()}
               >
                 {story.is_following ? "已关注作者" : "＋ 关注作者"}
@@ -347,67 +347,70 @@ export default function StoryDetailPage() {
             )}
           </div>
         </div>
-        {!canEdit && (
-          <div className="mt-4 flex flex-wrap gap-2">
+        {!canEdit && tags.length > 0 && (
+          <div className="sf-detail-tags mt-4 flex flex-wrap gap-2">
             {tags.map((tag) => (
-              <span key={tag} className="sf-tag">{tag}</span>
+              <span key={tag} className="sf-tag sf-tag--subtle">{tag}</span>
             ))}
           </div>
         )}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.like_count}</p>
-            <p className="text-xs text-[#5B6B8C]">点赞</p>
+        <div className="sf-detail-stats mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 sf-stagger">
+          <div className="sf-stat-card sf-lift rounded-xl bg-gradient-to-br from-[var(--primary-soft)] to-[var(--surface)] p-4 text-center border border-[var(--border)]">
+            <p className="text-lg font-bold text-[var(--primary)]">{story.like_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">点赞</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.favorite_count}</p>
-            <p className="text-xs text-[#5B6B8C]">收藏</p>
+          <div className="sf-stat-card sf-lift rounded-xl bg-gradient-to-br from-[var(--accent-warm-soft)] to-[var(--surface)] p-4 text-center border border-[var(--border)]">
+            <p className="text-lg font-bold text-[var(--accent-warm)]">{story.favorite_count}</p>
+            <p className="text-xs text-[var(--text-secondary)]">收藏</p>
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-4 text-center">
-            <p className="text-lg font-bold text-[#5B9DFF]">{STATUS_LABELS[story.status] ?? story.status}</p>
-            <p className="text-xs text-[#5B6B8C]">状态</p>
+          <div className="sf-stat-card sf-lift rounded-xl bg-gradient-to-br from-[var(--story-bg)] to-[var(--surface)] p-4 text-center border border-[var(--border)]">
+            <p className="text-lg font-bold text-[var(--story-color)]">{STATUS_LABELS[story.status] ?? story.status}</p>
+            <p className="text-xs text-[var(--text-secondary)]">状态</p>
           </div>
-          <Link href={`/authors/${story.author_id}`} className="rounded-xl bg-[#F8FBFF] p-4 text-center hover:bg-[#EEF6FF] transition-colors">
-            <p className="text-lg font-bold text-[#5B9DFF]">{story.author_display || "作者"}</p>
-            <p className="text-xs text-[#5B6B8C]">创建者</p>
+          <Link href={`/authors/${story.author_id}`} className="sf-stat-card sf-lift sf-focus-ring rounded-xl bg-gradient-to-br from-[var(--character-bg)] to-[var(--surface)] p-4 text-center border border-[var(--border)] hover:shadow-[var(--shadow-hover)] transition-all">
+            <p className="text-lg font-bold text-[var(--character-color)]">{story.author_display || "作者"}</p>
+            <p className="text-xs text-[var(--text-secondary)]">创建者</p>
           </Link>
         </div>
       </div>
 
       {!canEdit && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>🖼️</span> 封面图
+        <div className="sf-detail-card sf-reveal rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-6 shadow-[var(--shadow-soft)]" style={{ animationDelay: "0.15s" }}>
+          <h3 className="sf-detail-section-title text-base font-semibold text-[var(--foreground)] flex items-center gap-2 mb-4">
+            <span className="sf-section-icon">🖼️</span> 封面图
           </h3>
           {story.cover_url ? (
-            <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
+            <div className="sf-cover-frame sf-lift rounded-lg overflow-hidden">
+              <CoverDisplay src={story.cover_url} alt={`${story.title} 封面`} />
+            </div>
           ) : (
-            <p className="text-sm text-[#5B6B8C]">暂无封面</p>
+            <div className="sf-empty-cover rounded-lg bg-gradient-to-br from-[var(--paper)] to-[var(--primary-soft)] p-8 text-center border border-dashed border-[var(--border)]">
+              <p className="text-sm text-[var(--text-muted)]">暂无封面</p>
+            </div>
           )}
         </div>
       )}
 
       {/* 角色关系图谱 */}
       {relations.length > 0 && (
-        <div className="rounded-xl border border-[#DCE9FF] bg-white p-6 mb-6">
-          <h3 className="text-base font-semibold text-[#1F2A44] flex items-center gap-2 mb-4">
-            <span>🔗</span> 角色关系
+        <div className="sf-detail-card sf-reveal rounded-xl border border-[var(--border)] bg-[var(--surface)] p-6 mb-6 shadow-[var(--shadow-soft)]" style={{ animationDelay: "0.2s" }}>
+          <h3 className="sf-detail-section-title text-base font-semibold text-[var(--foreground)] flex items-center gap-2 mb-4">
+            <span className="sf-section-icon">🔗</span> 角色关系
           </h3>
-          <div className="space-y-3">
+          <div className="sf-relations-list space-y-3 sf-stagger">
             {relations.map((rel) => (
               <div
                 key={rel.id}
-                className="flex items-center justify-center gap-4 rounded-xl bg-[#F8FBFF] p-4"
+                className="sf-relation-item sf-lift flex flex-wrap items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[var(--character-bg)] via-[var(--surface)] to-[var(--character-bg)] p-4 border border-[var(--border)]"
               >
-                <span className="font-medium text-[#1F2A44]">{rel.character_left_name}</span>
-                <span className="text-2xl">↔️</span>
-                <span className="sf-tag">{rel.relation_type}</span>
-                <span className="font-medium text-[#1F2A44]">{rel.character_right_name}</span>
+                <span className="font-medium text-[var(--character-color)]">{rel.character_left_name}</span>
+                <span className="text-lg">↔️</span>
+                <span className="sf-tag !bg-[var(--character-bg)] !text-[var(--character-color)]">{rel.relation_type}</span>
+                <span className="font-medium text-[var(--character-color)]">{rel.character_right_name}</span>
                 {rel.description && (
-                  <>
-                    <span className="text-2xl">📝</span>
-                    <span className="text-sm text-[#5B6B8C]">{rel.description}</span>
-                  </>
+                  <span className="w-full text-center text-sm text-[var(--text-secondary)] mt-2 pt-2 border-t border-dashed border-[var(--border)]">
+                    {rel.description}
+                  </span>
                 )}
               </div>
             ))}

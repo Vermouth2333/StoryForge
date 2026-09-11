@@ -150,14 +150,14 @@ export default function SettingsPage() {
 
       {/* 个人信息 */}
       <div className="sf-card p-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] mb-6 flex items-center gap-2">
+        <h3 className="text-base font-semibold text-[var(--foreground)] mb-6 flex items-center gap-2">
           <IconBadge icon={UserRound} tone="user" size="sm" /> 个人信息
         </h3>
 
         <div className="space-y-6">
           {/* 头像 */}
           <div>
-            <p className="text-sm font-medium text-[#1F2A44] mb-2">头像</p>
+            <p className="text-sm font-medium text-[var(--foreground)] mb-2">头像</p>
             <div className="flex flex-wrap items-center gap-4">
               {profile?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -169,11 +169,11 @@ export default function SettingsPage() {
                   className="h-[88px] w-[88px] rounded-full border-2 border-[#DCE9FF] object-cover shadow-sm"
                 />
               ) : (
-                <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full border-2 border-dashed border-[#DCE9FF] bg-[#F8FBFF] text-sm text-[#5B6B8C] font-medium">
+                <div className="flex h-[88px] w-[88px] items-center justify-center rounded-full border-2 border-dashed border-[#DCE9FF] bg-[var(--background)] text-sm text-[var(--text-secondary)] font-medium">
                   {profile?.username?.charAt(0) ?? "用户"}
                 </div>
               )}
-              <label className="cursor-pointer rounded-xl border border-[#DCE9FF] px-4 py-2 text-sm text-[#1F2A44] hover:bg-[#F8FBFF] transition-colors">
+              <label className="cursor-pointer rounded-xl border border-[#DCE9FF] px-4 py-2 text-sm text-[var(--foreground)] hover:bg-[var(--background)] transition-colors">
                 {avatarBusy ? "上传中..." : "选择图片"}
                 <input
                   type="file"
@@ -192,7 +192,7 @@ export default function SettingsPage() {
 
           {/* 用户名 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               用户名（昵称）
             </label>
             <input
@@ -205,7 +205,7 @@ export default function SettingsPage() {
 
           {/* 性别 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               性别（可选）
             </label>
             <select className="sf-input" value={gender} onChange={(e) => setGender(e.target.value)}>
@@ -218,7 +218,7 @@ export default function SettingsPage() {
 
           {/* 年龄 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               年龄（可选）
             </label>
             <input
@@ -237,13 +237,13 @@ export default function SettingsPage() {
 
           {/* 手机号 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               手机号（可选）
             </label>
             {profile?.phone_masked ? (
-              <p className="text-sm text-[#5B6B8C] mb-2">当前：{profile.phone_masked}</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-2">当前：{profile.phone_masked}</p>
             ) : (
-              <p className="text-sm text-[#5B6B8C] mb-2">未填写</p>
+              <p className="text-sm text-[var(--text-secondary)] mb-2">未填写</p>
             )}
             <input
               className="sf-input"
@@ -258,7 +258,7 @@ export default function SettingsPage() {
 
           {/* 简介 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               作者简介（最多 500 字）
             </label>
             <textarea
@@ -284,23 +284,23 @@ export default function SettingsPage() {
 
       {/* 安全设置 */}
       <div className="sf-card p-6">
-        <h3 className="text-base font-semibold text-[#1F2A44] mb-6 flex items-center gap-2">
+        <h3 className="text-base font-semibold text-[var(--foreground)] mb-6 flex items-center gap-2">
           <IconBadge icon={Lock} tone="secure" size="sm" /> 安全设置
         </h3>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-[#F8FBFF] rounded-xl">
+          <div className="flex items-center justify-between p-4 bg-[var(--background)] rounded-xl">
             <div>
-              <p className="font-medium text-[#1F2A44]">登录方式</p>
-              <p className="text-sm text-[#5B6B8C]">账号密码登录</p>
+              <p className="font-medium text-[var(--foreground)]">登录方式</p>
+              <p className="text-sm text-[var(--text-secondary)]">账号密码登录</p>
             </div>
             <span className="text-green-500 text-sm font-medium">已启用</span>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-[#F8FBFF] rounded-xl">
+          <div className="flex items-center justify-between p-4 bg-[var(--background)] rounded-xl">
             <div>
-              <p className="font-medium text-[#1F2A44]">账号状态</p>
-              <p className="text-sm text-[#5B6B8C]">正常使用中</p>
+              <p className="font-medium text-[var(--foreground)]">账号状态</p>
+              <p className="text-sm text-[var(--text-secondary)]">正常使用中</p>
             </div>
             <span className="text-green-500 text-sm font-medium">✓ 正常</span>
           </div>
@@ -313,14 +313,14 @@ export default function SettingsPage() {
           <IconBadge icon={AlertTriangle} tone="danger" size="sm" /> 账号注销
         </h3>
 
-        <p className="text-sm text-[#5B6B8C] mb-6">
+        <p className="text-sm text-[var(--text-secondary)] mb-6">
           注销账号将永久删除你的个人信息，请谨慎操作。注销前请选择已发布内容的处理方式。
         </p>
 
         <div className="space-y-4">
           {/* 确认输入 */}
           <div>
-            <label className="block text-sm font-medium text-[#1F2A44] mb-2">
+            <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
               输入「确认注销」以继续
             </label>
             <input
@@ -333,7 +333,7 @@ export default function SettingsPage() {
 
           {/* 作品处理 */}
           <div>
-            <p className="text-sm font-medium text-[#1F2A44] mb-2">已发布内容处理</p>
+            <p className="text-sm font-medium text-[var(--foreground)] mb-2">已发布内容处理</p>
             <div className="space-y-3">
               <label className="flex cursor-pointer p-3 bg-white rounded-xl border border-[#DCE9FF] hover:border-[#FFD6D6] transition-colors">
                 <input
@@ -344,8 +344,8 @@ export default function SettingsPage() {
                   className="mr-3"
                 />
                 <div>
-                  <p className="font-medium text-[#1F2A44]">匿名保留</p>
-                  <p className="text-xs text-[#5B6B8C]">已发布内容仍保留，但作者显示为「已注销用户」</p>
+                  <p className="font-medium text-[var(--foreground)]">匿名保留</p>
+                  <p className="text-xs text-[var(--text-secondary)]">已发布内容仍保留，但作者显示为「已注销用户」</p>
                 </div>
               </label>
               <label className="flex cursor-pointer p-3 bg-white rounded-xl border border-[#DCE9FF] hover:border-[#FFD6D6] transition-colors">
@@ -357,8 +357,8 @@ export default function SettingsPage() {
                   className="mr-3"
                 />
                 <div>
-                  <p className="font-medium text-[#1F2A44]">彻底删除</p>
-                  <p className="text-xs text-[#5B6B8C]">下架并删除全部故事、角色卡、世界及相关数据（不可恢复）</p>
+                  <p className="font-medium text-[var(--foreground)]">彻底删除</p>
+                  <p className="text-xs text-[var(--text-secondary)]">下架并删除全部故事、角色卡、世界及相关数据（不可恢复）</p>
                 </div>
               </label>
             </div>

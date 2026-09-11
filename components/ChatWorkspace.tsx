@@ -482,30 +482,30 @@ export function ChatWorkspace({
   }
 
   const bubbleActionClass =
-    "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#DCE9FF] bg-white px-3 py-1.5 text-xs font-medium text-[#5B6B8C] hover:border-[#5B9DFF] hover:text-[#3F86F5] disabled:cursor-wait disabled:opacity-60";
+    "sf-chat-action sf-focus-ring sf-press inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[var(--border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] hover:border-[var(--primary-muted)] hover:text-[var(--primary)] hover:bg-[var(--primary-soft)] disabled:cursor-wait disabled:opacity-60 transition-all";
 
   return (
-    <main className="flex h-full min-h-0 flex-1 overflow-hidden bg-[#F5F7FB]">
+    <main className="sf-chat-workspace sf-stage-enter flex h-full min-h-0 flex-1 overflow-hidden bg-[var(--background)]">
       {/* 会话侧边栏 */}
       <aside
         className={[
-          "flex min-h-0 shrink-0 flex-col border-r border-[#E6ECF5] bg-white transition-[width] duration-200",
+          "sf-chat-sidebar flex min-h-0 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--surface)] transition-[width] duration-300 ease-out",
           sidebarOpen ? "w-[260px]" : "w-0 overflow-hidden border-r-0",
         ].join(" ")}
       >
-        <div className="flex items-center justify-between gap-2 border-b border-[#E6ECF5] px-3 py-3">
-          <p className="text-sm font-semibold text-[#1F2A44]">会话</p>
+        <div className="sf-chat-sidebar-header flex items-center justify-between gap-2 border-b border-[var(--border)] px-3 py-3 bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)]">
+          <p className="text-sm font-semibold text-[var(--foreground)]">会话</p>
           <button
             type="button"
-            className="cursor-pointer rounded-lg bg-[#EEF6FF] px-2.5 py-1 text-xs font-medium text-[#3F86F5] hover:bg-[#DCE9FF]"
+            className="sf-focus-ring sf-press cursor-pointer rounded-lg bg-[var(--primary-soft)] px-2.5 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary-muted)] transition-colors"
             onClick={() => void onCreateSession()}
           >
             + 新会话
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="sf-chat-sessions flex-1 overflow-y-auto p-2">
           {sessions.length === 0 ? (
-            <p className="px-2 py-6 text-center text-xs text-[#5B6B8C]">暂无会话</p>
+            <p className="px-2 py-6 text-center text-xs text-[var(--text-muted)]">暂无会话</p>
           ) : (
             <ul className="space-y-1">
               {sessions.map((s) => {
@@ -515,39 +515,39 @@ export function ChatWorkspace({
                   <li key={s.id}>
                     <div
                       className={[
-                        "rounded-xl px-3 py-2.5 transition-colors",
-                        active ? "bg-[#EEF6FF] text-[#1F2A44]" : "text-[#5B6B8C] hover:bg-[#F8FBFF]",
+                        "sf-chat-session-item rounded-xl px-3 py-2.5 transition-all duration-200",
+                        active ? "bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)] text-[var(--foreground)] shadow-sm border border-[var(--primary-muted)]" : "text-[var(--text-secondary)] hover:bg-[var(--paper)] border border-transparent",
                       ].join(" ")}
                     >
                       <button
                         type="button"
-                        className="w-full cursor-pointer text-left"
+                        className="sf-focus-ring w-full cursor-pointer text-left rounded-lg"
                         onClick={() => onSelectSession(s.id)}
                       >
                         <p className={`truncate text-sm ${active ? "font-semibold" : "font-medium"}`}>
                           {s.title || "未命名会话"}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-[#8A97B3]">
+                        <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                           {new Date(s.created_at).toLocaleString()}
                         </p>
                       </button>
                       {snaps.length > 0 ? (
-                        <div className="mt-1.5 grid grid-cols-2 gap-1.5 border-t border-[#E6ECF5] pt-1.5">
+                        <div className="mt-1.5 grid grid-cols-2 gap-1.5 border-t border-[var(--border)] pt-1.5">
                           {snaps.map((sn) => (
                             <button
                               key={sn.id}
                               type="button"
-                              className="cursor-pointer rounded-lg border border-[#DCE9FF] bg-white px-1.5 py-1.5 text-left hover:border-[#5B9DFF]"
+                              className="sf-focus-ring sf-press cursor-pointer rounded-lg border border-[var(--border)] bg-white px-1.5 py-1.5 text-left hover:border-[var(--primary-muted)] hover:bg-[var(--primary-soft)] transition-all"
                               title={sn.last_assistant_preview || sn.label || "检查点"}
                               onClick={() => jumpToCheckpoint(s.id, sn)}
                             >
-                              <p className="truncate text-[11px] font-medium text-[#3F86F5]">
+                              <p className="truncate text-[11px] font-medium text-[var(--primary)]">
                                 {sn.label?.trim() || "检查点"}
                               </p>
-                              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-[#5B6B8C]">
+                              <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-[var(--text-secondary)]">
                                 {sn.last_assistant_preview || "AI 内容"}
                               </p>
-                              <p className="mt-0.5 text-[10px] text-[#8A97B3]">
+                              <p className="mt-0.5 text-[10px] text-[var(--text-muted)]">
                                 {new Date(sn.created_at).toLocaleString()}
                               </p>
                             </button>
@@ -564,31 +564,31 @@ export function ChatWorkspace({
       </aside>
 
       {/* 主聊天区 */}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center gap-3 border-b border-[#E6ECF5] bg-white px-4 py-3">
+      <section className="sf-chat-main flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="sf-chat-header flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-sm px-4 py-3">
           <button
             type="button"
-            className="cursor-pointer rounded-lg px-2 py-1 text-sm text-[#5B6B8C] transition-colors hover:bg-[#EEF6FF] hover:text-[#3F86F5]"
+            className="sf-focus-ring sf-press cursor-pointer rounded-lg px-2 py-1 text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)]"
             aria-label={sidebarOpen ? "收起侧边栏" : "展开侧边栏"}
             onClick={() => setSidebarOpen((v) => !v)}
           >
             {sidebarOpen ? "‹" : "›"}
           </button>
-          <Link href={backHref} className="text-sm text-[#5B6B8C] hover:text-[#3F86F5]">
+          <Link href={backHref} className="sf-focus-ring rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors">
             ← {backLabel}
           </Link>
-          <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[#1F2A44]">{title}</h1>
+          <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-[var(--foreground)]">{title}</h1>
           {personaLabel && <span className="sf-tag shrink-0">面具：{personaLabel}</span>}
           {headerExtra}
         </header>
 
         {affinity && (
-          <div className="shrink-0 border-b border-[#E6ECF5] bg-white px-4 py-2">
-            <div className="flex items-center gap-3 text-xs text-[#5B6B8C]">
+          <div className="sf-chat-affinity shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2">
+            <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
               <span className="shrink-0">好感度 {affinity.score}/100 · {affinity.label}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#EEF6FF]">
+              <div className="sf-affinity-bar h-2 flex-1 overflow-hidden rounded-full bg-[var(--primary-soft)]">
                 <div
-                  className="h-full rounded-full bg-[#5B9DFF] transition-[width]"
+                  className="sf-affinity-fill h-full rounded-full bg-gradient-to-r from-[var(--primary)] to-[var(--character-color)] transition-[width] duration-500 ease-out"
                   style={{ width: `${Math.max(0, Math.min(100, affinity.score))}%` }}
                 />
               </div>
@@ -597,12 +597,15 @@ export function ChatWorkspace({
         )}
 
         {!activeSessionId ? (
-          <div className="flex flex-1 items-center justify-center p-6">
+          <div className="sf-chat-empty sf-reveal flex flex-1 items-center justify-center p-6">
             <div className="text-center">
-              <p className="mb-4 text-sm text-[#5B6B8C]">还没有会话，新建一个开始聊天</p>
+              <div className="sf-chat-empty-icon mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary-soft)] to-[var(--character-bg)] flex items-center justify-center">
+                <span className="text-2xl">💬</span>
+              </div>
+              <p className="mb-4 text-sm text-[var(--text-secondary)]">还没有会话，新建一个开始聊天</p>
               <button
                 type="button"
-                className="sf-btn-primary"
+                className="sf-btn-primary sf-hover-glow"
                 onClick={() => void onCreateSession()}
               >
                 开始对话
@@ -611,15 +614,17 @@ export function ChatWorkspace({
           </div>
         ) : (
           <>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+            <div className="sf-chat-messages min-h-0 flex-1 overflow-y-auto px-4 py-6">
               <div className="mx-auto w-full max-w-[1080px] space-y-5">
               {visibleMessages.length === 0 && !streamText ? (
-                <p className="py-16 text-center text-sm text-[#8A97B3]">
-                  {emptyHint || `输入消息，开始与 ${assistantName} 对话`}
-                </p>
+                <div className="sf-reveal py-16 text-center">
+                  <p className="text-sm text-[var(--text-muted)]">
+                    {emptyHint || `输入消息，开始与 ${assistantName} 对话`}
+                  </p>
+                </div>
               ) : null}
 
-              {visibleMessages.map((msg) => {
+              {visibleMessages.map((msg, msgIndex) => {
                 const isUser = msg.role === "user";
                 const isLast = msg.id === lastVisible?.id;
                 const isLastAssistant = msg.id === lastAssistant?.id;
@@ -638,11 +643,12 @@ export function ChatWorkspace({
                   <div
                     key={msg.id}
                     id={`chat-msg-${msg.id}`}
-                    className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                    className={`sf-chat-message sf-message-enter flex ${isUser ? "justify-end" : "justify-start"}`}
+                    style={{ animationDelay: `${Math.min(msgIndex * 0.03, 0.3)}s` }}
                   >
                     <div className={`flex flex-col gap-1.5 ${isUser ? "max-w-[88%] items-end" : editingId === msg.id ? "w-full max-w-none items-stretch" : "max-w-[88%] items-start"}`}>
                       {!isUser ? (
-                        <p className="px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
+                        <p className="px-1 text-xs font-semibold text-[var(--character-color)]">{assistantName}</p>
                       ) : null}
                       {editingId === msg.id ? (
                         <div ref={editorWrapRef} className="w-full">
@@ -653,16 +659,16 @@ export function ChatWorkspace({
                             autoSize={{ minRows: 10, maxRows: 28 }}
                             className="!min-h-[240px] !text-sm !leading-relaxed"
                           />
-                          <p className="mt-1 px-1 text-[11px] text-[#8A97B3]">点击编辑区外的页面保存修改</p>
+                          <p className="mt-1 px-1 text-[11px] text-[var(--text-muted)]">点击编辑区外的页面保存修改</p>
                         </div>
                       ) : (
                       <div
                         className={[
-                          "rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap transition-shadow",
+                          "sf-chat-bubble rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap transition-all duration-300",
                           isUser
-                            ? "bg-[#5B9DFF] text-white rounded-br-md"
-                            : "bg-white text-[#1F2A44] border border-[#E6ECF5] shadow-sm rounded-bl-md",
-                          highlighted ? "ring-2 ring-[#5B9DFF] ring-offset-2" : "",
+                            ? "sf-chat-bubble--user bg-gradient-to-br from-[var(--primary)] to-[var(--primary-active)] text-white rounded-br-md shadow-[0_4px_12px_rgba(99,102,241,0.25)]"
+                            : "sf-chat-bubble--assistant bg-[var(--surface)] text-[var(--foreground)] border border-[var(--border)] shadow-sm rounded-bl-md",
+                          highlighted ? "ring-2 ring-[var(--primary)] ring-offset-2" : "",
                         ].join(" ")}
                       >
                         <MessageText text={msg.content} />
@@ -766,12 +772,12 @@ export function ChatWorkspace({
               })}
 
               {streamText ? (
-                <div className="flex justify-start">
+                <div className="sf-chat-message sf-message-enter flex justify-start">
                   <div className="max-w-[88%]">
-                    <p className="mb-1.5 px-1 text-xs font-semibold text-[#6B7CFF]">{assistantName}</p>
-                    <div className="rounded-2xl rounded-bl-md border border-[#E6ECF5] bg-white px-4 py-3 text-sm leading-relaxed text-[#1F2A44] shadow-sm whitespace-pre-wrap">
+                    <p className="mb-1.5 px-1 text-xs font-semibold text-[var(--character-color)]">{assistantName}</p>
+                    <div className="sf-chat-bubble sf-chat-bubble--assistant sf-chat-bubble--streaming rounded-2xl rounded-bl-md border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm leading-relaxed text-[var(--foreground)] shadow-sm whitespace-pre-wrap">
                       <MessageText text={streamText} />
-                      <span className="ml-0.5 inline-block animate-pulse text-[#6B7CFF]">▍</span>
+                      <span className="sf-typing-cursor ml-0.5 inline-block animate-pulse text-[var(--primary)]">▍</span>
                     </div>
                   </div>
                 </div>
@@ -782,10 +788,10 @@ export function ChatWorkspace({
             </div>
 
             {/* 底部输入卡片 */}
-            <div className="shrink-0 border-t border-[#E6ECF5] bg-[#F5F7FB] px-4 py-4">
-              <div className="mx-auto max-w-[1080px] rounded-2xl border border-[#E6ECF5] bg-white p-3 shadow-[0_8px_30px_rgba(66,133,244,0.08)]">
+            <div className="sf-chat-input-area shrink-0 border-t border-[var(--border)] bg-[var(--background)] px-4 py-4">
+              <div className="sf-chat-input-card mx-auto max-w-[1080px] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-card)] transition-shadow focus-within:shadow-[var(--shadow-hover)] focus-within:border-[var(--primary-muted)]">
                 <textarea
-                  className="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm text-[#1F2A44] outline-none placeholder:text-[#8A97B3]"
+                  className="sf-chat-textarea min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--text-muted)]"
                   value={inputMessage}
                   placeholder={placeholder}
                   disabled={busy}
@@ -799,12 +805,12 @@ export function ChatWorkspace({
                   }}
                 />
                 <div className="mt-1 flex items-center justify-between gap-2 px-1">
-                  <p className="text-[11px] text-[#8A97B3]">Enter 发送 · Shift+Enter 换行</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">Enter 发送 · Shift+Enter 换行</p>
                   <div className="flex items-center gap-2">
                     {busy ? (
                       <button
                         type="button"
-                        className="cursor-pointer rounded-full border border-[#DCE9FF] px-3 py-1.5 text-xs text-[#5B6B8C] hover:bg-[#F8FBFF]"
+                        className="sf-focus-ring sf-press cursor-pointer rounded-full border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--paper)] hover:border-[var(--primary-muted)] transition-colors"
                         onClick={onStop}
                       >
                         停止
@@ -813,7 +819,7 @@ export function ChatWorkspace({
                     <button
                       type="button"
                       disabled={busy || !inputMessage.trim()}
-                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#5B9DFF] text-white shadow-sm transition enabled:hover:bg-[#7FB4FF] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="sf-chat-send-btn sf-focus-ring flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-active)] text-white shadow-[0_4px_12px_rgba(99,102,241,0.3)] transition-all enabled:hover:shadow-[0_6px_16px_rgba(99,102,241,0.4)] enabled:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="发送"
                       onClick={() => void onSend()}
                     >

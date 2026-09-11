@@ -12,6 +12,55 @@ export const metadata: Metadata = {
   },
 };
 
+const antdTheme = {
+  token: {
+    colorPrimary: "#6366f1",
+    colorLink: "#6366f1",
+    colorLinkHover: "#818cf8",
+    colorLinkActive: "#4f46e5",
+    colorBgContainer: "#ffffff",
+    colorBgElevated: "#ffffff",
+    colorBgLayout: "#faf8f5",
+    colorBorder: "#e8e4de",
+    colorBorderSecondary: "#f0ece6",
+    colorText: "#2d2a26",
+    colorTextSecondary: "#6b6560",
+    colorTextTertiary: "#9e9890",
+    borderRadius: 12,
+    borderRadiusLG: 16,
+    borderRadiusSM: 8,
+    fontFamily:
+      'var(--font-geist-sans), "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif',
+  },
+  components: {
+    Button: {
+      colorPrimary: "#6366f1",
+      colorPrimaryHover: "#818cf8",
+      colorPrimaryActive: "#4f46e5",
+      borderRadius: 12,
+    },
+    Input: {
+      borderRadius: 12,
+      colorBorder: "#e8e4de",
+      activeBorderColor: "#6366f1",
+      hoverBorderColor: "#c7d2fe",
+    },
+    Select: {
+      borderRadius: 12,
+      colorBorder: "#e8e4de",
+    },
+    Modal: {
+      borderRadiusLG: 16,
+    },
+    Card: {
+      borderRadius: 16,
+    },
+    Tag: {
+      borderRadiusSM: 999,
+    },
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -21,7 +70,7 @@ export default function RootLayout({
     <html lang="zh-CN" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <AntdRegistry>
-          <ConfigProvider modal={{ centered: true }}>
+          <ConfigProvider theme={antdTheme} modal={{ centered: true }}>
             <AntdApp>{children}</AntdApp>
           </ConfigProvider>
         </AntdRegistry>

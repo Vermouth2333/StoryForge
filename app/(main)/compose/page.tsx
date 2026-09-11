@@ -248,8 +248,8 @@ export default function ComposePage() {
               className={
                 "sf-tag inline-flex items-center gap-1.5 transition-all duration-150 " +
                 (active
-                  ? "bg-[#3f86f5] text-white border-[#3f86f5] shadow-[0_4px_12px_rgba(63,134,245,0.35)] font-medium scale-[1.03]"
-                  : "hover:border-[#3f86f5] hover:text-[#3f86f5]")
+                  ? "bg-[var(--primary-active)] text-white border-[var(--primary-active)] shadow-[0_4px_12px_rgba(63,134,245,0.35)] font-medium scale-[1.03]"
+                  : "hover:border-[var(--primary-active)] hover:text-[var(--primary-active)]")
               }
             >
               <WorkTypeIcon type={t.key} size="sm" />
@@ -262,13 +262,13 @@ export default function ComposePage() {
       {createTab === "persona" && (
         <form onSubmit={createPersona} className="sf-card space-y-5 p-6">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">私有身份</p>
-            <h3 className="text-lg font-semibold text-[#1F2A44]">创建人设面具</h3>
-            <p className="mt-1 text-sm text-[#5B6B8C]">面具代表你在互动中的身份，仅自己可见，不会上架市场。</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--primary)]">私有身份</p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">创建人设面具</h3>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">面具代表你在互动中的身份，仅自己可见，不会上架市场。</p>
           </div>
           <WorkImportPanel kind="persona" onParsed={(data) => applyImport("persona", data)} />
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">名称 <span className="text-red-500">*</span></label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">名称 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：旅人小羽" value={personaName} onChange={(e) => setPersonaName(e.target.value)} maxLength={120} />
           </div>
           {[
@@ -279,7 +279,7 @@ export default function ComposePage() {
             ["说话风格", personaSpeechStyle, setPersonaSpeechStyle, "描述语气、口头禅、常用表达方式…"],
           ].map(([label, value, setter, ph]) => (
             <div key={label as string}>
-              <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label as string}</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">{label as string}</label>
               <textarea
                 className="sf-input min-h-24 w-full resize-y"
                 placeholder={ph as string}
@@ -289,7 +289,7 @@ export default function ComposePage() {
             </div>
           ))}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：旅人, 冷静, 观察者" value={personaTags} onChange={(e) => setPersonaTags(e.target.value)} />
           </div>
           <button type="submit" className="sf-btn-primary" disabled={personaBusy}>{personaBusy ? "创建中..." : "创建人设面具"}</button>
@@ -300,21 +300,21 @@ export default function ComposePage() {
       {createTab === "character" && (
         <form onSubmit={createCharacter} className="sf-card space-y-5 p-6">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
-            <h3 className="text-lg font-semibold text-[#1F2A44]">创建角色卡</h3>
-            <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的角色卡，可直接对话测试，也可引入到故事项目中。</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--primary)]">创作</p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">创建角色卡</h3>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">创建独立的角色卡，可直接对话测试，也可引入到故事项目中。</p>
           </div>
           <WorkImportPanel kind="character" onParsed={(data) => applyImport("character", data)} />
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">角色名称 <span className="text-red-500">*</span></label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">角色名称 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：林晓月" value={charName} onChange={(e) => setCharName(e.target.value)} maxLength={120} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">简介</label>
             <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述角色的身份、特征..." value={charSummary} onChange={(e) => setCharSummary(e.target.value)} maxLength={1000} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">性格与动机</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">性格与动机</label>
             <textarea className="sf-input w-full min-h-28 resize-y" placeholder="描述角色的性格特质、说话风格、核心动机、内心冲突等..." value={charPersonality} onChange={(e) => setCharPersonality(e.target.value)} maxLength={8000} />
           </div>
           {[
@@ -325,7 +325,7 @@ export default function ComposePage() {
             ["开场语", charGreeting, setCharGreeting, "创建会话后由角色先说出的第一句话…"],
           ].map(([label, value, setter, ph]) => (
             <div key={label as string}>
-              <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">{label as string}</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">{label as string}</label>
               <textarea
                 className="sf-input min-h-24 w-full resize-y"
                 placeholder={ph as string}
@@ -335,9 +335,9 @@ export default function ComposePage() {
             </div>
           ))}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：剑客, 傲娇, 古风" value={charTags} onChange={(e) => setCharTags(e.target.value)} />
-            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">最多 10 个标签，每个最长 30 字</p>
           </div>
           <CoverFileField file={charCoverFile} onChange={setCharCoverFile} />
           <div className="flex gap-3 pt-2">
@@ -351,25 +351,25 @@ export default function ComposePage() {
       {createTab === "world" && (
         <form onSubmit={createWorld} className="sf-card space-y-5 p-6">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
-            <h3 className="text-lg font-semibold text-[#1F2A44]">创建世界卡</h3>
-            <p className="mt-1 text-sm text-[#5B6B8C]">创建独立的世界卡，定义世界观设定，可直接对话探索，也可引入到故事项目中。</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--primary)]">创作</p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">创建世界卡</h3>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">创建独立的世界卡，定义世界观设定，可直接对话探索，也可引入到故事项目中。</p>
           </div>
           <WorkImportPanel kind="world" onParsed={(data) => applyImport("world", data)} />
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界名称 <span className="text-red-500">*</span></label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">世界名称 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：赛博朋克夜之城" value={worldName} onChange={(e) => setWorldName(e.target.value)} maxLength={120} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">简介</label>
             <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述世界的核心概念、时代背景..." value={worldSummary} onChange={(e) => setWorldSummary(e.target.value)} maxLength={1000} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">世界设定</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">世界设定</label>
             <textarea className="sf-input w-full min-h-36 resize-y" placeholder="描述世界的核心规则、社会体系、科技水平、地理环境、历史大事件等..." value={worldSetting} onChange={(e) => setWorldSetting(e.target.value)} maxLength={8000} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">开场语</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">开场语</label>
             <textarea
               className="sf-input min-h-24 w-full resize-y"
               placeholder="创建会话后由世界先说出的第一句话…"
@@ -378,9 +378,9 @@ export default function ComposePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 反乌托邦, 未来" value={worldTags} onChange={(e) => setWorldTags(e.target.value)} />
-            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">最多 10 个标签，每个最长 30 字</p>
           </div>
           <CoverFileField file={worldCoverFile} onChange={setWorldCoverFile} />
           <div className="flex gap-3 pt-2">
@@ -394,21 +394,21 @@ export default function ComposePage() {
       {createTab === "story" && (
         <form onSubmit={createStory} className="sf-card space-y-5 p-6">
           <div>
-            <p className="text-xs uppercase tracking-wide text-[#5B9DFF]">创作</p>
-            <h3 className="text-lg font-semibold text-[#1F2A44]">创建故事</h3>
-            <p className="mt-1 text-sm text-[#5B6B8C]">填写基本信息与封面，创建后进入编辑页完善大纲与角色设定。</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--primary)]">创作</p>
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">创建故事</h3>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">填写基本信息与封面，创建后进入编辑页完善大纲与角色设定。</p>
           </div>
           <WorkImportPanel kind="story" onParsed={(data) => applyImport("story", data)} />
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">故事标题 <span className="text-red-500">*</span></label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">故事标题 <span className="text-red-500">*</span></label>
             <input className="sf-input w-full" placeholder="如：赛博朋克2077-初次相遇" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)} maxLength={120} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">简介</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">简介</label>
             <textarea className="sf-input w-full min-h-20 resize-y" placeholder="简要描述故事背景、核心冲突..." value={storySummary} onChange={(e) => setStorySummary(e.target.value)} maxLength={1000} />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">开场语</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">开场语</label>
             <textarea
               className="sf-input min-h-24 w-full resize-y"
               placeholder="创建会话后由故事先说出的第一句话…"
@@ -417,9 +417,9 @@ export default function ComposePage() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1F2A44]">标签</label>
+            <label className="mb-1.5 block text-sm font-medium text-[var(--foreground)]">标签</label>
             <input className="sf-input w-full" placeholder="用逗号或空格分隔，如：赛博朋克, 悬疑, 长篇" value={storyTags} onChange={(e) => setStoryTags(e.target.value)} />
-            <p className="mt-1 text-xs text-[#5B6B8C]">最多 10 个标签，每个最长 30 字</p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">最多 10 个标签，每个最长 30 字</p>
           </div>
           <CoverFileField file={storyCoverFile} onChange={setStoryCoverFile} />
           <div className="flex gap-3 pt-2">

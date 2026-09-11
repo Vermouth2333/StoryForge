@@ -125,13 +125,13 @@ export default function AdminModerationPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            className={`sf-tag ${filter === "pending" ? "!bg-[#5B9DFF] !text-white" : ""}`}
+            className={`sf-tag ${filter === "pending" ? "!bg-[var(--primary)] !text-white" : ""}`}
             onClick={() => setFilter("pending")}
           >
             待处理 ({items.filter((i) => i.status === "pending").length})
           </button>
           <button
-            className={`sf-tag ${filter === "all" ? "!bg-[#5B9DFF] !text-white" : ""}`}
+            className={`sf-tag ${filter === "all" ? "!bg-[var(--primary)] !text-white" : ""}`}
             onClick={() => setFilter("all")}
           >
             全部 ({items.length})
@@ -145,7 +145,7 @@ export default function AdminModerationPage() {
       {loading ? (
         <main className="sf-loading" />
       ) : visible.length === 0 ? (
-        <div className="sf-card p-12 text-center text-[#5b6b8c]">
+        <div className="sf-card p-12 text-center text-[var(--text-secondary)]">
           <div className="text-5xl mb-3">✅</div>
           <p>暂无{filter === "pending" ? "待处理" : ""}审核项</p>
         </div>
@@ -156,20 +156,20 @@ export default function AdminModerationPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-[#EEF6FF] px-2.5 py-0.5 text-xs font-semibold text-[#5B9DFF]">
+                    <span className="rounded-full bg-[var(--primary-soft)] px-2.5 py-0.5 text-xs font-semibold text-[var(--primary)]">
                       {CONTENT_TYPE_LABELS[item.content_type] ?? item.content_type}
                     </span>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLES[item.status] ?? "bg-slate-100 text-slate-600"}`}>
                       {STATUS_LABELS[item.status] ?? item.status}
                     </span>
-                    <span className="text-xs text-[#5b6b8c]">
+                    <span className="text-xs text-[var(--text-secondary)]">
                       {TRIGGER_LABELS[item.trigger_reason] ?? item.trigger_reason}
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-[#1f2a44]">
+                  <p className="mt-2 text-sm text-[var(--foreground)]">
                     目标 ID：
                     <a
-                      className="text-[#3f86f5] hover:underline"
+                      className="text-[var(--primary-active)] hover:underline"
                       href={detailHref(item.content_type, item.target_id)}
                       target="_blank"
                       rel="noreferrer"
@@ -177,18 +177,18 @@ export default function AdminModerationPage() {
                       {item.target_id}
                     </a>
                   </p>
-                  <p className="mt-1 text-xs text-[#5b6b8c]">
+                  <p className="mt-1 text-xs text-[var(--text-secondary)]">
                     提交人：{item.submitter_user_id ?? "—"} · 提交时间：
                     {new Date(item.created_at).toLocaleString()}
                   </p>
                   {item.audit_remark && (
-                    <p className="mt-1 text-xs text-[#5b6b8c]">审核备注：{item.audit_remark}</p>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">审核备注：{item.audit_remark}</p>
                   )}
                 </div>
               </div>
 
               {item.status === "pending" && (
-                <div className="mt-4 border-t border-[#DCE9FF] pt-4">
+                <div className="mt-4 border-t border-[var(--border)] pt-4">
                   {rejectingId === item.id ? (
                     <div className="space-y-2">
                       <textarea

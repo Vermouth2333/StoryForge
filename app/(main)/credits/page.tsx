@@ -45,16 +45,16 @@ export default function CreditsPage() {
       />
 
       <div className="sf-card p-6">
-        <p className="text-sm text-[#5B6B8C]">当前余额</p>
-        <p className="mt-1 text-3xl font-semibold text-[#1F2A44]">{data?.balance ?? "—"}</p>
+        <p className="text-sm text-[var(--text-secondary)]">当前余额</p>
+        <p className="mt-1 text-3xl font-semibold text-[var(--foreground)]">{data?.balance ?? "—"}</p>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl bg-[#F8FBFF] p-3 text-sm text-[#5B6B8C]">
+          <div className="rounded-xl bg-[var(--background)] p-3 text-sm text-[var(--text-secondary)]">
             对话 {data?.costs.chat ?? 2} 积分 / 次
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-3 text-sm text-[#5B6B8C]">
+          <div className="rounded-xl bg-[var(--background)] p-3 text-sm text-[var(--text-secondary)]">
             配图 {data?.costs.image ?? 8} 积分 / 次
           </div>
-          <div className="rounded-xl bg-[#F8FBFF] p-3 text-sm text-[#5B6B8C]">
+          <div className="rounded-xl bg-[var(--background)] p-3 text-sm text-[var(--text-secondary)]">
             配视频 {data?.costs.video ?? 30} 积分 / 次
           </div>
         </div>
@@ -65,11 +65,11 @@ export default function CreditsPage() {
           <div key={pkg.id} className="sf-card flex flex-col p-6">
             <div className="mb-3 flex items-center gap-2">
               <IconBadge icon={Sparkles} tone="star" size="sm" />
-              <h3 className="text-base font-semibold text-[#1F2A44]">{pkg.name}</h3>
+              <h3 className="text-base font-semibold text-[var(--foreground)]">{pkg.name}</h3>
             </div>
-            <p className="text-2xl font-semibold text-[#1F2A44]">{pkg.credits} 积分</p>
-            <p className="mt-1 text-sm text-[#5B6B8C]">{pkg.priceLabel}</p>
-            <p className="mt-2 flex-1 text-sm text-[#5B6B8C]">{pkg.blurb}</p>
+            <p className="text-2xl font-semibold text-[var(--foreground)]">{pkg.credits} 积分</p>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">{pkg.priceLabel}</p>
+            <p className="mt-2 flex-1 text-sm text-[var(--text-secondary)]">{pkg.blurb}</p>
             <button
               type="button"
               className="sf-btn-primary mt-4"
