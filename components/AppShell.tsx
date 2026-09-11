@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Coins } from "lucide-react";
+import { Bell, Coins, Menu, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { IconBadge, NavIcons, NavTones } from "@/components/icons";
@@ -29,9 +29,9 @@ type ProfileLite = {
 
 function navClass(active: boolean) {
   return [
-    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-200 md:justify-center lg:justify-start",
+    "sf-nav-item sf-focus-ring flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all duration-200 md:justify-center lg:justify-start",
     active
-      ? "bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)] font-semibold text-[var(--primary)] shadow-sm border border-[var(--primary-muted)]"
+      ? "sf-nav-item--active bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)] font-semibold text-[var(--primary)] shadow-sm border border-[var(--primary-muted)]"
       : "text-[var(--text-secondary)] hover:bg-[var(--paper)] border border-transparent hover:border-[var(--border)]",
   ].join(" ");
 }
@@ -110,53 +110,60 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={[
-        "flex flex-col bg-[var(--background)] md:flex-row",
+        "sf-app-shell flex flex-col bg-[var(--background)] md:flex-row",
         lockViewport ? "h-dvh overflow-hidden" : "min-h-screen",
       ].join(" ")}
     >
-      <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-3 md:hidden">
+      <header className="sf-mobile-header sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-md px-3 md:hidden">
         <button
           type="button"
-          className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm text-[var(--foreground)]"
+          className="sf-focus-ring sf-mobile-menu-btn flex items-center justify-center w-10 h-10 rounded-xl border border-[var(--border)] text-[var(--foreground)] hover:bg-[var(--paper)] hover:border-[var(--primary-muted)] transition-all"
           onClick={() => setMobileOpen(true)}
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav-drawer"
+          aria-label="打开菜单"
         >
-          菜单
+          <Menu className="w-5 h-5" />
         </button>
         <Link href={profile ? "/market" : "/"} className="no-underline" aria-label="StoryForge 首页">
           <BrandLogo size={28} />
         </Link>
-        <Link href="/my#notifications" className="w-10 cursor-pointer text-right text-xs text-[var(--text-secondary)] no-underline">
-          {unread > 0 ? unread : ""}
+        <Link 
+          href="/my#notifications" 
+          className={`sf-focus-ring sf-mobile-notify flex items-center justify-center w-10 h-10 rounded-xl no-underline transition-all ${unread > 0 ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-secondary)]'}`}
+          aria-label={`通知${unread > 0 ? `（${unread}条未读）` : ''}`}
+        >
+          {unread > 0 ? (
+            <span className="text-xs font-bold">{unread > 99 ? '99+' : unread}</span>
+          ) : (
+            <Bell className="w-4 h-4" />
+          )}
         </Link>
       </header>
 
-      {mobileOpen ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          aria-label="关闭菜单"
-          onClick={() => setMobileOpen(false)}
-        />
-      ) : null}
+      <div 
+        className={`sf-drawer-backdrop fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-300 md:hidden ${mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
 
       <aside
         id="mobile-nav-drawer"
         className={[
-          "sf-sidebar-scroll fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)] shadow-[0_8px_30px_rgba(66,133,244,0.15)] transition-transform duration-300 md:sticky md:top-0 md:z-0 md:h-screen md:max-w-none md:translate-x-0 md:shadow-none",
+          "sf-sidebar sf-sidebar-scroll fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--surface)] transition-transform duration-300 ease-out md:sticky md:top-0 md:z-0 md:h-screen md:max-w-none md:translate-x-0",
           "md:w-16 md:min-w-16 lg:w-64 lg:min-w-64",
-          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          mobileOpen ? "translate-x-0 shadow-[0_8px_30px_rgba(99,102,241,0.2)]" : "-translate-x-full md:translate-x-0 md:shadow-none",
         ].join(" ")}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:hidden bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)]">
+        <div className="sf-sidebar-header flex h-16 shrink-0 items-center justify-between border-b border-[var(--border)] px-4 md:hidden bg-gradient-to-r from-[var(--primary-soft)] to-[var(--surface)]">
           <span className="font-bold text-[var(--foreground)]">导航</span>
           <button
             type="button"
-            className="rounded-xl px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--paper)] transition-colors"
+            className="sf-focus-ring flex items-center justify-center w-9 h-9 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--paper)] hover:text-[var(--primary)] transition-colors"
             onClick={() => setMobileOpen(false)}
+            aria-label="关闭菜单"
           >
-            关闭
+            <X className="w-5 h-5" />
           </button>
         </div>
 
