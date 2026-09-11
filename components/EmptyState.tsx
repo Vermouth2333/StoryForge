@@ -7,19 +7,29 @@ export function EmptyState({
   tone = "primary",
   title,
   description,
+  action,
   className = "",
 }: {
   icon: LucideIcon;
   tone?: IconTone;
   title?: string;
   description: ReactNode;
+  action?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center px-4 py-10 text-center ${className}`.trim()}>
-      <IconBadge icon={icon} tone={tone} size="xl" className="mb-4" />
-      {title ? <p className="mb-1 text-base font-semibold text-[#1F2A44]">{title}</p> : null}
-      <div className="max-w-md text-sm leading-relaxed text-[#5B6B8C]">{description}</div>
+    <div className={`sf-empty-state sf-reveal flex flex-col items-center justify-center px-6 py-12 text-center ${className}`.trim()}>
+      <div className="sf-empty-icon-wrapper mb-5">
+        <div className="sf-empty-icon-glow" aria-hidden />
+        <IconBadge icon={icon} tone={tone} size="xl" className="sf-empty-icon relative z-10" />
+      </div>
+      {title ? (
+        <p className="sf-empty-title mb-2 text-base font-semibold text-[var(--foreground)]">{title}</p>
+      ) : null}
+      <div className="sf-empty-desc max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
+        {description}
+      </div>
+      {action ? <div className="sf-empty-action mt-5">{action}</div> : null}
     </div>
   );
 }

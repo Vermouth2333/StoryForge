@@ -1569,6 +1569,77 @@ select.sf-input {
   border-color: var(--border-subtle);
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   EMPTY / LOADING / ERROR STATES
+   Story-themed feedback states
+   ═══════════════════════════════════════════════════════════════════ */
+
+.sf-empty-state {
+  position: relative;
+}
+
+.sf-empty-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-empty-icon-glow {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  animation: sf-empty-pulse 3s ease-in-out infinite;
+}
+
+@keyframes sf-empty-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 0.3; }
+}
+
+.sf-empty-icon {
+  animation: sf-empty-float 4s ease-in-out infinite;
+}
+
+@keyframes sf-empty-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.sf-empty-title {
+  background: linear-gradient(120deg, var(--foreground) 0%, var(--primary) 50%, var(--foreground) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Loading spinner enhancements */
+.sf-loading {
+  position: relative;
+}
+
+.sf-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
+}
+
+.sf-loading::after {
+  border-width: 3px;
+  border-color: var(--primary-soft);
+  border-top-color: var(--primary);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2);
+}
+
+.sf-loading-sm::after {
+  border-width: 2px;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+}
+
 /* Story artifact cards - feel like items you pick up */
 .market-card {
   position: relative;
