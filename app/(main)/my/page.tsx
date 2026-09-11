@@ -408,52 +408,56 @@ export default function MyPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
+    <div className="sf-my-page sf-page-enter space-y-6">
       <PageHero
         title="我的创作空间"
         subtitle="管理你的故事、角色和世界，查看通知与收藏"
       />
 
       {/* 通知和收藏 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="sf-my-top-grid sf-stagger grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* 通知中心 */}
-        <div id="notifications" className="sf-card scroll-mt-24 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
+        <section id="notifications" className="sf-my-card sf-card sf-lift scroll-mt-24 p-6">
+          <div className="sf-my-card-header flex items-center justify-between mb-4">
+            <h3 className="sf-my-card-title text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
               <IconBadge icon={Bell} tone="notify" size="md" /> 通知中心
             </h3>
             <div className="flex gap-2">
-              <button className="sf-tag" onClick={loadNotifications}>
+              <button className="sf-tag sf-focus-ring sf-press" onClick={loadNotifications}>
                 刷新
               </button>
-              <button className="sf-tag" onClick={markAllRead}>
+              <button className="sf-tag sf-focus-ring sf-press" onClick={markAllRead}>
                 全部已读
               </button>
             </div>
           </div>
-          <ul className="space-y-3 max-h-[400px] overflow-y-auto">
-            {notifications.map((item) => (
-              <li key={item.id} className="rounded-xl bg-[var(--background)] p-4">
+          <ul className="sf-my-list space-y-3 max-h-[400px] overflow-y-auto">
+            {notifications.map((item, i) => (
+              <li 
+                key={item.id} 
+                className={`sf-my-list-item sf-lift rounded-xl bg-gradient-to-r from-[var(--background)] to-[var(--primary-soft)] p-4 border border-[var(--border)] ${!item.is_read ? 'border-l-4 border-l-[var(--primary)]' : ''}`}
+              >
                 <p className="text-sm text-[var(--foreground)]">{formatNotification(item)}</p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">{new Date(item.created_at).toLocaleString()}</p>
               </li>
             ))}
             {notifications.length === 0 && (
-              <li className="text-center py-8 text-[var(--text-secondary)]">暂无通知</li>
+              <li className="sf-my-empty text-center py-8 text-[var(--text-secondary)]">暂无通知</li>
             )}
           </ul>
-        </div>
+        </section>
 
         {/* 我的收藏 */}
-        <div className="sf-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
+        <section className="sf-my-card sf-card sf-lift p-6">
+          <div className="sf-my-card-header flex items-center justify-between mb-4">
+            <h3 className="sf-my-card-title text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
               <IconBadge icon={Star} tone="star" size="md" /> 我的收藏
             </h3>
-            <button className="sf-tag" onClick={loadMyFavorites}>
+            <button className="sf-tag sf-focus-ring sf-press" onClick={loadMyFavorites}>
               刷新
             </button>
           </div>
-          <ul className="space-y-3 max-h-[400px] overflow-y-auto">
+          <ul className="sf-my-list space-y-3 max-h-[400px] overflow-y-auto">
             {myFavorites.map((row) => {
               const href =
                 row.target_type === "character"
@@ -461,56 +465,59 @@ export default function MyPage() {
                   : row.target_type === "world"
                     ? `/worlds/${row.target_id}`
                     : `/stories/${row.target_id}`;
+              const typeTone = row.target_type === "character" ? "character" : row.target_type === "world" ? "world" : "story";
               return (
                 <li
                   key={row.favorite_row_id}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-[var(--background)] p-4"
+                  className="sf-my-list-item sf-lift flex items-center justify-between gap-3 rounded-xl bg-[var(--surface)] p-4 border border-[var(--border)]"
                 >
                   <div className="min-w-0">
-                    <span className="text-xs uppercase tracking-wider text-[#5b9dff] font-semibold">
-                      {row.target_type}
+                    <span className={`text-xs uppercase tracking-wider font-semibold text-[var(--${typeTone}-color)]`}>
+                      {row.target_type === "story" ? "故事" : row.target_type === "character" ? "角色" : "世界"}
                     </span>
                     <p className="font-semibold text-[var(--foreground)] truncate mt-1">
                       {row.title || row.target_id}
                     </p>
                   </div>
-                  <Link className="sf-tag shrink-0" href={href}>
+                  <Link className="sf-tag sf-focus-ring sf-press shrink-0" href={href}>
                     打开
                   </Link>
                 </li>
               );
             })}
             {myFavorites.length === 0 && (
-              <li className="text-center py-8 text-[var(--text-secondary)]">暂无收藏</li>
+              <li className="sf-my-empty text-center py-8 text-[var(--text-secondary)]">暂无收藏</li>
             )}
           </ul>
-        </div>
+        </section>
       </div>
 
-      <div className="sf-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[var(--foreground)]">我的人设面具</h3>
+      <section className="sf-my-card sf-card sf-reveal sf-lift p-6" style={{ animationDelay: "0.1s" }}>
+        <div className="sf-my-card-header mb-4 flex items-center justify-between">
+          <h3 className="sf-my-card-title text-lg font-bold text-[var(--foreground)] flex items-center gap-2">
+            <span className="text-xl">🎭</span> 我的人设面具
+          </h3>
           <div className="flex gap-2">
-            <button className="sf-tag" onClick={loadPersonaMasks}>刷新</button>
-            <Link className="sf-tag" href="/compose?tab=persona">创建</Link>
+            <button className="sf-tag sf-focus-ring sf-press" onClick={loadPersonaMasks}>刷新</button>
+            <Link className="sf-tag sf-focus-ring sf-press !bg-[var(--mask-bg)] !text-[var(--mask-color)] !border-[var(--mask-color)]/20" href="/compose?tab=persona">创建</Link>
           </div>
         </div>
-        <ul className="space-y-3">
+        <ul className="sf-my-list space-y-3">
           {personaMasks.map((mask) => (
-            <li key={mask.id} className="flex items-center justify-between gap-3 rounded-xl bg-[var(--background)] p-4">
+            <li key={mask.id} className="sf-my-list-item sf-lift flex items-center justify-between gap-3 rounded-xl bg-gradient-to-r from-[var(--mask-bg)] to-[var(--surface)] p-4 border border-[var(--border)]">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-[var(--foreground)]">{mask.name}</p>
                 <p className="mt-1 line-clamp-1 text-xs text-[var(--text-secondary)]">{mask.summary || "暂无简介"}</p>
               </div>
               <div className="flex shrink-0 gap-2">
-                <Link className="sf-tag text-xs" href={`/persona-masks/${mask.id}`}>编辑</Link>
-                <button className="sf-tag text-xs !text-[#8B2E2E]" onClick={() => deletePersonaMask(mask)}>删除</button>
+                <Link className="sf-tag sf-focus-ring sf-press text-xs" href={`/persona-masks/${mask.id}`}>编辑</Link>
+                <button className="sf-tag sf-focus-ring sf-press text-xs !text-[var(--mask-color)] !border-[var(--mask-color)]/30" onClick={() => deletePersonaMask(mask)}>删除</button>
               </div>
             </li>
           ))}
-          {personaMasks.length === 0 && <li className="py-8 text-center text-[var(--text-secondary)]">暂无人设面具</li>}
+          {personaMasks.length === 0 && <li className="sf-my-empty py-8 text-center text-[var(--text-secondary)]">暂无人设面具</li>}
         </ul>
-      </div>
+      </section>
 
       {/* 我的内容 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
