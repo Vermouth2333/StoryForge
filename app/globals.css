@@ -1468,6 +1468,107 @@ select.sf-input {
   50% { transform: translateY(-8px); }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   DETAIL PAGES - Story, Character, World Details
+   ═══════════════════════════════════════════════════════════════════ */
+
+.sf-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sf-detail-card {
+  position: relative;
+  transition: box-shadow 0.3s ease;
+}
+
+.sf-detail-card:hover {
+  box-shadow: var(--shadow-card);
+}
+
+.sf-detail-title {
+  background: linear-gradient(120deg, var(--foreground) 0%, var(--primary) 50%, var(--foreground) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sf-detail-section-title {
+  position: relative;
+}
+
+.sf-section-icon {
+  display: inline-flex;
+  font-size: 1.125rem;
+}
+
+.sf-detail-stats {
+  position: relative;
+}
+
+.sf-stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.sf-stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.5) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sf-stat-card:hover::before {
+  opacity: 1;
+}
+
+.sf-action-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.sf-action-card--primary {
+  position: relative;
+}
+
+.sf-action-card--primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 30%, rgba(255, 255, 255, 0.2) 50%, transparent 70%);
+  animation: sf-shine 3s ease-in-out infinite;
+}
+
+@keyframes sf-shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.sf-relation-item {
+  position: relative;
+}
+
+.sf-empty-cover {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-cover-frame {
+  box-shadow: var(--shadow-soft);
+}
+
+.sf-tag--subtle {
+  background: var(--paper);
+  color: var(--text-secondary);
+  border-color: var(--border-subtle);
+}
+
 /* Story artifact cards - feel like items you pick up */
 .market-card {
   position: relative;
